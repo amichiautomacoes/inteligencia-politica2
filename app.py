@@ -17,6 +17,7 @@ def _cargo_label(value: str) -> str:
     labels = {
         "Estaduais": "Deputado Estadual",
         "Federais": "Deputado Federal",
+        "Deputados": "Deputado",
     }
     return labels.get(value, value)
 

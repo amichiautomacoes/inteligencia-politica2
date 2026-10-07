@@ -46,7 +46,7 @@ Dois blocos seguem parcialmente implementados:
 ├── .streamlit/config.toml          # Telemetria do Streamlit desativada
 ├── requirements.txt                # Dependências da aplicação
 ├── scripts/requirements.txt        # Dependência adicional dos scripts geográficos
-└── Dockerfile                      # Imagem Python 3.12, porta 8502
+└── Dockerfile                      # Imagem Python 3.12, porta 8503
 ```
 
 Os módulos auxiliares ficam fora de `pages/` para que o Streamlit não os registre como páginas.
@@ -75,7 +75,7 @@ Crie `.env` a partir de `.env.example` e preencha o token quando o bucket não f
 
 ```env
 HF_BUCKET_URL="hf://buckets/amichianalista/mkt-politico"
-HF_VISUALIZACAO_PREFIX="deputados/estaduais/2022"
+HF_VISUALIZACAO_PREFIX="vereadores"
 HF_GEOGRAPHY_PREFIX="IBGE/malha_mapas"
 HF_GEOGRAPHY_REFERENCE_PREFIX="IBGE/MG/dadosterritorio"
 HF_TOKEN="seu_token"
@@ -84,7 +84,7 @@ HF_TOKEN="seu_token"
 | Variável | Uso |
 | --- | --- |
 | `HF_BUCKET_URL` | Raiz do bucket acessado pelo `HfFileSystem`; obrigatória |
-| `HF_VISUALIZACAO_PREFIX` | Raiz dos candidatos e de seus artefatos; padrão `deputados/estaduais/2022` |
+| `HF_VISUALIZACAO_PREFIX` | Raiz dos candidatos e de seus artefatos; padrão `vereadores` |
 | `HF_GEOGRAPHY_PREFIX` | GeoParquets otimizados usados nos mapas |
 | `HF_GEOGRAPHY_REFERENCE_PREFIX` | Tabelas auxiliares de códigos e nomes territoriais |
 | `HF_TOKEN` | Autenticação do Hugging Face; não deve ser versionada |
@@ -96,10 +96,10 @@ HF_TOKEN="seu_token"
 O formato canônico é:
 
 ```text
-deputados/{estaduais|federais}/{ano}/{slug_do_candidato}/...
+vereadores/{slug_do_candidato}/{ano}/...
 ```
 
-`hf_sync.deputado_parts()` extrai ano, cargo e nome do caminho remoto. `selected_deputado_files()` aplica o recorte do deputado escolhido na barra lateral. Os helpers compartilhados só voltam à lista completa quando esse recorte não encontra arquivo algum, para que a página possa exibir o estado de indisponibilidade.
+`hf_sync.deputado_parts()` extrai ano e nome do caminho remoto. Como o formato não codifica o cargo, candidatos nesse layout são agrupados sob o cargo definido pelo prefixo na interface. `selected_deputado_files()` aplica o recorte do candidato escolhido na barra lateral. Os helpers compartilhados só voltam à lista completa quando esse recorte não encontra arquivo algum, para que a página possa exibir o estado de indisponibilidade.
 
 ## Contrato de dados eleitorais
 
@@ -209,11 +209,11 @@ Eles não são executados na inicialização do dashboard.
 
 ## Docker e deploy
 
-A imagem usa Python 3.12 slim, executa o Streamlit na porta `8502` e possui healthcheck em `/_stcore/health`:
+A imagem usa Python 3.12 slim, executa o Streamlit na porta `8503` e possui healthcheck em `/_stcore/health`:
 
 ```powershell
 docker build -t inteligencia-politica .
-docker run --env-file .env -p 8502:8502 inteligencia-politica
+docker run --env-file .env -p 8503:8503 inteligencia-politica
 ```
 
 Configuração usada no painel de deploy:
@@ -221,7 +221,7 @@ Configuração usada no painel de deploy:
 - repositório: `amichiautomacoes/inteligencia-politica`;
 - branch: `main`;
 - contexto de build: `/`;
-- porta: `8502`.
+- porta: `8503`.
 
 O `Dockerfile` copia somente o necessário ao runtime (`app.py`, `hf_sync.py`, `pages/`, `src/`, `assets/` e `.streamlit/config.toml`). Dados locais, caches, `.env` e scripts de preparação ficam fora da imagem.
 

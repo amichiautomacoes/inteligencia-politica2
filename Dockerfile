@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV STREAMLIT_SERVER_HEADLESS=true
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
-ENV STREAMLIT_SERVER_PORT=8502
+ENV STREAMLIT_SERVER_PORT=8503
 
 WORKDIR /app
 
@@ -23,9 +23,9 @@ COPY src ./src
 COPY assets ./assets
 COPY .streamlit/config.toml ./.streamlit/config.toml
 
-EXPOSE 8502
+EXPOSE 8503
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:8502/_stcore/health || exit 1
+    CMD curl -f http://localhost:8503/_stcore/health || exit 1
 
-CMD ["streamlit", "run", "app.py", "--server.port=8502", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "app.py", "--server.port=8503", "--server.address=0.0.0.0"]

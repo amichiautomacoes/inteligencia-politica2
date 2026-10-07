@@ -9,10 +9,10 @@ import streamlit as st
 from huggingface_hub import HfFileSystem
 
 
-DATA_DIR = Path("data") / "deputados"
+DATA_DIR = Path(__file__).resolve().parent / "data" / "vereadores"
 SUPPORTED_SUFFIXES = {".csv", ".parquet", ".json", ".jsonl", ".xlsx", ".xls", ".jpg", ".jpeg", ".png"}
 DEFAULT_VISUALIZATION_YEAR = "2022"
-DEFAULT_VISUALIZACAO_PREFIX = "deputados/estaduais/2022"
+DEFAULT_VISUALIZACAO_PREFIX = "vereadores"
 
 
 def load_env(path: str | Path = ".env") -> dict[str, str]:
@@ -31,17 +31,47 @@ def load_env(path: str | Path = ".env") -> dict[str, str]:
     return values
 
 
-def hf_visualizacao_path(env: dict[str, str] | None = None) -> str:
-    config = env or load_env()
-    bucket_url = config.get("HF_BUCKET_URL", "").rstrip("/")
-    prefix = (
+def _visualizacao_prefix(config: dict[str, str]) -> str:
+    return (
         config.get("HF_VISUALIZACAO_PREFIX")
         or config.get("HF_DEPUTADOS_PREFIX")
         or DEFAULT_VISUALIZACAO_PREFIX
-    )
+    ).strip("/")
+
+
+def hf_visualizacao_path(env: dict[str, str] | None = None) -> str:
+    config = env or load_env()
+    bucket_url = config.get("HF_BUCKET_URL", "").rstrip("/")
+    prefix = _visualizacao_prefix(config)
     if not bucket_url:
         raise RuntimeError("HF_BUCKET_URL nao foi configurado no .env.")
     return f"{bucket_url}/{prefix.strip('/')}"
+
+
+def _visualizacao_relative_parts(file_name: str) -> tuple[str, ...]:
+    """Remove bucket e prefixo configurado de um caminho retornado pelo HF."""
+    normalized = file_name.replace("\\", "/").removeprefix("hf://").strip("/")
+    parts = PurePosixPath(normalized).parts
+    env = load_env()
+    prefix = _visualizacao_prefix(env)
+    prefix_parts = PurePosixPath(prefix).parts
+
+    bucket = env.get("HF_BUCKET_URL", "").removeprefix("hf://").strip("/")
+    bucket_parts = PurePosixPath(bucket).parts if bucket else ()
+    roots = (bucket_parts + prefix_parts, prefix_parts)
+    for root in roots:
+        if not root:
+            continue
+        for start in range(len(parts) - len(root) + 1):
+            if parts[start : start + len(root)] == root:
+                return parts[start + len(root) :]
+
+    # Keep compatibility with paths from older listings that contain the
+    # visualization directory but omit the bucket root or local config.
+    for index in range(len(parts) - 1, -1, -1):
+        if parts[index] in {"vereadores", "deputados"}:
+            return parts[index + 1 :]
+    return parts
 
 
 @st.cache_resource(show_spinner=False)
@@ -77,14 +107,15 @@ def data_files() -> list[str]:
 
 
 def deputado_parts(file_name: str) -> dict[str, str] | None:
-    parts = PurePosixPath(file_name.removeprefix("hf://")).parts
-    if "deputados" in parts:
-        parts = parts[parts.index("deputados") + 1 :]
+    parts = _visualizacao_relative_parts(file_name)
     if len(parts) < 3:
         return None
 
-    if parts[0] in {"estaduais", "federais"} and parts[1].isdigit():
+    if len(parts) >= 3 and parts[0] in {"estaduais", "federais"} and parts[1].isdigit():
         cargo, ano, nome_slug = parts[0], parts[1], parts[2]
+    elif len(parts) >= 3 and parts[1].isdigit():
+        nome_slug, ano = parts[0], parts[1]
+        cargo = PurePosixPath(_visualizacao_prefix(load_env())).name
     elif len(parts) >= 4 and parts[2].isdigit():
         cargo, nome_slug, ano = parts[0], parts[1], parts[2]
     else:

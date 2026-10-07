@@ -14,7 +14,8 @@ OUTPUT = ROOT / "data" / "geopedia_mg" / "MG_setores_mapa_CD2022.parquet"
 
 def main() -> None:
     env = load_env(ROOT / ".env")
-    path = env["HF_BUCKET_URL"].rstrip("/") + "/IBGE/MG/dadosterritorio/MG_setores_CD2022.parquet"
+    prefix = env.get("HF_GEOGRAPHY_REFERENCE_PREFIX", "IBGE/MG/dadosterritorio").strip("/")
+    path = f"{env['HF_BUCKET_URL'].rstrip('/')}/{prefix}/MG_setores_CD2022.parquet"
     with hf_filesystem(env.get("HF_TOKEN")).open(path, "rb") as source:
         sectors = gpd.read_parquet(source, columns=["code_tract", "code_muni", "code_neighborhood", "name_neighborhood", "geometry"])
     sectors = sectors.drop_duplicates("code_tract")

@@ -42,7 +42,8 @@ def main() -> None:
 
     env = load_env(ROOT / ".env")
     fs = hf_filesystem(env.get("HF_TOKEN"))
-    sector_path = env["HF_BUCKET_URL"].rstrip("/") + "/IBGE/MG/dadosterritorio/MG_setores_CD2022.parquet"
+    prefix = env.get("HF_GEOGRAPHY_REFERENCE_PREFIX", "IBGE/MG/dadosterritorio").strip("/")
+    sector_path = f"{env['HF_BUCKET_URL'].rstrip('/')}/{prefix}/MG_setores_CD2022.parquet"
     with fs.open(sector_path, "rb") as source:
         sectors = pd.read_parquet(source, columns=["code_tract", "code_muni", "code_neighborhood"])
     sectors = sectors.drop_duplicates("code_tract")

@@ -11,7 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from hf_sync import data_files, file_by_kind, hf_filesystem, load_env, load_parquet, selected_deputado_files
+from hf_sync import data_files, file_by_kind, hf_filesystem, hf_visualizacao_path, load_env, load_parquet, selected_deputado_files
 from eleitoral.maps.dna_geo_reference import load_geo_reference
 from eleitoral.maps.choropleth_maps import (
     ACTION_COLORS,
@@ -906,7 +906,7 @@ def _current_files() -> list[str]:
         st.session_state["deputados_files"] = files
         return files
     except Exception as exc:
-        st.error(f"Nao consegui ler a pasta `deputados` no HF: {exc}")
+        st.error(f"Falha ao ler `{hf_visualizacao_path()}` no HF. Confira HF_TOKEN. Detalhe: {exc}")
         return []
 
 

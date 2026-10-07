@@ -89,7 +89,7 @@ HF_TOKEN="seu_token"
 | `HF_GEOGRAPHY_REFERENCE_PREFIX` | Tabelas auxiliares de códigos e nomes territoriais |
 | `HF_TOKEN` | Autenticação do Hugging Face; não deve ser versionada |
 
-`HF_DEPUTADOS_PREFIX` ainda é aceito como nome legado quando `HF_VISUALIZACAO_PREFIX` não está definido. As demais chaves presentes no `.env` local não são consumidas pelo dashboard.
+O prefixo de visualização padrão é `vereadores`; as leituras do dashboard usam os quatro prefixos configurados acima. `HF_TOKEN` é necessário quando o bucket exige autenticação.
 
 ### Descoberta de candidatos
 

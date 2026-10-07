@@ -12,6 +12,7 @@ from hf_sync import (
     file_by_kind,
     first_existing_column,
     hf_filesystem,
+    hf_visualizacao_path,
     load_env,
     load_parquet,
     selected_deputado_files,
@@ -439,7 +440,7 @@ def _current_files() -> list[str]:
         st.session_state["deputados_files"] = files
         return files
     except Exception as exc:
-        st.error(f"Nao consegui ler a pasta `deputados` no HF: {exc}")
+        st.error(f"Falha ao ler `{hf_visualizacao_path()}` no HF. Confira HF_TOKEN. Detalhe: {exc}")
         return []
 
 

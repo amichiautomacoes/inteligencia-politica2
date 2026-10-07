@@ -32,11 +32,7 @@ def load_env(path: str | Path = ".env") -> dict[str, str]:
 
 
 def _visualizacao_prefix(config: dict[str, str]) -> str:
-    return (
-        config.get("HF_VISUALIZACAO_PREFIX")
-        or config.get("HF_DEPUTADOS_PREFIX")
-        or DEFAULT_VISUALIZACAO_PREFIX
-    ).strip("/")
+    return (config.get("HF_VISUALIZACAO_PREFIX") or DEFAULT_VISUALIZACAO_PREFIX).strip("/")
 
 
 def hf_visualizacao_path(env: dict[str, str] | None = None) -> str:
@@ -66,11 +62,6 @@ def _visualizacao_relative_parts(file_name: str) -> tuple[str, ...]:
             if parts[start : start + len(root)] == root:
                 return parts[start + len(root) :]
 
-    # Keep compatibility with paths from older listings that contain the
-    # visualization directory but omit the bucket root or local config.
-    for index in range(len(parts) - 1, -1, -1):
-        if parts[index] in {"vereadores", "deputados"}:
-            return parts[index + 1 :]
     return parts
 
 

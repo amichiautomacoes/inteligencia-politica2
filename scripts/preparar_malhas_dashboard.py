@@ -25,7 +25,7 @@ LAYERS = (
 def main() -> None:
     env = load_env(ROOT / ".env")
     fs = hf_filesystem(env.get("HF_TOKEN"))
-    prefix = env.get("HF_GEOGRAPHY_SOURCE_PREFIX", "IBGE/MG/dadosterritorio").strip("/")
+    prefix = env.get("HF_GEOGRAPHY_REFERENCE_PREFIX", "IBGE/MG/dadosterritorio").strip("/")
     remote = f"{env['HF_BUCKET_URL'].rstrip('/')}/{prefix}"
     OUTPUT.mkdir(exist_ok=True)
 

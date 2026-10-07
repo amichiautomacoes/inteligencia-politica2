@@ -35,7 +35,8 @@ def main() -> None:
         raise ValueError("O ZIP contém códigos de bairro duplicados.")
 
     env = load_env(ROOT / ".env")
-    remote = env["HF_BUCKET_URL"].rstrip("/") + "/IBGE/MG/dadosterritorio/MG_setores_CD2022.parquet"
+    prefix = env.get("HF_GEOGRAPHY_REFERENCE_PREFIX", "IBGE/MG/dadosterritorio").strip("/")
+    remote = f"{env['HF_BUCKET_URL'].rstrip('/')}/{prefix}/MG_setores_CD2022.parquet"
     with hf_filesystem(env.get("HF_TOKEN")).open(remote, "rb") as source:
         sectors = pd.read_parquet(source, columns=["code_tract", "code_muni", "code_neighborhood"])
     sectors = sectors.drop_duplicates("code_tract")

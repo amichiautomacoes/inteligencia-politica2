@@ -11,7 +11,9 @@ from huggingface_hub import HfFileSystem
 
 DATA_DIR = Path(__file__).resolve().parent / "data" / "vereadores"
 SUPPORTED_SUFFIXES = {".csv", ".parquet", ".json", ".jsonl", ".xlsx", ".xls", ".jpg", ".jpeg", ".png"}
-DEFAULT_VISUALIZATION_YEAR = "2022"
+DEFAULT_VISUALIZATION_YEAR = "2024"
+FALLBACK_VISUALIZATION_YEAR = "2020"
+VISUALIZATION_YEAR_PRIORITY = (DEFAULT_VISUALIZATION_YEAR, FALLBACK_VISUALIZATION_YEAR)
 DEFAULT_VISUALIZACAO_PREFIX = "vereadores"
 
 
@@ -187,39 +189,56 @@ def path_filter_options(files: list[str]) -> dict[str, list[str]]:
 
 
 def deputados_index(files: list[str]) -> list[dict[str, str]]:
-    seen: set[tuple[str, str, str]] = set()
-    rows: list[dict[str, str]] = []
+    years_by_candidate: dict[tuple[str, str], set[str]] = {}
 
     for file_name in files:
         parsed = deputado_parts(file_name)
         if not parsed:
             continue
 
-        key = (parsed["ano"], parsed["cargo"], parsed["nome"])
-        if key in seen:
+        key = (parsed["cargo"], parsed["nome"])
+        years_by_candidate.setdefault(key, set()).add(parsed["ano"])
+
+    rows: list[dict[str, str]] = []
+    for (cargo, nome), years in years_by_candidate.items():
+        selected_year = next((year for year in VISUALIZATION_YEAR_PRIORITY if year in years), None)
+        if selected_year is None:
             continue
+        rows.append({"Ano": selected_year, "Cargo": cargo, "Nome": nome})
 
-        seen.add(key)
-        rows.append({"Ano": parsed["ano"], "Cargo": parsed["cargo"], "Nome": parsed["nome"]})
-
-    return sorted(rows, key=lambda row: (row["Ano"], row["Cargo"], row["Nome"]))
+    return sorted(
+        rows,
+        key=lambda row: (
+            VISUALIZATION_YEAR_PRIORITY.index(row["Ano"]),
+            row["Cargo"],
+            row["Nome"],
+        ),
+    )
 
 
 def selected_deputado_files(files: list[str], filters: dict[str, str]) -> list[str]:
-    selected: list[str] = []
-    selected_year = filters.get("ano") or DEFAULT_VISUALIZATION_YEAR
-    for file_name in files:
-        parsed = deputado_parts(file_name)
-        if not parsed:
-            continue
-        if selected_year not in (None, "Todos", parsed["ano"]):
-            continue
-        if filters.get("cargo") not in (None, "Todos", parsed["cargo"]):
-            continue
-        if filters.get("nome") not in (None, "Todos", parsed["nome"]):
-            continue
-        selected.append(file_name)
-    return selected
+    parsed_files = [(file_name, deputado_parts(file_name)) for file_name in files]
+    candidate_files = [
+        (file_name, parsed)
+        for file_name, parsed in parsed_files
+        if parsed
+        and filters.get("cargo") in (None, "Todos", parsed["cargo"])
+        and filters.get("nome") in (None, "Todos", parsed["nome"])
+    ]
+
+    requested_year = filters.get("ano")
+    available_years = {parsed["ano"] for _, parsed in candidate_files}
+    if requested_year in (None, "", "Todos") or requested_year not in available_years:
+        requested_year = next(
+            (year for year in VISUALIZATION_YEAR_PRIORITY if year in available_years),
+            DEFAULT_VISUALIZATION_YEAR,
+        )
+
+    return [
+        file_name
+        for file_name, parsed in candidate_files
+        if parsed["ano"] == requested_year
+    ]
 
 
 def file_by_kind(files: list[str], kind: str) -> str | None:

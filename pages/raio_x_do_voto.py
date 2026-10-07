@@ -11,7 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from hf_sync import data_files, file_by_kind, hf_filesystem, hf_visualizacao_path, load_env, load_parquet, selected_deputado_files
+from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, file_by_kind, hf_filesystem, hf_visualizacao_path, load_env, load_parquet, selected_deputado_files
 from eleitoral.maps.dna_geo_reference import load_geo_reference
 from eleitoral.maps.choropleth_maps import (
     ACTION_COLORS,
@@ -927,7 +927,7 @@ def _selected_deputado_label() -> dict[str, str]:
     return {
         "nome": str(filters.get("nome") or "Todos").upper(),
         "cargo": cargo_labels.get(cargo, cargo).upper(),
-        "ano": str(filters.get("ano") or "2022"),
+        "ano": str(filters.get("ano") or DEFAULT_VISUALIZATION_YEAR),
     }
 
 
@@ -1634,8 +1634,12 @@ def _local_politics_municipality_dialog(
         errors="coerce",
     ).fillna(0).sum()
     if votes <= 0:
+        selected_year = str(
+            st.session_state.get("deputados_filters", {}).get("ano")
+            or DEFAULT_VISUALIZATION_YEAR
+        )
         votes = pd.to_numeric(
-            pd.Series([capital.get("qt_votos_candidato_2022")]),
+            pd.Series([capital.get(f"qt_votos_candidato_{selected_year}")]),
             errors="coerce",
         ).fillna(0).iloc[0]
     market_share_values = pd.to_numeric(

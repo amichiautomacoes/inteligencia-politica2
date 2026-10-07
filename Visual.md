@@ -4,7 +4,7 @@ Este documento registra **a interface implementada hoje** nas três páginas do 
 
 ## 1. Visão geral da experiência
 
-O produto é um painel de inteligência eleitoral para deputados, com três rotas. **Raio X Eleitoral** mostra a votação de 2022, sua distribuição territorial, concentração, atuação parlamentar e custo do voto. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
+O produto é um painel de inteligência eleitoral para deputados, com três rotas. **Raio X Eleitoral** mostra a votação de 2024, sua distribuição territorial, concentração, atuação parlamentar e custo do voto; usa 2020 quando o candidato não tem dados de 2024. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
 
 O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher o deputado e navegar entre páginas. Um controle segmentado dentro da capa também alterna as três rotas e indica qual está ativa.
 
@@ -37,7 +37,7 @@ No canto superior direito há uma cápsula de três opções: **Raio X Eleitoral
 
 | Página | Título do hero | Subtítulo |
 | --- | --- | --- |
-| Raio X | `RAIO X da votação 2022` (ano conforme o deputado) | `Análises descritivas geográficas e do perfil do eleitor na última eleição.` |
+| Raio X | `RAIO X da votação 2024` (2020 quando não há dados de 2024) | `Análises descritivas geográficas e do perfil do eleitor na última eleição.` |
 | DNA | `DNA do Eleitor` | `Quem é, onde está e como se comporta o eleitor determinante da candidatura.` |
 | Expansão 2030 | `Expansão de votos para 2030` | `Oportunidades territoriais para ampliar a votação em 2030.` |
 

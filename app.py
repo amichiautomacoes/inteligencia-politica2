@@ -5,7 +5,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from hf_sync import data_files, deputados_index
+from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, deputados_index
 
 
 SRC_DIR = Path(__file__).resolve().parent / "src"
@@ -84,7 +84,11 @@ with st.sidebar:
         }
         st.caption(f"{_cargo_label(selected_deputado['Cargo'])} - {selected_deputado['Ano']}")
     else:
-        st.session_state["deputados_filters"] = {"ano": "2022", "cargo": "Todos", "nome": "Todos"}
+        st.session_state["deputados_filters"] = {
+            "ano": DEFAULT_VISUALIZATION_YEAR,
+            "cargo": "Todos",
+            "nome": "Todos",
+        }
         st.info("Nenhum deputado encontrado no caminho configurado.")
     st.session_state["deputados_files"] = files
 

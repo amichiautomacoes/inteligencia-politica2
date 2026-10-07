@@ -99,7 +99,7 @@ O formato canônico é:
 vereadores/{slug_do_candidato}/{ano}/...
 ```
 
-`hf_sync.deputado_parts()` extrai ano e nome do caminho remoto. Como o formato não codifica o cargo, candidatos nesse layout são agrupados sob o cargo definido pelo prefixo na interface. `selected_deputado_files()` aplica o recorte do candidato escolhido na barra lateral. Os helpers compartilhados só voltam à lista completa quando esse recorte não encontra arquivo algum, para que a página possa exibir o estado de indisponibilidade.
+`hf_sync.deputado_parts()` extrai ano e nome do caminho remoto. Para cada candidato, a interface prioriza 2024 e usa 2020 quando não há dados de 2024. Como o formato não codifica o cargo, candidatos nesse layout são agrupados sob o cargo definido pelo prefixo na interface. `selected_deputado_files()` aplica o recorte do candidato e do ano escolhido.
 
 ## Contrato de dados eleitorais
 

@@ -8,6 +8,7 @@ from textwrap import dedent
 import streamlit as st
 
 from hf_sync import (
+    DEFAULT_VISUALIZATION_YEAR,
     data_files,
     file_by_kind,
     first_existing_column,
@@ -461,7 +462,7 @@ def selected_deputado_label() -> dict[str, str]:
     return {
         "nome": str(filters.get("nome") or "Todos").upper(),
         "cargo": cargo_labels.get(cargo, cargo).upper(),
-        "ano": str(filters.get("ano") or "2022"),
+        "ano": str(filters.get("ano") or DEFAULT_VISUALIZATION_YEAR),
     }
 
 

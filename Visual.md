@@ -4,9 +4,9 @@ Este documento registra **a interface implementada hoje** nas três páginas do 
 
 ## 1. Visão geral da experiência
 
-O produto é um painel de inteligência eleitoral para deputados, com três rotas. **Raio X Eleitoral** mostra a votação de 2024, sua distribuição territorial, concentração, atuação parlamentar e custo do voto; usa 2020 quando o candidato não tem dados de 2024. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
+O produto é um painel de inteligência eleitoral para deputados e vereadores, com três rotas. **Raio X Eleitoral** mostra os dados do candidato selecionado, sua distribuição territorial, concentração, atuação parlamentar e custo do voto; o ano padrão do projeto é 2026 e, se não estiver disponível para uma pasta, usa o ano numérico mais recente encontrado. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
 
-O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher o deputado e navegar entre páginas. Um controle segmentado dentro da capa também alterna as três rotas e indica qual está ativa.
+O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato no HF e navegar entre páginas. Um controle segmentado dentro da capa também alterna as três rotas e indica qual está ativa.
 
 ### 1.1 Sistema visual compartilhado
 
@@ -31,19 +31,19 @@ O hero usa título grande e pesado, subtítulo menor e nome/cargo/partido em mai
 
 ### 1.3 Capa comum às três páginas
 
-O hero contém, nesta ordem, o título da página, um subtítulo curto e uma linha com foto à esquerda e dados do deputado à direita. A foto é vertical, com cantos levemente arredondados, borda clara e sombra; quando não há imagem remota, o espaço permanece como um bloco neutro. Os dados aparecem como `NOME:`, `CARGO:` e `PARTIDO:` em caixa alta. O partido é lido do campo `sg_partido` da base territorial do candidato. No Raio X, `TOTAL DE VOTOS:` aparece logo abaixo do partido, com a mesma tipografia das demais linhas, sem card próprio. O ano integra o título do Raio X.
+O hero contém, nesta ordem, o título da página, um subtítulo curto e uma linha com foto à esquerda e dados do candidato à direita. A foto é vertical, com cantos levemente arredondados, borda clara e sombra; quando não há imagem remota, o espaço permanece como um bloco neutro. Os dados aparecem como `NOME:`, `CARGO:` e `PARTIDO:` em caixa alta. O partido é lido do campo `sg_partido` da base territorial do candidato. No Raio X, `TOTAL DE VOTOS:` aparece logo abaixo do partido, com a mesma tipografia das demais linhas, sem card próprio. O ano integra o título do Raio X.
 
-No canto superior direito há uma cápsula de três opções: **Raio X Eleitoral**, **DNA Eleitoral** e **Expansão 2030**. A opção ativa recebe fundo azul mais claro e texto branco. A cápsula faz parte do hero e usa links para as rotas da aplicação; o deputado selecionado na barra lateral é preservado na sessão.
+No canto superior direito há uma cápsula de três opções: **Raio X Eleitoral**, **DNA Eleitoral** e **Expansão 2030**. A opção ativa recebe fundo azul mais claro e texto branco. A cápsula faz parte do hero e usa links para as rotas da aplicação; a pasta selecionada na barra lateral é preservada na sessão.
 
 | Página | Título do hero | Subtítulo |
 | --- | --- | --- |
-| Raio X | `RAIO X da votação 2024` (2020 quando não há dados de 2024) | `Análises descritivas geográficas e do perfil do eleitor na última eleição.` |
+| Raio X | `RAIO X da votação 2026` (ano numérico mais recente disponível quando não há 2026) | `Análises descritivas geográficas e do perfil do eleitor na última eleição.` |
 | DNA | `DNA do Eleitor` | `Quem é, onde está e como se comporta o eleitor determinante da candidatura.` |
 | Expansão 2030 | `Expansão de votos para 2030` | `Oportunidades territoriais para ampliar a votação em 2030.` |
 
 ## 2. Página 1 — Raio X Eleitoral
 
-A página segue a ordem: **Mapa de Força Eleitoral → Votação por Bairros dentro dos municípios → Força da política local → Concentração territorial dos votos → Mapa da atuação parlamentar → Eficiência por Custo do Voto**. A primeira parte oferece localização e volume; a segunda aproxima o município; a seção de política local confronta capital político e market share; as três seguintes interpretam dependência territorial, emendas e gastos.
+A página segue a ordem: **Mapa de Força Eleitoral → Como foi sua votação em Belo Horizonte → Força da política local → Concentração territorial dos votos → Mapa da atuação parlamentar → Eficiência por Custo do Voto**. A primeira parte oferece localização e volume; a segunda aproxima os votos nos bairros de Belo Horizonte; a seção de política local confronta capital político e market share; as três seguintes interpretam dependência territorial, emendas e gastos.
 
 ### 2.1 Mapa de Força Eleitoral
 
@@ -59,11 +59,13 @@ O gráfico de barras aparece em uma janela de detalhamento após o clique no map
 
 Se a malha ou os votos não puderem ser carregados, o mapa cede lugar a uma mensagem de indisponibilidade. O detalhamento também informa quando faltam dados. A interface não preenche municípios ou bairros com valores fictícios.
 
-### 2.2 Votação por Bairros dentro dos municípios
+### 2.2 Como foi sua votação em Belo Horizonte
 
-Esta seção apresenta seletores de mesorregião e município e a distribuição de votos por bairro do `stage01b_bairros.parquet`. Ao abrir a página ou trocar de candidato, os controles apontam por padrão para a mesorregião e o município em que o candidato recebeu mais votos; depois disso, o usuário pode alterar livremente o recorte. A mesorregião filtra os municípios disponíveis no segundo seletor. A geometria usa bairros oficiais quando seus polígonos cobrem pelo menos 95% do município. Se a cobertura for menor, usa áreas ponderadas quando existem duas ou mais unidades. Somente municípios com uma única área ponderada recorrem a todos os setores censitários, inclusive aqueles sem votos. Divisões internas claras e reforçadas distinguem bairros, áreas ponderadas ou setores censitários, enquanto um contorno branco ainda mais espesso preserva a silhueta municipal. Em municípios com pelo menos um e menos de mil votos, todos os polígonos recebem o mesmo azul médio e não há escala de intensidade. A partir de mil votos, a cor usa os cinco tons de azul do mapa estadual: escala linear relativa ao maior valor local até 5 mil votos e transformação logarítmica quando o total municipal ultrapassa 5 mil. Nas malhas de bairros e áreas ponderadas, a intensidade também é multiplicada pela raiz quadrada da proporção de polígonos com votos, mantendo a faixa cromática fixa de zero a um. No fallback por setores censitários, a escala local ocupa toda a faixa de zero a um, sem esse fator de cobertura. Cada tooltip informa os bairros do TSE de referência mesmo quando o candidato não recebeu votos naquele setor. Quando não existe uma referência direta dentro do polígono, é usado o bairro do setor de referência mais próximo no mesmo município. Setores associados a vários bairros mostram todos os nomes. Os códigos das unidades geométricas não aparecem na visualização.
+O título da seção é **Como foi sua votação em Belo Horizonte**, com o subtítulo `Veja sua performance dentro da sua cidade`. A seção usa duas colunas na proporção aproximada de 70/30: o mapa de bairros de Belo Horizonte (código IBGE `3106200`) fica à esquerda e cinco cards de indicadores ficam à direita. Não há seletores de mesorregião ou município. O mapa e todos os cards usam os votos do `stage01b_bairros.parquet` filtrados para Belo Horizonte e para o candidato selecionado.
 
-À direita, cinco cards mostram, nesta ordem, **Total de votos** (total municipal e mesorregião), **Bairro principal (Top 1)**, **Dependência do bairro principal**, **Penetração por bairros** e **Densidade média por bairro**. Os cálculos usam nomes de bairros do `stage01b_bairros.parquet`, agrupados dentro do município selecionado; não usam a contagem de unidades geométricas. Como esse arquivo contém apenas bairros com votos, o card de penetração mostra a quantidade de bairros com voto e informa que o total de bairros do município está indisponível. A proporção será calculada quando houver uma fonte para esse denominador.
+Os cinco cards mostram, nesta ordem, **Votos em Belo Horizonte** (total municipal), **Bairro principal (Top 1)**, **Dependência do bairro principal**, **Penetração por bairros** e **Densidade média por bairro**. As métricas são calculadas apenas com os bairros de Belo Horizonte presentes nos dados do candidato. Como o arquivo contém apenas bairros com votos, a penetração informa a quantidade de bairros com voto e avisa que o total de bairros da cidade está indisponível.
+
+A geometria usa bairros oficiais quando seus polígonos cobrem pelo menos 95% do município. Se a cobertura for menor, usa áreas ponderadas quando existem duas ou mais unidades. Somente municípios com uma única área ponderada recorrem a todos os setores censitários, inclusive aqueles sem votos. Divisões internas claras distinguem as unidades e um contorno branco mais espesso preserva a silhueta municipal. Com menos de mil votos, todos os polígonos recebem o mesmo azul médio. A partir de mil votos, a cor usa os cinco tons de azul do mapa estadual: escala linear até 5 mil votos e transformação logarítmica quando o total municipal ultrapassa esse valor. Nas malhas de bairros e áreas ponderadas, a intensidade também considera a proporção de polígonos com votos; no fallback por setores censitários, a escala ocupa toda a faixa de cores. O tooltip informa o bairro e os votos; no fallback por setores, identifica também os bairros do TSE de referência, inclusive onde o candidato não recebeu votos. Os códigos das unidades geométricas não aparecem na visualização.
 
 ### 2.3 Força da política local
 
@@ -193,10 +195,10 @@ O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640
 
 | Controle | Onde atua | Persistência observável |
 | --- | --- | --- |
-| Deputado na barra lateral | Três páginas | Mesmo candidato ao trocar de rota |
+| Pasta do candidato na barra lateral | Três páginas | Lista as pastas encontradas no prefixo remoto e preserva a seleção ao trocar de rota |
 | Cápsula Raio X / DNA / Expansão 2030 | Navegação | Opção ativa destacada no hero |
 | Filtro territorial Mesorregião / Município | Mapa estadual do Raio X e conteúdo da janela aberta por clique | Restrito ao primeiro mapa |
-| Mesorregião e município da votação por bairros | Malha intramunicipal e cinco cards laterais | Restrito à seção detalhada do Raio X |
+| Mapa e cards de votação em Belo Horizonte | Malha territorial e cinco indicadores calculados para a cidade | Município fixo; sem filtros territoriais |
 | Filtro Município da força política local | Mapa categórico dos quatro quadrantes em Minas Gerais | Única granularidade disponível nesta etapa |
 | Cards da força política local | Destacam ou restauram uma classe do mapa | Card ativo recebe contorno reforçado |
 | Clique em município da força política local | Abre o mapa isolado, os indicadores e a composição política municipal | Janela modal; fecha sem alterar o filtro dos cards |

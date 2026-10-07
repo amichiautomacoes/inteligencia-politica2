@@ -11,9 +11,7 @@ from huggingface_hub import HfFileSystem
 
 DATA_DIR = Path(__file__).resolve().parent / "data" / "vereadores"
 SUPPORTED_SUFFIXES = {".csv", ".parquet", ".json", ".jsonl", ".xlsx", ".xls", ".jpg", ".jpeg", ".png"}
-DEFAULT_VISUALIZATION_YEAR = "2024"
-FALLBACK_VISUALIZATION_YEAR = "2020"
-VISUALIZATION_YEAR_PRIORITY = (DEFAULT_VISUALIZATION_YEAR, FALLBACK_VISUALIZATION_YEAR)
+DEFAULT_VISUALIZATION_YEAR = "2026"
 DEFAULT_VISUALIZACAO_PREFIX = "vereadores"
 
 
@@ -99,6 +97,13 @@ def data_files() -> list[str]:
     return remote_data_files(hf_visualizacao_path(env), env.get("HF_TOKEN"))
 
 
+def _preferred_visualization_year(available_years: set[str]) -> str | None:
+    numeric_years = {str(year) for year in available_years if str(year).isdigit()}
+    if DEFAULT_VISUALIZATION_YEAR in numeric_years:
+        return DEFAULT_VISUALIZATION_YEAR
+    return max(numeric_years, key=int) if numeric_years else None
+
+
 def deputado_parts(file_name: str) -> dict[str, str] | None:
     parts = _visualizacao_relative_parts(file_name)
     if len(parts) < 3:
@@ -115,13 +120,19 @@ def deputado_parts(file_name: str) -> dict[str, str] | None:
         ano, cargo, nome_slug = parts[0], parts[1], parts[2]
 
     slug_parts = nome_slug.split("_")
-    nome_tokens = slug_parts[1:] if slug_parts and slug_parts[0].isdigit() else slug_parts
+    if slug_parts and slug_parts[0].isdigit():
+        nome_tokens = slug_parts[1:]
+    elif len(slug_parts) > 1 and slug_parts[0].casefold() == "bh":
+        nome_tokens = slug_parts[1:]
+    else:
+        nome_tokens = slug_parts
     return {
         "ano": ano,
         "cargo": cargo.replace("_", " ").title(),
         "cargo_slug": cargo,
         "nome": " ".join(nome_tokens).title(),
         "nome_slug": nome_slug,
+        "pasta": nome_slug,
     }
 
 
@@ -190,28 +201,39 @@ def path_filter_options(files: list[str]) -> dict[str, list[str]]:
 
 def deputados_index(files: list[str]) -> list[dict[str, str]]:
     years_by_candidate: dict[tuple[str, str], set[str]] = {}
+    candidate_details: dict[tuple[str, str], dict[str, str]] = {}
 
     for file_name in files:
         parsed = deputado_parts(file_name)
         if not parsed:
             continue
 
-        key = (parsed["cargo"], parsed["nome"])
+        key = (parsed["cargo"], parsed["pasta"])
         years_by_candidate.setdefault(key, set()).add(parsed["ano"])
+        candidate_details[key] = parsed
 
     rows: list[dict[str, str]] = []
-    for (cargo, nome), years in years_by_candidate.items():
-        selected_year = next((year for year in VISUALIZATION_YEAR_PRIORITY if year in years), None)
+    for key, years in years_by_candidate.items():
+        cargo, pasta = key
+        selected_year = _preferred_visualization_year(years)
         if selected_year is None:
             continue
-        rows.append({"Ano": selected_year, "Cargo": cargo, "Nome": nome})
+        rows.append(
+            {
+                "Ano": selected_year,
+                "Cargo": cargo,
+                "Nome": candidate_details[key]["nome"],
+                "Pasta": pasta,
+            }
+        )
 
     return sorted(
         rows,
         key=lambda row: (
-            VISUALIZATION_YEAR_PRIORITY.index(row["Ano"]),
+            -int(row["Ano"]),
             row["Cargo"],
             row["Nome"],
+            row["Pasta"],
         ),
     )
 
@@ -224,15 +246,13 @@ def selected_deputado_files(files: list[str], filters: dict[str, str]) -> list[s
         if parsed
         and filters.get("cargo") in (None, "Todos", parsed["cargo"])
         and filters.get("nome") in (None, "Todos", parsed["nome"])
+        and filters.get("pasta") in (None, "", "Todos", parsed["pasta"])
     ]
 
     requested_year = filters.get("ano")
     available_years = {parsed["ano"] for _, parsed in candidate_files}
     if requested_year in (None, "", "Todos") or requested_year not in available_years:
-        requested_year = next(
-            (year for year in VISUALIZATION_YEAR_PRIORITY if year in available_years),
-            DEFAULT_VISUALIZATION_YEAR,
-        )
+        requested_year = _preferred_visualization_year(available_years) or DEFAULT_VISUALIZATION_YEAR
 
     return [
         file_name
@@ -254,7 +274,10 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "gastos_territoriais": "gastos/gastos_territoriais.parquet",
         "gastos_territoriais_por_tipo": "gastos/gastos_territoriais_por_tipo.parquet",
         "despesas_campanha": "gastos/despesas_campanha.parquet",
-        "emendas_legislativa": "gastos/emendas_legislativa.parquet",
+        "emendas_legislativa": (
+            "emendas/emendas_municipais.parquet",
+            "gastos/emendas_legislativa.parquet",
+        ),
         "capital_local": "forca_local/stage07a_capital_local_municipios.parquet",
         "afinidade_eleitos": "forca_local/stage07b_afinidade_eleitos.parquet",
         "icp_geral": "perfil/stage04_icp_geral_geo.parquet",
@@ -266,11 +289,15 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "potencial_clusters": "potencial_demografico/stage08c_potencial_demografico_icp_clusters.parquet",
     }
     if kind in kind_aliases:
+        targets = kind_aliases[kind]
+        if isinstance(targets, str):
+            targets = (targets,)
         return next(
             (
                 file_name
+                for target in targets
                 for file_name in files
-                if file_name.replace("\\", "/").endswith(kind_aliases[kind])
+                if file_name.replace("\\", "/").endswith(target)
             ),
             None,
         )

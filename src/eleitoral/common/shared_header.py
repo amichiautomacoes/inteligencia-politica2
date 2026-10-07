@@ -458,6 +458,7 @@ def selected_deputado_label() -> dict[str, str]:
     cargo_labels = {
         "Estaduais": "Deputado Estadual",
         "Federais": "Deputado Federal",
+        "Vereadores": "Vereador",
     }
     return {
         "nome": str(filters.get("nome") or "Todos").upper(),

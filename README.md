@@ -1,6 +1,6 @@
 # Inteligência Política
 
-Dashboard multipágina em Streamlit para análise eleitoral de deputados de Minas Gerais. A aplicação cruza votação territorial, perfil demográfico, despesas de campanha, emendas parlamentares e potencial de expansão com malhas oficiais do IBGE.
+Dashboard multipágina em Streamlit para análise eleitoral de candidaturas em Minas Gerais. A aplicação cruza votação territorial, perfil demográfico, despesas de campanha, emendas parlamentares e potencial de expansão com malhas oficiais do IBGE.
 
 Este README é a referência técnica do projeto. A aparência, a hierarquia de informação, os estados de tela e as interações estão documentados no [briefing visual](Visual.md).
 
@@ -12,7 +12,7 @@ Este README é a referência técnica do projeto. A aparência, a hierarquia de 
 | `/dna-eleitoral` | `pages/dna_eleitor.py` | Eleitor ideal, distribuição demográfica, clusters de ICP e estrutura inicial da matriz de potencial |
 | `/expansao-2030` | `pages/expansao_2030.py` | Classificação municipal de proteção de base e oportunidade demográfica |
 
-`app.py` registra as três rotas com `st.navigation`, descobre os deputados disponíveis no Hugging Face e mantém a seleção do candidato em `st.session_state`. A troca de página preserva o deputado selecionado.
+`app.py` registra as três rotas com `st.navigation`, descobre os candidatos disponíveis no Hugging Face e mantém a seleção da pasta em `st.session_state`. A troca de página preserva o candidato selecionado.
 
 Dois blocos seguem parcialmente implementados:
 
@@ -58,7 +58,7 @@ Os módulos auxiliares ficam fora de `pages/` para que o Streamlit não os regis
         ↓
 HfFileSystem + listagem remota
         ↓
-índice de deputados pelo caminho dos arquivos
+índice de candidatos pelo caminho dos arquivos
         ↓
 seleção persistida em st.session_state
         ↓
@@ -96,10 +96,12 @@ O prefixo de visualização padrão é `vereadores`; as leituras do dashboard us
 O formato canônico é:
 
 ```text
-vereadores/{slug_do_candidato}/{ano}/...
+vereadores/{pasta_do_candidato}/{ano}/...
 ```
 
-`hf_sync.deputado_parts()` extrai ano e nome do caminho remoto. Para cada candidato, a interface prioriza 2024 e usa 2020 quando não há dados de 2024. Como o formato não codifica o cargo, candidatos nesse layout são agrupados sob o cargo definido pelo prefixo na interface. `selected_deputado_files()` aplica o recorte do candidato e do ano escolhido.
+`hf_sync.deputado_parts()` extrai ano, nome e pasta do caminho remoto. A barra lateral lista as pastas de candidatos encontradas no prefixo, exibindo o nome e o slug da pasta; a seleção filtra os arquivos por essa pasta. O ano padrão do projeto é 2026. Se uma pasta não tiver arquivos desse ano, o app escolhe o ano numérico mais recente disponível nela. Como o formato não codifica o cargo, candidatos nesse layout são agrupados sob o cargo definido pelo prefixo na interface. `selected_deputado_files()` aplica o recorte da pasta e do ano escolhido.
+
+Na consulta do bucket em 7 de outubro de 2026, as pastas encontradas foram `bh_bruno_miranda/2026` e `bh_marcela_tropia/2026`, sob `vereadores/`.
 
 ## Contrato de dados eleitorais
 
@@ -118,7 +120,7 @@ vereadores/{slug_do_candidato}/{ano}/...
 | Gastos | `gastos/despesas_campanha.parquet` | Treemap e KPIs de custo |
 | Gastos | `gastos/gastos_territoriais_por_tipo.parquet` | Custo de referência por tipo e território |
 | Gastos | `gastos/gastos_territoriais.parquet` | Fallback com rateio territorial |
-| Emendas | `gastos/emendas_legislativa.parquet` | Mapa de atuação parlamentar e detalhamento |
+| Emendas | `emendas/emendas_municipais.parquet` (2026) ou `gastos/emendas_legislativa.parquet` (layout anterior) | Mapa de atuação parlamentar e detalhamento |
 | Força local | `forca_local/stage07a_capital_local_municipios.parquet` | Quadrantes de efetividade da estrutura política municipal |
 | Força local | `forca_local/stage07b_afinidade_eleitos.parquet` | Composição nominal de prefeitos e vereadores no detalhe municipal |
 | Censo | `IBGE/censo/genero_apond.parquet` | Cálculo da expansão |
@@ -128,6 +130,8 @@ vereadores/{slug_do_candidato}/{ano}/...
 | Potencial | `potencial_demografico/stage08c_potencial_demografico_icp_clusters.parquet` | Expansão por classificação de ICP |
 
 O app também reconhece CSV, JSON, JSONL, XLS/XLSX e imagens ao listar o bucket, mas as seções analíticas atuais leem os artefatos tabulares acima como Parquet. JPG, JPEG e PNG podem fornecer a foto do candidato.
+
+No conteúdo 2026 consultado, o arquivo de emendas usa `valor_emenda`, `nm_municipio`, `objeto_finalidade` e `tipo_emenda`; o leitor aceita esse formato além do layout anterior. Esse conteúdo não inclui os Parquets `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet` nem os arquivos de gastos territoriais. Nessas seções o dashboard informa a ausência dos dados correspondentes. O arquivo `territorio/stage07_bairros_estrategicos.parquet` presente nas pastas não substitui os artefatos de força local consumidos pela implementação atual.
 
 ### Semântica dos gastos territoriais
 

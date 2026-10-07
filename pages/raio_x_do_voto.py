@@ -25,9 +25,7 @@ from eleitoral.maps.choropleth_maps import (
     territorial_map,
 )
 from eleitoral.maps.territorial_mesh import (
-    mesoregion_options,
     municipality_mesh_map,
-    municipality_options,
 )
 from eleitoral.common.shared_header import render_page_header
 
@@ -853,7 +851,14 @@ def _load_geo_reference() -> tuple[dict | None, pd.DataFrame | None, pd.DataFram
 
 
 def _normalize_municipio_name(value: object) -> str:
-    text = str(value or "").strip().upper()
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip().upper()
     text = unicodedata.normalize("NFKD", text)
     text = "".join(char for char in text if not unicodedata.combining(char))
     return " ".join(text.split())
@@ -1887,30 +1892,11 @@ def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: 
     municipality_total = pd.to_numeric(
         municipality_rows.get("qt_votos", pd.Series(dtype=float)), errors="coerce"
     ).fillna(0).sum()
-    mesoregion_name = ""
-    if not municipality_rows.empty and "nm_mesorregiao" in municipality_rows.columns:
-        mesoregions = municipality_rows["nm_mesorregiao"].dropna().astype(str).str.strip()
-        mesoregions = mesoregions.loc[mesoregions.ne("")]
-        if not mesoregions.empty:
-            mesoregion_name = str(mesoregions.iloc[0])
-    if not mesoregion_name and municipality_code is not None:
-        _, _, _, regions = load_geo_reference()
-        if regions is not None and not regions.empty and {
-            "codigo_ibge", "mesorregiao_nome"
-        }.issubset(regions.columns):
-            selected_region = regions.loc[
-                regions["codigo_ibge"].astype("string").eq(str(municipality_code)),
-                "mesorregiao_nome",
-            ].dropna().astype(str).str.strip()
-            selected_region = selected_region.loc[selected_region.ne("")]
-            if not selected_region.empty:
-                mesoregion_name = str(selected_region.iloc[0])
-
     cards = [
         card(
-            "Total de votos",
+            "Votos em Belo Horizonte",
             _format_number(municipality_total) if not municipality_rows.empty else "—",
-            f"Mesorregião: {mesoregion_name}" if mesoregion_name else "Mesorregião indisponível",
+            "Total municipal",
         )
     ]
     if rows.empty:
@@ -2480,41 +2466,6 @@ def _total_votes_label(df: pd.DataFrame | None) -> str:
         return "--"
     total = pd.to_numeric(municipal["qt_votos"], errors="coerce").fillna(0).sum()
     return _format_number(total)
-
-
-def _leading_municipality_selection(df: pd.DataFrame | None) -> tuple[str, str]:
-    municipal = _municipal_votes_frame(df)
-    required = {"cd_ibge_municipio", "qt_votos"}
-    if municipal is None or municipal.empty or not required.issubset(municipal.columns):
-        return "", ""
-
-    ranking = municipal.copy()
-    ranking["_municipality_code"] = (
-        ranking["cd_ibge_municipio"]
-        .astype("string")
-        .str.replace(r"\.0$", "", regex=True)
-        .str.strip()
-    )
-    ranking["qt_votos"] = pd.to_numeric(ranking["qt_votos"], errors="coerce").fillna(0)
-    ranking = ranking.loc[ranking["_municipality_code"].notna() & ranking["_municipality_code"].ne("")]
-    if ranking.empty:
-        return "", ""
-
-    aggregations: dict[str, str] = {"qt_votos": "sum"}
-    if "nm_mesorregiao" in ranking.columns:
-        aggregations["nm_mesorregiao"] = "first"
-    if "nm_municipio" in ranking.columns:
-        aggregations["nm_municipio"] = "first"
-    ranking = ranking.groupby("_municipality_code", as_index=False).agg(aggregations)
-    sort_columns = ["qt_votos"]
-    ascending = [False]
-    if "nm_municipio" in ranking.columns:
-        sort_columns.append("nm_municipio")
-        ascending.append(True)
-    leader = ranking.sort_values(sort_columns, ascending=ascending).iloc[0]
-    mesoregion_value = leader.get("nm_mesorregiao", "")
-    mesoregion = "" if pd.isna(mesoregion_value) else str(mesoregion_value).strip()
-    return mesoregion, str(leader["_municipality_code"])
 
 
 def _candidate_widget_suffix() -> str:
@@ -3550,7 +3501,12 @@ def _parliamentary_action_frame(
     emenda_value_col = next(
         (
             col
-            for col in ("valor_pago_atualizado", "valor_empenhado_ano", "valor_indicado")
+            for col in (
+                "valor_pago_atualizado",
+                "valor_empenhado_ano",
+                "valor_indicado",
+                "valor_emenda",
+            )
             if col in emendas_df.columns
         ),
         None,
@@ -3917,25 +3873,75 @@ def _parliamentary_emendas_dialog(
         f'{row["categoria_coerencia"]}'
     )
     st.metric("Total de emendas indicado ao município", _format_currency(float(row["valor_emendas"])))
-    if emendas_df is None or emendas_df.empty or "cd_ibge_municipio" not in emendas_df.columns:
+    if emendas_df is None or emendas_df.empty:
         st.info("Detalhamento das emendas indisponível.")
         return
     emendas = emendas_df.copy()
-    codes = emendas["cd_ibge_municipio"].astype("string")
-    emendas = emendas[codes.eq(codigo_ibge)].copy()
+    if "cd_ibge_municipio" in emendas.columns:
+        codes = emendas["cd_ibge_municipio"].astype("string")
+        emendas = emendas[codes.eq(codigo_ibge)].copy()
+    else:
+        municipality_col = next(
+            (
+                col
+                for col in ("nm_municipio", "municipio_beneficiario", "municipio")
+                if col in emendas.columns
+            ),
+            None,
+        )
+        if municipality_col is None:
+            st.info("Detalhamento das emendas indisponível.")
+            return
+        selected_municipality = row.get("municipio")
+        if pd.isna(selected_municipality) or not str(selected_municipality).strip():
+            selected_municipality = row.get("municipio_exibicao")
+        selected_municipality = _normalize_municipio_name(selected_municipality)
+        emendas = emendas.loc[
+            emendas[municipality_col].map(_normalize_municipio_name).eq(selected_municipality)
+        ].copy()
     if emendas.empty:
         st.info("Não há emendas registradas para este município.")
         return
-    emendas["valor_indicado"] = pd.to_numeric(emendas["valor_indicado"], errors="coerce").fillna(0)
-    for col in ("funcao_descricao", "tipo_indicacao"):
+    value_col = next(
+        (
+            col
+            for col in (
+                "valor_indicado",
+                "valor_empenhado_ano",
+                "valor_pago_atualizado",
+                "valor_emenda",
+            )
+            if col in emendas.columns
+        ),
+        None,
+    )
+    if value_col is None:
+        st.info("Detalhamento das emendas indisponível.")
+        return
+    finality_col = next(
+        (col for col in ("funcao_descricao", "objeto_finalidade") if col in emendas.columns),
+        None,
+    )
+    type_col = next(
+        (col for col in ("tipo_indicacao", "tipo_emenda") if col in emendas.columns),
+        None,
+    )
+    emendas["_valor_emenda"] = pd.to_numeric(emendas[value_col], errors="coerce").fillna(0)
+    emendas["_finalidade"] = (
+        emendas[finality_col] if finality_col else pd.Series("Não informado", index=emendas.index)
+    )
+    emendas["_tipo_emenda"] = (
+        emendas[type_col] if type_col else pd.Series("Não informado", index=emendas.index)
+    )
+    for col in ("_finalidade", "_tipo_emenda"):
         emendas[col] = emendas[col].fillna("Não informado").astype(str).str.strip()
         emendas.loc[emendas[col].eq(""), col] = "Não informado"
     summary = (
-        emendas.groupby(["funcao_descricao", "tipo_indicacao"], as_index=False)
-        .agg(indicacoes=("valor_indicado", "size"), valor_indicado=("valor_indicado", "sum"))
+        emendas.groupby(["_finalidade", "_tipo_emenda"], as_index=False)
+        .agg(indicacoes=("_valor_emenda", "size"), valor_indicado=("_valor_emenda", "sum"))
         .sort_values("valor_indicado", ascending=False)
         .rename(columns={
-            "funcao_descricao": "Finalidade", "tipo_indicacao": "Tipo de indicação",
+            "_finalidade": "Finalidade", "_tipo_emenda": "Tipo de indicação",
             "indicacoes": "Indicações", "valor_indicado": "Valor indicado",
         })
     )
@@ -3946,7 +3952,7 @@ def _parliamentary_emendas_dialog(
             "Valor indicado": st.column_config.NumberColumn(format="R$ %.2f"),
         },
     )
-    st.caption("Valores indicados; o pagamento pode ser diferente. Finalidade e tipo seguem a classificação do parquet de emendas.")
+    st.caption("Valores, finalidade e tipo seguem os dados registrados no parquet de emendas.")
 
 
 def _render_parliamentary_action_section(
@@ -4008,78 +4014,36 @@ with map_col:
 with cards_col:
     _render_map_side_cards(votos_municipio_df)
 _section_header(
-    "Votação por Bairros dentro dos municípios",
-    "Votos por bairro no município selecionado.",
+    "Como foi sua votação em Belo Horizonte",
+    "Veja sua performance dentro da sua cidade",
 )
-selected_code = None
 detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
 with detail_map_col:
     with st.container(border=True):
         try:
-            mesoregions = mesoregion_options()
-            leading_mesorregiao, leading_municipality_code = _leading_municipality_selection(
-                votos_municipio_df
-            )
-            mesoregion_choices = ["Todas", *mesoregions]
-            default_mesorregiao = next(
-                (
-                    option
-                    for option in mesoregion_choices
-                    if _normalized_text(option) == _normalized_text(leading_mesorregiao)
-                ),
-                "Todas",
-            )
-            candidate_widget_suffix = _candidate_widget_suffix()
-            selected_mesorregiao = st.selectbox(
-                "Mesorregião",
-                mesoregion_choices,
-                index=mesoregion_choices.index(default_mesorregiao),
-                key=f"pagina1_malha_mesorregiao_{candidate_widget_suffix}",
-            )
-            municipality_choices = municipality_options(selected_mesorregiao)
-            if not municipality_choices:
-                selected_code = None
-                st.info("Nenhum município disponível para a mesorregião selecionada.")
+            # Belo Horizonte is fixed for this section (IBGE municipality code).
+            mesh_fig, _ = municipality_mesh_map("3106200", votos_bairro_df)
+            if mesh_fig is None:
+                st.info("Mapa de votos por bairro indisponível para Belo Horizonte.")
             else:
-                municipality_codes = [code for code, _ in municipality_choices]
-                default_municipality_index = (
-                    municipality_codes.index(leading_municipality_code)
-                    if leading_municipality_code in municipality_codes
-                    else 0
-                )
-                selected_code = st.selectbox(
-                    "Município",
-                    municipality_codes,
-                    index=default_municipality_index,
-                    format_func=dict(municipality_choices).get,
-                    key=(
-                        f"pagina1_municipio_malha_{candidate_widget_suffix}_"
-                        f"{_normalized_text(selected_mesorregiao).replace(' ', '_').casefold()}"
-                    ),
-                )
-            if selected_code is not None:
-                mesh_fig, _ = municipality_mesh_map(selected_code, votos_bairro_df)
-                if mesh_fig is None:
-                    st.info("Mapa de votos por bairro indisponível para este município.")
+                st.plotly_chart(mesh_fig, width="stretch", height=680, key="pagina1_malha_belo_horizonte")
+                mesh_kind = (mesh_fig.layout.meta or {}).get("mesh_kind")
+                scale_type = (mesh_fig.layout.meta or {}).get("scale_type")
+                if scale_type == "uniform":
+                    st.caption(
+                        "Belo Horizonte tem menos de 1.000 votos neste recorte e usa um único tom de azul, "
+                        "sem escala de intensidade. Passe o cursor para ver os bairros e seus votos."
+                    )
+                elif mesh_kind == "setor":
+                    scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
+                    st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} é relativa ao maior valor de Belo Horizonte e, nos setores censitários, ocupa toda a faixa de cores para manter visíveis os setores com votos. O tooltip identifica os bairros do TSE mesmo onde o candidato não recebeu votos; setores sem referência direta usam o bairro territorialmente mais próximo na cidade.")
                 else:
-                    st.plotly_chart(mesh_fig, width="stretch", height=560, key="pagina1_malha_municipal")
-                    mesh_kind = (mesh_fig.layout.meta or {}).get("mesh_kind")
-                    scale_type = (mesh_fig.layout.meta or {}).get("scale_type")
-                    if scale_type == "uniform":
-                        st.caption(
-                            "Municípios com menos de 1.000 votos usam um único tom de azul, "
-                            "sem escala de intensidade. Passe o cursor para ver os bairros e seus votos."
-                        )
-                    elif mesh_kind == "setor":
-                        scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                        st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} é relativa ao maior valor do município e, nos setores censitários, ocupa toda a faixa de cores para manter visíveis os setores com votos. O tooltip identifica os bairros do TSE mesmo onde o candidato não recebeu votos; setores sem referência direta usam o bairro territorialmente mais próximo no município.")
-                    else:
-                        scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                        st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} considera também a proporção de regiões com votos no município. Passe o cursor para ver os bairros e seus votos.")
+                    scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
+                    st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} considera também a proporção de bairros com votos em Belo Horizonte. Passe o cursor para ver os bairros e seus votos.")
         except Exception as exc:
-            st.warning(f"Não foi possível carregar o mapa de votos por bairro: {exc}")
+            st.warning(f"Não foi possível carregar o mapa de bairros de Belo Horizonte: {exc}")
 with detail_cards_col:
-    _render_neighborhood_side_cards(votos_bairro_df, selected_code)
+    _render_neighborhood_side_cards(votos_bairro_df, "3106200")
 
 _major_section_header(
     "Força da política local",

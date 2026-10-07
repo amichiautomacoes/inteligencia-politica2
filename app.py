@@ -18,6 +18,7 @@ def _cargo_label(value: str) -> str:
         "Estaduais": "Deputado Estadual",
         "Federais": "Deputado Federal",
         "Deputados": "Deputado",
+        "Vereadores": "Vereador",
     }
     return labels.get(value, value)
 
@@ -56,23 +57,34 @@ with st.sidebar:
         files = []
 
     deputados = deputados_index(files)
-    st.markdown("### Deputado")
+    st.markdown("### Candidato")
     if deputados:
-        labels = [row["Nome"] for row in deputados]
-        current_name = st.session_state.get("deputados_filters", {}).get("nome")
-        current_index = labels.index(current_name) if current_name in labels else 0
-        selected_index = st.selectbox(
-            "Selecione o deputado",
-            range(len(deputados)),
-            index=current_index,
-            format_func=lambda index: labels[index],
-            key="deputado_selector",
+        folders = [row["Pasta"] for row in deputados]
+        labels = {row["Pasta"]: f"{row['Nome']} · {row['Pasta']}" for row in deputados}
+        current_filters = st.session_state.get("deputados_filters", {})
+        current_folder = current_filters.get("pasta")
+        current_index = next(
+            (index for index, folder in enumerate(folders) if folder == current_folder),
+            None,
         )
-        selected_deputado = deputados[selected_index]
+        if current_index is None:
+            current_name = current_filters.get("nome")
+            current_index = next(
+                (index for index, row in enumerate(deputados) if row["Nome"] == current_name),
+                0,
+            )
+        selected_folder = st.selectbox(
+            "Pasta do candidato",
+            folders,
+            index=current_index,
+            format_func=labels.get,
+            key="candidate_folder_selector",
+        )
+        selected_deputado = next(row for row in deputados if row["Pasta"] == selected_folder)
         selected_key = (
             selected_deputado["Ano"],
             selected_deputado["Cargo"],
-            selected_deputado["Nome"],
+            selected_deputado["Pasta"],
         )
         if st.session_state.get("selected_deputado_key") != selected_key:
             st.session_state["selected_deputado_key"] = selected_key
@@ -81,15 +93,20 @@ with st.sidebar:
             "ano": selected_deputado["Ano"],
             "cargo": selected_deputado["Cargo"],
             "nome": selected_deputado["Nome"],
+            "pasta": selected_deputado["Pasta"],
         }
-        st.caption(f"{_cargo_label(selected_deputado['Cargo'])} - {selected_deputado['Ano']}")
+        st.caption(
+            f"{_cargo_label(selected_deputado['Cargo'])} · "
+            f"{selected_deputado['Ano']} · {selected_deputado['Pasta']}"
+        )
     else:
         st.session_state["deputados_filters"] = {
             "ano": DEFAULT_VISUALIZATION_YEAR,
             "cargo": "Todos",
             "nome": "Todos",
+            "pasta": "Todos",
         }
-        st.info("Nenhum deputado encontrado no caminho configurado.")
+        st.info("Nenhuma pasta de candidato encontrada no caminho configurado.")
     st.session_state["deputados_files"] = files
 
 current_page = st.navigation(pages, position="sidebar")

@@ -5,6 +5,7 @@ import html
 from pathlib import Path
 from textwrap import dedent
 
+import pandas as pd
 import streamlit as st
 
 from hf_sync import (
@@ -490,6 +491,29 @@ def selected_deputado_party() -> str:
     return parties.iloc[0].upper()
 
 
+def selected_deputado_total_votes() -> str | None:
+    file_name = file_by_kind(selected_files(), "votos_municipio")
+    if not file_name:
+        return None
+
+    try:
+        frame = load_parquet(file_name, load_env().get("HF_TOKEN"))
+    except Exception:
+        return None
+
+    if frame.empty or "qt_votos" not in frame.columns:
+        return None
+    if "nivel_territorial" in frame.columns:
+        municipal = frame[
+            frame["nivel_territorial"].astype("string").str.strip().str.lower().eq("municipio")
+        ]
+        if not municipal.empty:
+            frame = municipal
+
+    total = pd.to_numeric(frame["qt_votos"], errors="coerce").fillna(0).sum()
+    return f"{float(total):,.0f}".replace(",", ".")
+
+
 @st.cache_data(show_spinner=False)
 def _remote_image_data_url(file_name: str, token: str | None = None) -> str:
     suffix = Path(file_name).suffix.lower()
@@ -531,6 +555,8 @@ def _page_switch(active_page: str) -> str:
 
 
 def render_page_header(active_page: str, total_votes: str | None = None) -> None:
+    if total_votes is None:
+        total_votes = selected_deputado_total_votes()
     deputado = selected_deputado_label()
     partido = selected_deputado_party()
     page_titles = {

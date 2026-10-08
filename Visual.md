@@ -31,7 +31,7 @@ O hero usa título grande e pesado, subtítulo menor e nome/cargo/partido em mai
 
 ### 1.3 Capa comum às três páginas
 
-O hero contém, nesta ordem, o título da página, um subtítulo curto e uma linha com foto à esquerda e dados do candidato à direita. A foto é vertical, com cantos levemente arredondados, borda clara e sombra; quando não há imagem remota, o espaço permanece como um bloco neutro. Os dados aparecem como `NOME:`, `CARGO:` e `PARTIDO:` em caixa alta. O partido é lido do campo `sg_partido` da base territorial do candidato. No Raio X, `TOTAL DE VOTOS:` aparece logo abaixo do partido, com a mesma tipografia das demais linhas, sem card próprio. O ano integra o título do Raio X.
+O hero contém, nesta ordem, o título da página, um subtítulo curto e uma linha com foto à esquerda e dados do candidato à direita. A foto é vertical, com cantos levemente arredondados, borda clara e sombra; quando não há imagem remota, o espaço permanece como um bloco neutro. Os dados aparecem como `NOME:`, `CARGO:` e `PARTIDO:` em caixa alta. O partido é lido do campo `sg_partido` da base territorial do candidato. `TOTAL DE VOTOS:` aparece logo abaixo do partido nas três páginas, com a mesma tipografia das demais linhas, sem card próprio; o valor é calculado a partir do parquet territorial selecionado. O ano integra o título do Raio X.
 
 No canto superior direito há uma cápsula de três opções: **Raio X Eleitoral**, **DNA Eleitoral** e **Expansão 2030**. A opção ativa recebe fundo azul mais claro e texto branco. A cápsula faz parte do hero e usa links para as rotas da aplicação; a pasta selecionada na barra lateral é preservada na sessão.
 

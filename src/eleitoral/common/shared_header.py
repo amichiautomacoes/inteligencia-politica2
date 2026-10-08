@@ -593,7 +593,6 @@ def candidate_photo_data_url() -> str:
 _HEADER_PAGES = (
     ("raio_x", "RAIO X ELEITORAL", "pages/raio_x_do_voto.py"),
     ("dna", "DNA ELEITORAL", "pages/dna_eleitor.py"),
-    ("expansao_2030", "EXPANSÃO 2030", "pages/expansao_2030.py"),
 )
 
 
@@ -613,12 +612,10 @@ def render_page_header(active_page: str, total_votes: str | None = None) -> None
     page_titles = {
         "raio_x": f"RAIO X da votação {deputado['ano']}",
         "dna": "DNA do Eleitor",
-        "expansao_2030": "Expansão de votos para 2030",
     }
     page_subtitles = {
         "raio_x": "Análises descritivas geográficas e do perfil do eleitor na última eleição.",
         "dna": "Quem é, onde está e como se comporta o eleitor determinante da candidatura.",
-        "expansao_2030": "Oportunidades territoriais para ampliar a votação em 2030.",
     }
     title = page_titles.get(active_page, page_titles["raio_x"])
     subtitle = page_subtitles.get(active_page, page_subtitles["raio_x"])

@@ -41,11 +41,6 @@ pages = [
         title="DNA Eleitor",
         url_path="dna-eleitoral",
     ),
-    st.Page(
-        "pages/expansao_2030.py",
-        title="Expansão 2030",
-        url_path="expansao-2030",
-    ),
 ]
 
 

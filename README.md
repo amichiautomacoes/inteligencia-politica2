@@ -9,10 +9,9 @@ Este README é a referência técnica do projeto. A aparência, a hierarquia de 
 | Rota | Arquivo | Responsabilidade |
 | --- | --- | --- |
 | `/raio-x-eleitoral` | `pages/raio_x_do_voto.py` | Votação estadual e intramunicipal, concentração, atuação parlamentar e custo do voto |
-| `/dna-eleitoral` | `pages/dna_eleitor.py` | Card do eleitor ideal, distribuição demográfica, clusters de ICP e estrutura inicial da matriz de potencial |
-| `/expansao-2030` | `pages/expansao_2030.py` | Classificação municipal de proteção de base e oportunidade demográfica |
+| `/dna-eleitoral` | `pages/dna_eleitor.py` | Card do eleitor ideal, distribuição demográfica, clusters de ICP e expansão territorial para 2030 e estrutura inicial da matriz de potencial |
 
-`app.py` registra as três rotas com `st.navigation`, descobre as pastas de candidatos na raiz configurada do Hugging Face e mantém a seleção em `st.session_state`. A troca de página preserva o candidato selecionado.
+`app.py` registra as duas rotas com `st.navigation`, descobre as pastas de candidatos na raiz configurada do Hugging Face e mantém a seleção em `st.session_state`. A troca de página preserva o candidato selecionado.
 
 Dois blocos seguem parcialmente implementados:
 
@@ -28,7 +27,6 @@ Dois blocos seguem parcialmente implementados:
 ├── pages/
 │   ├── raio_x_do_voto.py          # Página analítica principal
 │   ├── dna_eleitor.py             # Página de perfil eleitoral e estilos locais do card ICP
-│   └── expansao_2030.py           # Página de expansão territorial
 ├── src/eleitoral/
 │   ├── common/
 │   │   ├── shared_header.py       # Hero, navegação interna, CSS global e seleção compartilhada
@@ -257,7 +255,7 @@ git diff --check
 streamlit run app.py
 ```
 
-No smoke test, abra as três rotas, troque o deputado, altere os seletores territoriais e confirme os estados com e sem dados.
+No smoke test, abra as duas rotas, troque o deputado, altere os seletores territoriais e confirme os estados com e sem dados.
 
 Regras de manutenção:
 

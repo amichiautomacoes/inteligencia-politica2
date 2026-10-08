@@ -1,12 +1,12 @@
 # Briefing visual — Visualização Eleitoral
 
-Este documento registra **a interface implementada hoje** nas três páginas do aplicativo. Ele descreve a aparência, a ordem de leitura, os controles, as respostas às interações e os estados sem dados. O [README](README.md) concentra a arquitetura e as fontes; aqui o foco é o que o usuário vê e entende. Textos que mencionam bairros na página Expansão 2030 descrevem rótulos atualmente presentes na interface: o mapa dessa página é municipal.
+Este documento registra **a interface implementada hoje** nas duas páginas do aplicativo. Ele descreve a aparência, a ordem de leitura, os controles, as respostas às interações e os estados sem dados. O [README](README.md) concentra a arquitetura e as fontes; aqui o foco é o que o usuário vê e entende. Textos que mencionam bairros na seção Expansão 2030 do DNA descrevem rótulos atualmente presentes na interface: o mapa dessa seção é municipal.
 
 ## 1. Visão geral da experiência
 
-O produto é um painel de inteligência eleitoral para deputados e vereadores, com três rotas. **Raio X Eleitoral** mostra os dados do candidato selecionado, sua distribuição territorial, concentração, atuação parlamentar e custo do voto; o ano padrão do projeto é 2026 e, se não estiver disponível para uma pasta, usa o ano numérico mais recente encontrado. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
+O produto é um painel de inteligência eleitoral para deputados e vereadores, com duas rotas. **Raio X Eleitoral** mostra os dados do candidato selecionado, sua distribuição territorial, concentração, atuação parlamentar e custo do voto; o ano padrão do projeto é 2026 e, se não estiver disponível para uma pasta, usa o ano numérico mais recente encontrado. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
 
-O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato na raiz configurada do HF e navegar entre páginas. Um controle segmentado dentro da capa também alterna as três rotas e indica qual está ativa.
+O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato na raiz configurada do HF e navegar entre páginas. Um controle segmentado dentro da capa também alterna as duas rotas e indica qual está ativa.
 
 ### 1.1 Sistema visual compartilhado
 
@@ -18,7 +18,7 @@ O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimi
 | Cabeçalho interno | Card azul mais leve, com título e subtítulo em duas linhas de hierarquia | Introduzir uma visualização dentro da seção |
 | Cards de conteúdo | Azul profundo translúcido, borda azul clara fina, sombra e leve blur | Agrupar informação sem esconder o fundo |
 | Gráficos Plotly | Fundo transparente, textos claros e grades discretas | Integrar gráfico e card |
-| Mapas | Coropléticos Plotly nas três páginas, sem mapa-base de ruas | Mostrar votos por intensidade, força/atuação por classe, malhas neutras ou oportunidades |
+| Mapas | Coropléticos Plotly nas duas páginas, sem mapa-base de ruas | Mostrar votos por intensidade, força/atuação por classe, malhas neutras ou oportunidades |
 | Mensagens de ausência | Aviso ou informação textual dentro do espaço da visualização | Explicar falta de dados sem simular um resultado |
 
 A base cromática é `#eaf2ff` para texto, `#f8fbff` para títulos e números, `#b7c7e6` para descrição e legendas. Os cards usam gradientes próximos de `rgba(11,31,77,.76)` e `rgba(7,24,54,.68)`, com bordas azuis próximas de `rgba(59,130,246,.24)`. Azul claro (`#60a5fa`), azul médio (`#2563eb`) e azul profundo (`#0b1f4d`) expressam intensidade ou seleção; verde, vermelho, amarelo, laranja e cinza têm significado específico nos mapas categóricos.
@@ -29,17 +29,16 @@ Os preenchimentos dos mapas são opacos e aparecem sobre fundo transparente, sem
 
 O hero usa título grande e pesado, subtítulo menor e nome/cargo/partido em maiúsculas. Quando exibido, o total de votos segue a mesma tipografia dessas linhas de identificação. Os títulos principais de seção são largos, brancos e densos; subtítulos ficam em azul claro. Labels dos KPIs gerais são compactos; no card do eleitor ideal, os títulos das dimensões têm fonte ampliada. Cards e legendas não devem exigir que a cor sozinha explique um resultado: os textos e tooltips dão o nome da categoria, a unidade e o recorte. Números de votos usam separador de milhar; percentuais e valores monetários aparecem com unidade explícita. Onde os dados são estimados ou rateados, a interface informa isso junto à visualização.
 
-### 1.3 Capa comum às três páginas
+### 1.3 Capa comum às duas páginas
 
-O hero distribui o conteúdo em duas faixas: à esquerda ficam o título da página, um subtítulo curto e uma linha com foto e dados do candidato; à direita fica a navegação vertical. A foto é vertical, com cantos levemente arredondados, borda clara e sombra; quando não há imagem remota, o espaço permanece como um bloco neutro. Os dados aparecem como `NOME:`, `CARGO:` e `PARTIDO:` em caixa alta. O partido é lido do campo `sg_partido` da base territorial do candidato. `TOTAL DE VOTOS:` aparece logo abaixo do partido nas três páginas, com a mesma tipografia das demais linhas, sem card próprio; o valor é calculado a partir do parquet territorial selecionado. O ano integra o título do Raio X.
+O hero distribui o conteúdo em duas faixas: à esquerda ficam o título da página, um subtítulo curto e uma linha com foto e dados do candidato; à direita fica a navegação vertical. A foto é vertical, com cantos levemente arredondados, borda clara e sombra; quando não há imagem remota, o espaço permanece como um bloco neutro. Os dados aparecem como `NOME:`, `CARGO:` e `PARTIDO:` em caixa alta. O partido é lido do campo `sg_partido` da base territorial do candidato. `TOTAL DE VOTOS:` aparece logo abaixo do partido nas duas páginas, com a mesma tipografia das demais linhas, sem card próprio; o valor é calculado a partir do parquet territorial selecionado. O ano integra o título do Raio X.
 
-À direita do hero há um painel escuro arredondado com três botões empilhados: **Raio X Eleitoral**, **DNA Eleitoral** e **Expansão 2030**. Cada botão ocupa toda a largura do painel; a página ativa aparece em azul e as demais opções têm fundo transparente. A navegação permanece dentro do app; a pasta selecionada na barra lateral é preservada na sessão.
+À direita do hero há um painel escuro arredondado com dois botões empilhados: **Raio X Eleitoral** e **DNA Eleitoral**. Cada botão ocupa toda a largura do painel; a página ativa aparece em azul e as demais opções têm fundo transparente. A navegação permanece dentro do app; a pasta selecionada na barra lateral é preservada na sessão.
 
 | Página | Título do hero | Subtítulo |
 | --- | --- | --- |
 | Raio X | `RAIO X da votação 2026` (ano numérico mais recente disponível quando não há 2026) | `Análises descritivas geográficas e do perfil do eleitor na última eleição.` |
 | DNA | `DNA do Eleitor` | `Quem é, onde está e como se comporta o eleitor determinante da candidatura.` |
-| Expansão 2030 | `Expansão de votos para 2030` | `Oportunidades territoriais para ampliar a votação em 2030.` |
 
 ## 2. Página 1 — Raio X Eleitoral
 
@@ -149,7 +148,7 @@ O terceiro card, **Comparativo com a média**, mostra `(custo por voto da catego
 
 ## 3. Página 2 — DNA Eleitoral
 
-Depois do hero comum, a página apresenta **três faixas principais** nesta ordem: Identidade da Base Eleitoral, Distribuição do Perfil do Eleitorado e Matriz de Potencial Demográfico. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO; os mapas estadual e municipal de potencial fecham a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
+Depois do hero comum, a página apresenta **quatro faixas principais** nesta ordem: Identidade da Base Eleitoral, Distribuição do Perfil do Eleitorado, Expansão & Oportunidades para 2030 e Matriz de Potencial Demográfico. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO e a seção completa de expansão; os mapas estadual e municipal de potencial fecham a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
 
 ### 3.1 Identidade da Base Eleitoral
 
@@ -183,19 +182,7 @@ O segundo bloco é um painel próprio, com título em caixa alta e pergunta `Qua
 
 A lista abaixo contém **uma linha expansível por ICP**, ordenada dentro da classificação pelo peso eleitoral. A linha fechada mostra uma badge de maturidade (`🎯 Base Principal`, `🛡️ Consolidado` ou `🚀 Emergente / Expansão`), identificador ICP, atributos demográficos dominantes em chips, percentual da votação e votos absolutos; uma seta sugere abertura. A linha aberta recebe borda mais clara e revela quatro blocos demográficos em grade de duas colunas. Cada bloco mostra dimensão, categoria dominante, percentual e uma barra azul individual. Uma nota esclarece que os percentuais descrevem categorias dominantes **dentro do perfil**. O bloco final `Leitura estratégica` traz a justificativa textual disponível. Dois ICPs com o mesmo rótulo estratégico continuam separados. Ausência de perfis gera mensagem, não um ICP fictício.
 
-### 3.3 Matriz de Potencial Demográfico
-
-Esta seção está em preparação para receber as métricas de potencial. A faixa principal mantém o subtítulo `Comparativo entre o perfil do eleitor do candidato e a população local. Identificação de sobre-representação e frentes de expansão.`.
-
-Logo após a faixa principal, o subcard **Potencial Demográfico Estadual** mostra a malha oficial dos 853 municípios de Minas Gerais em duas colunas: cerca de 70% para o mapa e 30% para quatro cards laterais vazios. Os seletores de **Mesorregião** e **Município** ficam no card do mapa. Todos os municípios continuam visíveis: selecionar uma mesorregião a destaca em azul claro e selecionar um município destaca seu polígono em azul mais forte. O hover mostra apenas o nome do município e da mesorregião. O destaque corresponde ao recorte geográfico, sem representar uma métrica de potencial; não há escala analítica nem legenda de potencial.
-
-Em seguida, o subcard **Potencial demográfico municipal** mantém a mesma estrutura em duas colunas, com mapa à esquerda e quatro cards laterais vazios. Seus seletores de **Mesorregião** e **Município** têm estado independente dos filtros estaduais e controlam a malha intramunicipal. A formação territorial reutiliza exatamente a lógica do mapa detalhado do Raio X: bairros oficiais quando cobrem pelo menos 95% do município, áreas ponderadas quando existem duas ou mais unidades e setores censitários somente quando há uma única área ponderada.
-
-Por enquanto, os polígonos do mapa municipal aparecem no mesmo azul muito claro (`#e8f1ff`), com divisórias azuladas e contorno municipal branco mais espesso, apenas para apresentar a geometria. Não há informação analítica, intensidade de cor, legenda nem tooltip de dados. Os quatro cards de cada bloco permanecem vazios e reservados para as próximas métricas. Se uma malha não puder ser carregada, o card correspondente mostra uma mensagem de indisponibilidade.
-
-## 4. Página 3 — Expansão 2030
-
-### 4.1 Expansão & Oportunidades para 2030
+### 3.3 Expansão & Oportunidades para 2030
 
 **Pergunta visual:** onde proteger a base existente e onde há oportunidade demográfica relativa ao ICP escolhido?
 
@@ -205,14 +192,24 @@ Antes do mapa há uma **legenda de quatro cards**. Cada um combina amostra de co
 
 O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640 px** de altura. Cada município recebe uma das quatro classes e a barra categórica do próprio Plotly permanece visível. O hover informa nome, classe, votos, oportunidade e similaridade. A nota inferior explicita que os limites de votos, similaridade e potencial são relativos ao perfil selecionado e que potencial demográfico **não é previsão de votos**. Se não houver dados completos de Censo/potencial ou a malha municipal falhar, a seção mostra uma informação textual no lugar do mapa.
 
-## 5. Interação, estados e continuidade visual
+### 3.4 Matriz de Potencial Demográfico
 
-### 5.1 Escopo dos controles
+Esta seção está em preparação para receber as métricas de potencial. A faixa principal mantém o subtítulo `Comparativo entre o perfil do eleitor do candidato e a população local. Identificação de sobre-representação e frentes de expansão.`.
+
+Logo após a faixa principal, o subcard **Potencial Demográfico Estadual** mostra a malha oficial dos 853 municípios de Minas Gerais em duas colunas: cerca de 70% para o mapa e 30% para quatro cards laterais vazios. Os seletores de **Mesorregião** e **Município** ficam no card do mapa. Todos os municípios continuam visíveis: selecionar uma mesorregião a destaca em azul claro e selecionar um município destaca seu polígono em azul mais forte. O hover mostra apenas o nome do município e da mesorregião. O destaque corresponde ao recorte geográfico, sem representar uma métrica de potencial; não há escala analítica nem legenda de potencial.
+
+Em seguida, o subcard **Potencial demográfico municipal** mantém a mesma estrutura em duas colunas, com mapa à esquerda e quatro cards laterais vazios. Seus seletores de **Mesorregião** e **Município** têm estado independente dos filtros estaduais e controlam a malha intramunicipal. A formação territorial reutiliza exatamente a lógica do mapa detalhado do Raio X: bairros oficiais quando cobrem pelo menos 95% do município, áreas ponderadas quando existem duas ou mais unidades e setores censitários somente quando há uma única área ponderada.
+
+Por enquanto, os polígonos do mapa municipal aparecem no mesmo azul muito claro (`#e8f1ff`), com divisórias azuladas e contorno municipal branco mais espesso, apenas para apresentar a geometria. Não há informação analítica, intensidade de cor, legenda nem tooltip de dados. Os quatro cards de cada bloco permanecem vazios e reservados para as próximas métricas. Se uma malha não puder ser carregada, o card correspondente mostra uma mensagem de indisponibilidade.
+
+## 4. Interação, estados e continuidade visual
+
+### 4.1 Escopo dos controles
 
 | Controle | Onde atua | Persistência observável |
 | --- | --- | --- |
 | Pasta do candidato na barra lateral | Três páginas | Lista as pastas de candidatos encontradas na raiz configurada do HF e preserva a seleção ao trocar de rota |
-| Painel vertical Raio X / DNA / Expansão 2030 | Navegação | Opção ativa destacada no hero |
+| Painel vertical Raio X / DNA | Navegação | Opção ativa destacada no hero |
 | Filtro territorial Mesorregião / Município | Mapa estadual do Raio X e conteúdo da janela aberta por clique | Restrito ao primeiro mapa |
 | Eleição no mapa de Belo Horizonte | Mapa de bairros do Raio X | 2020/2024 mostram comparação com 2026; 2026 mostra votos atuais; Projeção 2028 mostra as categorias estratégicas |
 | Cards de votação em Belo Horizonte | Cinco indicadores calculados para a cidade | Atualizam em 2020/2024; ficam nos dados de 2026 em 2026 e Projeção 2028 |
@@ -225,19 +222,19 @@ O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640
 | Município e dimensão da rosca DNA | Rosca e total do recorte | Restrito à seção de distribuição |
 | Mesorregião e município do bloco estadual da Matriz DNA | Destaque geográfico na malha dos municípios de MG | Restrito ao bloco estadual |
 | Mesorregião e município do bloco municipal da Matriz DNA | Malha intramunicipal neutra | Restrito ao bloco municipal |
-| Perfil para expansão | Classes e métricas do mapa de Expansão 2030 | Restrito à página de expansão |
+| Perfil para expansão | Classes e métricas do mapa de Expansão 2030 | Restrito à seção de expansão do DNA |
 
-### 5.2 Estado sem dados
+### 4.2 Estado sem dados
 
 Falta de parquet, malha ou dimensão não deve parecer valor zero. A implementação usa `st.info`, `st.warning`, captions ou cards com texto para explicar o que está ausente. Zero legítimo continua como valor ou cor mínima quando existe malha e a métrica pode ser calculada. Os mapas mantêm municípios ou setores sem votos visíveis onde a fonte geométrica está disponível. As notas analíticas permanecem próximas ao gráfico a que se referem.
 
-### 5.3 Responsividade implementada
+### 4.3 Responsividade implementada
 
-No hero, a navegação permanece vertical à direita em telas largas; quando as colunas do Streamlit se reorganizam, o painel passa para baixo do conteúdo mantendo os três botões empilhados. A foto e os textos também se ajustam por regras CSS próprias. Os KPIs da página 1 passam de linha para uma coluna em telas até cerca de **900 px**. A faixa Top 1/5/15/20 passa para duas colunas; a lista de municípios reduz colunas novamente abaixo de **600 px**. Os quatro sub-cards do eleitor ideal passam para duas colunas abaixo de **900 px** e uma coluna abaixo de **760 px**. No card dos ICPs, o resumo e as barras demográficas empilham abaixo de **600 px**; o cabeçalho de cada perfil pode quebrar em telas estreitas. A legenda de expansão passa de quatro para duas colunas abaixo de **900 px** e para uma abaixo de **560 px**.
+No hero, a navegação permanece vertical à direita em telas largas; quando as colunas do Streamlit se reorganizam, o painel passa para baixo do conteúdo mantendo os dois botões empilhados. A foto e os textos também se ajustam por regras CSS próprias. Os KPIs da página 1 passam de linha para uma coluna em telas até cerca de **900 px**. A faixa Top 1/5/15/20 passa para duas colunas; a lista de municípios reduz colunas novamente abaixo de **600 px**. Os quatro sub-cards do eleitor ideal passam para duas colunas abaixo de **900 px** e uma coluna abaixo de **760 px**. No card dos ICPs, o resumo e as barras demográficas empilham abaixo de **600 px**; o cabeçalho de cada perfil pode quebrar em telas estreitas. A legenda de expansão passa de quatro para duas colunas abaixo de **900 px** e para uma abaixo de **560 px**.
 
 Os pares de mapa e cards laterais da página 1, o treemap com os três cards de insights ao lado e o par rosca/filtros do DNA são montados com `st.columns`; a experiência móvel também depende do empilhamento padrão do Streamlit. Nomes longos de município, persona e despesa podem quebrar linha. Tooltips complementam os rótulos que não cabem nos cards.
 
-## 6. Critérios de fidelidade para futuras alterações
+## 5. Critérios de fidelidade para futuras alterações
 
 1. Preservar a diferença entre **intensidade** (gradiente azul contínuo) e **classe** (cores da atuação parlamentar e da expansão).
 2. Manter a leitura em camadas: hero, faixa principal, cabeçalho interno quando necessário e conteúdo analítico.

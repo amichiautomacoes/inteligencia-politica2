@@ -255,6 +255,88 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
                         st.caption("Percentual indisponível")
 
 
+def _apply_icp_card_styles() -> None:
+    st.html("""
+    <style>
+    .st-key-dna_icp_general_card [data-testid="stVerticalBlockBorderWrapper"] {
+        border-color: var(--raiox-outline-border) !important;
+        border-radius: 18px;
+        background:
+            radial-gradient(circle at 8% 0%, rgba(96, 165, 250, 0.18) 0%, rgba(96, 165, 250, 0) 32%),
+            linear-gradient(145deg, rgba(11, 31, 77, 0.78) 0%, rgba(7, 24, 54, 0.64) 100%) !important;
+        box-shadow: var(--raiox-card-shadow);
+    }
+    .st-key-dna_icp_metric_0 [data-testid="stVerticalBlockBorderWrapper"],
+    .st-key-dna_icp_metric_1 [data-testid="stVerticalBlockBorderWrapper"],
+    .st-key-dna_icp_metric_2 [data-testid="stVerticalBlockBorderWrapper"],
+    .st-key-dna_icp_metric_3 [data-testid="stVerticalBlockBorderWrapper"] {
+        border-color: rgba(177, 211, 255, 0.2) !important;
+        border-radius: 14px;
+        background: rgba(4, 18, 43, 0.34) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    }
+    .dna-icp-heading .dna-subsection-description { margin-bottom: 1rem; }
+    .dna-icp-persona-label {
+        margin: 0.25rem 0 0.7rem;
+        color: #b7c7e6;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+    }
+    .dna-icp-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin: 0 0 0.45rem;
+    }
+    .dna-icp-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.25rem;
+        padding: 0.4rem 0.85rem;
+        border: 1px solid rgba(147, 197, 253, 0.28);
+        border-radius: 999px;
+        color: #f8fbff;
+        font-size: 1rem;
+        font-weight: 750;
+        line-height: 1.25;
+    }
+    .dna-icp-badge-0 { background: rgba(16, 185, 129, 0.16); border-color: rgba(52, 211, 153, 0.34); }
+    .dna-icp-badge-1 { background: rgba(59, 130, 246, 0.17); border-color: rgba(96, 165, 250, 0.36); }
+    .dna-icp-badge-2 { background: rgba(139, 92, 246, 0.17); border-color: rgba(167, 139, 250, 0.36); }
+    .dna-icp-badge-3 { background: rgba(245, 158, 11, 0.16); border-color: rgba(251, 191, 36, 0.35); }
+    .dna-icp-kpi-label {
+        color: #b7c7e6;
+        font-size: 0.98rem;
+        font-weight: 750;
+        letter-spacing: 0.02em;
+    }
+    .dna-icp-kpi-value {
+        margin-top: 0.55rem;
+        color: #f8fbff;
+        font-size: 1.12rem;
+        font-weight: 750;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+    .st-key-dna_icp_general_card [data-testid="stPlotlyChart"] { margin-top: 0.45rem; }
+    @media (max-width: 900px) {
+        .st-key-dna_icp_general_card [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
+        .st-key-dna_icp_general_card [data-testid="stColumn"] {
+            flex: 1 1 calc(50% - 0.75rem) !important;
+            min-width: min(100%, 15rem);
+        }
+    }
+    @media (max-width: 760px) {
+        .st-key-dna_icp_general_card [data-testid="stColumn"] {
+            flex: 1 1 100% !important;
+            min-width: 100%;
+        }
+    }
+    </style>
+    """)
+
+
 def _cluster_profiles(clusters_df: pd.DataFrame | None) -> list[dict]:
     if clusters_df is None or clusters_df.empty:
         return []
@@ -609,6 +691,7 @@ def _render_demographic_potential() -> None:
 
 
 apply_shared_visual_model()
+_apply_icp_card_styles()
 render_page_header("dna")
 
 DNA_SECTIONS = [

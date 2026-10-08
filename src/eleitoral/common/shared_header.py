@@ -448,8 +448,7 @@ def _current_files() -> list[str]:
 def selected_files() -> list[str]:
     files = _current_files()
     filters = st.session_state.get("deputados_filters", {})
-    selected = selected_deputado_files(files, filters)
-    return selected or files
+    return selected_deputado_files(files, filters)
 
 
 def selected_deputado_label() -> dict[str, str]:

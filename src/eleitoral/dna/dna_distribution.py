@@ -60,6 +60,17 @@ def _filter_municipality(df: pd.DataFrame, code: str, name: str) -> pd.DataFrame
 
 
 def _distribution(df: pd.DataFrame, prefix: str) -> pd.DataFrame:
+    # Stage 02 files can contain both municipality and neighborhood rows. Keep
+    # one level so each municipality's votes are not counted twice.
+    if "nivel_territorial" in df:
+        levels = df["nivel_territorial"].astype(str).str.strip().str.casefold()
+        municipal = df.loc[levels.eq("municipio")]
+        if not municipal.empty:
+            df = municipal
+        else:
+            neighborhoods = df.loc[levels.eq("bairro")]
+            if not neighborhoods.empty:
+                df = neighborhoods
     columns = [column for column in df if column.startswith(prefix)]
     if not columns:
         return pd.DataFrame(columns=["categoria", "percentual"])

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -9,10 +10,23 @@ import streamlit as st
 from huggingface_hub import HfFileSystem
 
 
-DATA_DIR = Path(__file__).resolve().parent / "data" / "vereadores"
 SUPPORTED_SUFFIXES = {".csv", ".parquet", ".json", ".jsonl", ".xlsx", ".xls", ".jpg", ".jpeg", ".png"}
 DEFAULT_VISUALIZATION_YEAR = "2026"
-DEFAULT_VISUALIZACAO_PREFIX = "vereadores"
+DEFAULT_VISUALIZACAO_PREFIX = ""
+DEFAULT_CANDIDATE_CARGO = "Vereadores"
+SHARED_BUCKET_DIRS = {"ibge", "forca-local", "intermediate", "votacao"}
+CARGO_BUCKET_DIRS = {"deputados", "estaduais", "federais", "vereadores"}
+
+
+def _year_partition(value: str) -> tuple[str, str] | None:
+    """Return (year, scope) for a candidate data folder such as 2026 or bh_2026."""
+    value = value.strip()
+    if value.isdigit() and len(value) == 4:
+        return value, ""
+    match = re.fullmatch(r"(?P<scope>.+)_(?P<year>\d{4})", value)
+    if match:
+        return match.group("year"), match.group("scope")
+    return None
 
 
 def load_env(path: str | Path = ".env") -> dict[str, str]:
@@ -32,7 +46,7 @@ def load_env(path: str | Path = ".env") -> dict[str, str]:
 
 
 def _visualizacao_prefix(config: dict[str, str]) -> str:
-    return (config.get("HF_VISUALIZACAO_PREFIX") or DEFAULT_VISUALIZACAO_PREFIX).strip("/")
+    return config.get("HF_VISUALIZACAO_PREFIX", DEFAULT_VISUALIZACAO_PREFIX).strip("/")
 
 
 def hf_visualizacao_path(env: dict[str, str] | None = None) -> str:
@@ -41,7 +55,7 @@ def hf_visualizacao_path(env: dict[str, str] | None = None) -> str:
     prefix = _visualizacao_prefix(config)
     if not bucket_url:
         raise RuntimeError("HF_BUCKET_URL nao foi configurado no .env.")
-    return f"{bucket_url}/{prefix.strip('/')}"
+    return f"{bucket_url}/{prefix}" if prefix else bucket_url
 
 
 def _visualizacao_relative_parts(file_name: str) -> tuple[str, ...]:
@@ -73,11 +87,32 @@ def hf_filesystem(token: str | None) -> HfFileSystem:
 @st.cache_data(show_spinner=False, ttl=600)
 def remote_data_files(remote_base: str, token: str | None) -> list[str]:
     fs = hf_filesystem(token)
-    return sorted(
-        file_path
-        for file_path in fs.find(remote_base)
-        if Path(file_path).suffix.lower() in SUPPORTED_SUFFIXES
-    )
+    candidate_roots: list[str] = []
+    for entry in fs.ls(remote_base, detail=False):
+        folder_name = PurePosixPath(entry.rstrip("/")).name.casefold()
+        if folder_name in SHARED_BUCKET_DIRS:
+            continue
+        if folder_name in CARGO_BUCKET_DIRS:
+            candidate_roots.append(entry)
+            continue
+        try:
+            children = fs.ls(entry, detail=False)
+        except Exception:
+            continue
+        if any(_year_partition(PurePosixPath(child.rstrip("/")).name) for child in children):
+            candidate_roots.append(entry)
+
+    files: set[str] = set()
+    for candidate_root in candidate_roots:
+        try:
+            files.update(
+                file_path
+                for file_path in fs.find(candidate_root)
+                if PurePosixPath(file_path).suffix.lower() in SUPPORTED_SUFFIXES
+            )
+        except Exception:
+            continue
+    return sorted(files)
 
 
 def sync_deputados(force: bool = False) -> dict[str, Any]:
@@ -109,15 +144,27 @@ def deputado_parts(file_name: str) -> dict[str, str] | None:
     if len(parts) < 3:
         return None
 
-    if len(parts) >= 3 and parts[0] in {"estaduais", "federais"} and parts[1].isdigit():
+    cargo: str
+    nome_slug: str
+    if parts[0].casefold() in {"estaduais", "federais"} and parts[1].isdigit():
         cargo, ano, nome_slug = parts[0], parts[1], parts[2]
-    elif len(parts) >= 3 and parts[1].isdigit():
-        nome_slug, ano = parts[0], parts[1]
-        cargo = PurePosixPath(_visualizacao_prefix(load_env())).name
-    elif len(parts) >= 4 and parts[2].isdigit():
-        cargo, nome_slug, ano = parts[0], parts[1], parts[2]
+        scope = ""
+        base_path = ano
+    elif len(parts) >= 4 and parts[0].casefold() in CARGO_BUCKET_DIRS:
+        year_scope = _year_partition(parts[2])
+        if year_scope is None:
+            return None
+        cargo, nome_slug = parts[0], parts[1]
+        ano, scope = year_scope
+        base_path = parts[2]
+    elif len(parts) >= 3 and _year_partition(parts[1]) is not None:
+        nome_slug = parts[0]
+        ano, scope = _year_partition(parts[1]) or ("", "")
+        prefix_name = PurePosixPath(_visualizacao_prefix(load_env())).name
+        cargo = prefix_name or DEFAULT_CANDIDATE_CARGO
+        base_path = parts[1]
     else:
-        ano, cargo, nome_slug = parts[0], parts[1], parts[2]
+        return None
 
     slug_parts = nome_slug.split("_")
     if slug_parts and slug_parts[0].isdigit():
@@ -133,6 +180,8 @@ def deputado_parts(file_name: str) -> dict[str, str] | None:
         "nome": " ".join(nome_tokens).title(),
         "nome_slug": nome_slug,
         "pasta": nome_slug,
+        "base": scope,
+        "base_path": base_path,
     }
 
 
@@ -183,7 +232,7 @@ def path_filter_options(files: list[str]) -> dict[str, list[str]]:
 
     for file_name in files:
         parsed = deputado_parts(file_name)
-        if not parsed:
+        if not parsed or parsed["base_path"] != parsed["ano"]:
             continue
 
         ano = parsed["ano"]
@@ -205,7 +254,7 @@ def deputados_index(files: list[str]) -> list[dict[str, str]]:
 
     for file_name in files:
         parsed = deputado_parts(file_name)
-        if not parsed:
+        if not parsed or parsed["base_path"] != parsed["ano"]:
             continue
 
         key = (parsed["cargo"], parsed["pasta"])
@@ -239,11 +288,15 @@ def deputados_index(files: list[str]) -> list[dict[str, str]]:
 
 
 def selected_deputado_files(files: list[str], filters: dict[str, str]) -> list[str]:
+    if filters.get("pasta") in (None, "", "Todos"):
+        return []
+
     parsed_files = [(file_name, deputado_parts(file_name)) for file_name in files]
     candidate_files = [
         (file_name, parsed)
         for file_name, parsed in parsed_files
         if parsed
+        and parsed["base_path"] == parsed["ano"]
         and filters.get("cargo") in (None, "Todos", parsed["cargo"])
         and filters.get("nome") in (None, "Todos", parsed["nome"])
         and filters.get("pasta") in (None, "", "Todos", parsed["pasta"])

@@ -6,7 +6,7 @@ Este documento registra **a interface implementada hoje** nas três páginas do 
 
 O produto é um painel de inteligência eleitoral para deputados e vereadores, com três rotas. **Raio X Eleitoral** mostra os dados do candidato selecionado, sua distribuição territorial, concentração, atuação parlamentar e custo do voto; o ano padrão do projeto é 2026 e, se não estiver disponível para uma pasta, usa o ano numérico mais recente encontrado. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
 
-O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato no HF e navegar entre páginas. Um controle segmentado dentro da capa também alterna as três rotas e indica qual está ativa.
+O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato na raiz configurada do HF e navegar entre páginas. Um controle segmentado dentro da capa também alterna as três rotas e indica qual está ativa.
 
 ### 1.1 Sistema visual compartilhado
 
@@ -95,7 +95,7 @@ A faixa principal traz o título completo e explica o índice de retorno parlame
 
 O mapa Plotly fica abaixo desses três KPIs na mesma coluna esquerda, ocupando cerca de **70% da largura** e aproximadamente **720 px** de altura para acompanhar o fim do último card lateral; a legenda ocupa os **30%** restantes como seis cards verticais alinhados ao topo externo da coluna. Cada município recebe uma categoria. Os cards usam gradiente baseado na própria cor do mapa e mostram, por classe, quantidade de cidades, participação na votação total e explicação em linguagem simples: **BASE PRIORIZADA**, **APOSTA POLÍTICA**, **BASE EM RISCO**, **PRESENÇA PONTUAL**, **VOTAÇÃO ORGÂNICA** e **TERRITÓRIO NEUTRO**. A cor é **classe**, não escala monetária. O hover do mapa traz município, categoria, votos e emendas. O valor financeiro não modifica a intensidade do preenchimento.
 
-O mapa depende de votos e emendas do candidato. Se a combinação não estiver disponível, o card mostra `Mapa parlamentar indisponível.`. Os KPIs também têm rótulos de ausência ou zero quando faltam dados.
+O mapa depende de votos e emendas do candidato. Se a combinação não estiver disponível, o card mostra `Mapa parlamentar indisponível.`. Quando não há registros de emendas, os KPIs mostram traço ou `Sem dados` com uma legenda que explica a ausência, sem apresentar a falta de registros como resultado zero.
 
 Ao clicar em um município no mapa parlamentar, uma janela mostra os votos, a categoria, o total indicado de emendas e uma tabela por finalidade e tipo de indicação. A tabela agrega os valores indicados das emendas registradas para o município; pagamentos podem ser diferentes. O card do mapa não acrescenta preenchimento lateral interno.
 
@@ -195,7 +195,7 @@ O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640
 
 | Controle | Onde atua | Persistência observável |
 | --- | --- | --- |
-| Pasta do candidato na barra lateral | Três páginas | Lista as pastas encontradas no prefixo remoto e preserva a seleção ao trocar de rota |
+| Pasta do candidato na barra lateral | Três páginas | Lista as pastas de candidatos encontradas na raiz configurada do HF e preserva a seleção ao trocar de rota |
 | Cápsula Raio X / DNA / Expansão 2030 | Navegação | Opção ativa destacada no hero |
 | Filtro territorial Mesorregião / Município | Mapa estadual do Raio X e conteúdo da janela aberta por clique | Restrito ao primeiro mapa |
 | Mapa e cards de votação em Belo Horizonte | Malha territorial e cinco indicadores calculados para a cidade | Município fixo; sem filtros territoriais |

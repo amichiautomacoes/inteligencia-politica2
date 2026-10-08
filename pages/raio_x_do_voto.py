@@ -918,8 +918,7 @@ def _current_files() -> list[str]:
 def _selected_files() -> list[str]:
     files = _current_files()
     filters = st.session_state.get("deputados_filters", {})
-    selected = selected_deputado_files(files, filters)
-    return selected or files
+    return selected_deputado_files(files, filters)
 
 
 def _selected_deputado_label() -> dict[str, str]:
@@ -928,6 +927,7 @@ def _selected_deputado_label() -> dict[str, str]:
     cargo_labels = {
         "Estaduais": "Deputado Estadual",
         "Federais": "Deputado Federal",
+        "Vereadores": "Vereador",
     }
     return {
         "nome": str(filters.get("nome") or "Todos").upper(),
@@ -3634,12 +3634,12 @@ def _parliamentary_action_frame(
 def _parliamentary_action_kpis(action_df: pd.DataFrame) -> dict[str, str]:
     if action_df.empty:
         return {
-            "reciprocidade": "0,0%",
+            "reciprocidade": "—",
             "reciprocidade_caption": "Sem dados de emendas para calcular",
             "beneficiado": "Sem dados",
-            "beneficiado_caption": "R$ 0,00 | 0 votos",
-            "media_retorno": "R$ 0,00",
-            "media_retorno_caption": "Média estadual por voto recebido",
+            "beneficiado_caption": "Nenhum registro de emenda disponível",
+            "media_retorno": "—",
+            "media_retorno_caption": "Sem dados de emendas para calcular",
         }
 
     total_emendas = float(pd.to_numeric(action_df["valor_emendas"], errors="coerce").fillna(0).sum())

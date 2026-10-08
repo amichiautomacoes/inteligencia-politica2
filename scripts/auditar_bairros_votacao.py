@@ -7,7 +7,7 @@ import unicodedata
 import geopandas as gpd
 import pandas as pd
 
-from hf_sync import hf_filesystem, hf_visualizacao_path, load_env
+from hf_sync import deputado_parts, hf_filesystem, hf_visualizacao_path, load_env, remote_data_files
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,13 +51,23 @@ def main() -> None:
     sectors["setor_municipio"] = code_strings(sectors["code_muni"])
     sectors["bairro_setor"] = code_strings(sectors["code_neighborhood"])
 
-    paths = sorted(path for path in fs.find(hf_visualizacao_path(env)) if path.endswith("territorio/stage01b_bairros.parquet"))
+    paths = []
+    for path in remote_data_files(hf_visualizacao_path(env), env.get("HF_TOKEN")):
+        if not path.endswith("territorio/stage01b_bairros.parquet"):
+            continue
+        parsed = deputado_parts(path)
+        if parsed and parsed["base_path"] == parsed["ano"]:
+            paths.append((path, parsed))
+    paths.sort(key=lambda item: item[0])
     frames = []
-    for path in paths:
+    for path, parsed in paths:
         with fs.open(path, "rb") as source:
             frame = pd.read_parquet(source, columns=VOTE_COLUMNS)
-        frame["candidato"] = path.split("/")[-3]
+        frame["candidato"] = parsed["pasta"]
+        frame["pasta_dados"] = parsed["base_path"]
         frames.append(frame)
+    if not frames:
+        raise RuntimeError("Nenhum stage01b_bairros.parquet foi encontrado nas pastas de candidatos.")
     votes = pd.concat(frames, ignore_index=True)
     votes = votes[votes["cd_ibge_municipio"].isin(cities)].copy().reset_index(drop=True)
     votes["registro"] = votes.index
@@ -109,7 +119,7 @@ def main() -> None:
         votes.loc[found.index, "metodo_match"] = "ponto"
         votes.loc[found.index, "codigo_bairro_malha"] = found
 
-    keys = ["candidato", "cd_ibge_municipio"]
+    keys = ["candidato", "pasta_dados", "cd_ibge_municipio"]
     vote_totals = votes.groupby(keys).agg(
         registros=("registro", "size"), votos=("qt_votos", "sum"),
         bairros_eleitorais=("cd_bairro", "nunique"),

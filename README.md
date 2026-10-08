@@ -12,7 +12,7 @@ Este README é a referência técnica do projeto. A aparência, a hierarquia de 
 | `/dna-eleitoral` | `pages/dna_eleitor.py` | Eleitor ideal, distribuição demográfica, clusters de ICP e estrutura inicial da matriz de potencial |
 | `/expansao-2030` | `pages/expansao_2030.py` | Classificação municipal de proteção de base e oportunidade demográfica |
 
-`app.py` registra as três rotas com `st.navigation`, descobre os candidatos disponíveis no Hugging Face e mantém a seleção da pasta em `st.session_state`. A troca de página preserva o candidato selecionado.
+`app.py` registra as três rotas com `st.navigation`, descobre as pastas de candidatos na raiz configurada do Hugging Face e mantém a seleção em `st.session_state`. A troca de página preserva o candidato selecionado.
 
 Dois blocos seguem parcialmente implementados:
 
@@ -75,7 +75,7 @@ Crie `.env` a partir de `.env.example` e preencha o token quando o bucket não f
 
 ```env
 HF_BUCKET_URL="hf://buckets/amichianalista/mkt-politico"
-HF_VISUALIZACAO_PREFIX="vereadores"
+HF_VISUALIZACAO_PREFIX=""
 HF_GEOGRAPHY_PREFIX="IBGE/malha_mapas"
 HF_GEOGRAPHY_REFERENCE_PREFIX="IBGE/MG/dadosterritorio"
 HF_TOKEN="seu_token"
@@ -84,24 +84,24 @@ HF_TOKEN="seu_token"
 | Variável | Uso |
 | --- | --- |
 | `HF_BUCKET_URL` | Raiz do bucket acessado pelo `HfFileSystem`; obrigatória |
-| `HF_VISUALIZACAO_PREFIX` | Raiz dos candidatos e de seus artefatos; padrão `vereadores` |
+| `HF_VISUALIZACAO_PREFIX` | Prefixo opcional dentro do bucket; vazio para descobrir candidatos na raiz |
 | `HF_GEOGRAPHY_PREFIX` | GeoParquets otimizados usados nos mapas |
 | `HF_GEOGRAPHY_REFERENCE_PREFIX` | Tabelas auxiliares de códigos e nomes territoriais |
 | `HF_TOKEN` | Autenticação do Hugging Face; não deve ser versionada |
 
-O prefixo de visualização padrão é `vereadores`; as leituras do dashboard usam os quatro prefixos configurados acima. `HF_TOKEN` é necessário quando o bucket exige autenticação.
+O prefixo de visualização fica vazio por padrão: a aplicação descobre as pastas de candidatos diretamente em `HF_BUCKET_URL` e ignora as pastas compartilhadas do bucket. `HF_VISUALIZACAO_PREFIX` continua disponível para instalações que guardem os candidatos sob um prefixo. `HF_TOKEN` é necessário quando o bucket exige autenticação.
 
 ### Descoberta de candidatos
 
 O formato canônico é:
 
 ```text
-vereadores/{pasta_do_candidato}/{ano}/...
+{pasta_do_candidato}/{ano}/...
 ```
 
-`hf_sync.deputado_parts()` extrai ano, nome e pasta do caminho remoto. A barra lateral lista as pastas de candidatos encontradas no prefixo, exibindo o nome e o slug da pasta; a seleção filtra os arquivos por essa pasta. O ano padrão do projeto é 2026. Se uma pasta não tiver arquivos desse ano, o app escolhe o ano numérico mais recente disponível nela. Como o formato não codifica o cargo, candidatos nesse layout são agrupados sob o cargo definido pelo prefixo na interface. `selected_deputado_files()` aplica o recorte da pasta e do ano escolhido.
+`hf_sync.deputado_parts()` reconhece a pasta do candidato e o ano nos caminhos remotos. A barra lateral lista candidatos que possuem uma pasta anual padrão, exibindo nome e slug; a seleção filtra os arquivos pelo candidato e pelo ano. O ano padrão é 2026 e as páginas usam a pasta simples `{pasta_do_candidato}/2026/`. Pastas com recortes próprios, como `bh_2026`, são descobertas, mas ficam fora das consultas até terem uma regra de uso definida. Como o formato novo não codifica o cargo, os candidatos na raiz são classificados como vereadores. `selected_deputado_files()` aplica o recorte da pasta e do ano escolhido.
 
-Na consulta do bucket em 7 de outubro de 2026, as pastas encontradas foram `bh_bruno_miranda/2026` e `bh_marcela_tropia/2026`, sob `vereadores/`.
+Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretamente na raiz foram `bruno_miranda` e `marcela_tropia`. O bucket também contém pastas compartilhadas de geografia e processamento, que não são listadas como candidatos.
 
 ## Contrato de dados eleitorais
 
@@ -120,7 +120,7 @@ Na consulta do bucket em 7 de outubro de 2026, as pastas encontradas foram `bh_b
 | Gastos | `gastos/despesas_campanha.parquet` | Treemap e KPIs de custo |
 | Gastos | `gastos/gastos_territoriais_por_tipo.parquet` | Custo de referência por tipo e território |
 | Gastos | `gastos/gastos_territoriais.parquet` | Fallback com rateio territorial |
-| Emendas | `emendas/emendas_municipais.parquet` (2026) ou `gastos/emendas_legislativa.parquet` (layout anterior) | Mapa de atuação parlamentar e detalhamento |
+| Emendas | `gastos/emendas_legislativa.parquet` (ou `emendas/emendas_municipais.parquet`, quando fornecido) | Mapa de atuação parlamentar e detalhamento |
 | Força local | `forca_local/stage07a_capital_local_municipios.parquet` | Quadrantes de efetividade da estrutura política municipal |
 | Força local | `forca_local/stage07b_afinidade_eleitos.parquet` | Composição nominal de prefeitos e vereadores no detalhe municipal |
 | Censo | `IBGE/censo/genero_apond.parquet` | Cálculo da expansão |
@@ -131,7 +131,11 @@ Na consulta do bucket em 7 de outubro de 2026, as pastas encontradas foram `bh_b
 
 O app também reconhece CSV, JSON, JSONL, XLS/XLSX e imagens ao listar o bucket, mas as seções analíticas atuais leem os artefatos tabulares acima como Parquet. JPG, JPEG e PNG podem fornecer a foto do candidato.
 
-No conteúdo 2026 consultado, o arquivo de emendas usa `valor_emenda`, `nm_municipio`, `objeto_finalidade` e `tipo_emenda`; o leitor aceita esse formato além do layout anterior. Esse conteúdo não inclui os Parquets `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet` nem os arquivos de gastos territoriais. Nessas seções o dashboard informa a ausência dos dados correspondentes. O arquivo `territorio/stage07_bairros_estrategicos.parquet` presente nas pastas não substitui os artefatos de força local consumidos pela implementação atual.
+Na auditoria do bucket em 8 de outubro de 2026, cada candidato tinha 29 Parquets na pasta `2026/`. Os esquemas dos dois candidatos têm os mesmos nomes e tipos de coluna; somente a ordem das colunas difere em `IBGE/censo/genero_apond.parquet` e `IBGE/censo/idade_apond.parquet`. O leitor usa nomes, então essa diferença não altera as consultas. As contagens de linhas variam entre candidatos.
+
+O arquivo `gastos/emendas_legislativa.parquet` tem esquema, mas está vazio para os dois candidatos. Por isso o mapa e os KPIs de atuação parlamentar exibem ausência de dados até que o arquivo receba registros. Os demais arquivos de força local e gastos territoriais consultados estão presentes: `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet`, `forca_local/stage07b_afinidade_municipios.parquet`, `gastos/gastos_territoriais.parquet` e `gastos/gastos_territoriais_por_tipo.parquet`.
+
+O leitor de emendas aceita os campos `valor_pago_atualizado`, `valor_empenhado_ano`, `valor_indicado` ou `valor_emenda`; combina identificadores de município por código IBGE ou nome e lê finalidade/tipo dos campos disponíveis no arquivo.
 
 ### Semântica dos gastos territoriais
 

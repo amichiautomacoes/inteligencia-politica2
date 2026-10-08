@@ -14,9 +14,12 @@ from hf_sync import file_by_kind, load_env, load_parquet
 from eleitoral.dna.cluster_cards import cluster_cards_html
 from eleitoral.common.dna_copy import sentence_label
 from eleitoral.dna.dna_distribution import render_electorate_distribution
-from eleitoral.maps.dna_geo_reference import load_geo_layer, load_geo_reference
+from eleitoral.maps.dna_geo_reference import (
+    load_area_ponderada_bairro_crosswalk, load_geo_layer, load_geo_reference,
+)
 from eleitoral.dna.demographic_alignment import (
-    Profile, alignment, alignment_map, population_by_area, profile_options, weighted_area_geojson,
+    Profile, alignment, alignment_map, area_neighborhoods, population_by_area,
+    profile_options, weighted_area_geojson,
 )
 from eleitoral.maps.choropleth_maps import continuous_choropleth
 from eleitoral.maps.territorial_mesh import (
@@ -809,17 +812,40 @@ def _render_demographic_potential(population: pd.DataFrame, profiles: list[Profi
                     areas = load_geo_layer("area_ponderada")
                     areas = areas.loc[areas["code_muni"].astype("string").eq(selected_code)].copy()
                     areas["code_weighting"] = areas["code_weighting"].astype("string").str.zfill(10)
-                    if areas.empty or card_rows.empty:
+                    neighborhoods = area_neighborhoods(
+                        load_area_ponderada_bairro_crosswalk(), selected_code
+                    )
+                    area_codes = sorted(areas["code_weighting"].dropna().unique())
+                    selected_area = st.selectbox(
+                        "Área ponderada",
+                        ["", *area_codes],
+                        format_func=lambda code: (
+                            "Todas as áreas ponderadas" if not code else
+                            f"{code} · {str(neighborhoods.get(code, 'sem bairro vinculado'))[:75]}"
+                        ),
+                        key=f"dna_potential_area_{selected_code}",
+                    )
+                    if selected_area:
+                        card_rows = card_rows.loc[card_rows["area"].eq(selected_area)]
+                        scope = f"área ponderada {selected_area}"
+                    if areas.empty:
                         st.info("Áreas ponderadas ou população indisponíveis para este município.")
                     else:
-                        scores = alignment(card_rows, card_profile, by_municipality=False)
-                        names = card_rows.drop_duplicates("area").set_index("area").index.to_series().map(
+                        municipality_rows = population.loc[population["municipio"].eq(selected_code)]
+                        scores = alignment(municipality_rows, card_profile, by_municipality=False)
+                        names = municipality_rows.drop_duplicates("area").set_index("area").index.to_series().map(
                             lambda value: f"Área ponderada {value}"
                         )
                         fig = alignment_map(scores, weighted_area_geojson(areas), key="area",
-                                            names=names, profile=card_profile)
+                                            names=names, profile=card_profile,
+                                            context=neighborhoods, selected_code=selected_area)
                         st.plotly_chart(fig, width="stretch", key="dna_potential_municipality_mesh",
                                         config={"displayModeBar": False})
+                        if selected_area:
+                            st.caption(
+                                f"Área {selected_area}: {neighborhoods.get(selected_area, 'sem bairro vinculado')}. "
+                                "O vínculo do bairro é por ponto de referência; os percentuais representam a área ponderada."
+                            )
                         if len(areas) == 1:
                             st.caption("Este município possui uma única área ponderada; não há detalhe dentro do município.")
                         else:
@@ -827,6 +853,7 @@ def _render_demographic_potential(population: pd.DataFrame, profiles: list[Profi
                             note = f"{len(areas)} áreas ponderadas do Censo 2022. Passe o cursor para comparar população local e ICP."
                             if missing:
                                 note += f" {missing} área(s) em cinza não têm população no arquivo deste candidato."
+                            note += " Bairros vinculados pelo crosswalk territorial, sem redistribuir a população entre eles."
                             st.caption(note)
             except Exception as exc:
                 st.warning(f"Não foi possível carregar o alinhamento municipal: {exc}")

@@ -92,6 +92,21 @@ def population_by_area(gender: pd.DataFrame | None, age: pd.DataFrame | None) ->
     return frame
 
 
+def area_neighborhoods(crosswalk: pd.DataFrame, municipality_code: str) -> pd.Series:
+    """Return reference TSE neighborhoods per weighted area, without reallocating population."""
+    required = {"cd_ibge_municipio", "id_unidade", "nm_bairro", "id_bairro_tse"}
+    if crosswalk is None or crosswalk.empty or not required.issubset(crosswalk):
+        return pd.Series(dtype="string")
+    rows = crosswalk.copy()
+    rows["municipio"] = pd.to_numeric(rows["cd_ibge_municipio"], errors="coerce").astype("Int64").astype("string")
+    rows = rows.loc[rows["municipio"].eq(str(municipality_code))]
+    rows["area"] = pd.to_numeric(rows["id_unidade"], errors="coerce").astype("Int64").astype("string").str.zfill(10)
+    rows["bairro"] = rows["nm_bairro"].fillna("").astype(str).str.strip()
+    rows = rows.loc[rows["area"].notna() & rows["area"].str.startswith(str(municipality_code))]
+    rows = rows.loc[rows["bairro"].ne("")].drop_duplicates(["area", "id_bairro_tse"])
+    return rows.groupby("area")["bairro"].apply(lambda names: ", ".join(dict.fromkeys(names))).astype("string")
+
+
 def _similarity(local: pd.Series, reference: float) -> pd.Series:
     if not np.isfinite(reference) or reference <= 0 or reference > 100:
         return pd.Series(np.nan, index=local.index)
@@ -132,7 +147,8 @@ def alignment(frame: pd.DataFrame, profile: Profile, *, by_municipality: bool) -
 
 def alignment_map(
     scores: pd.DataFrame, geojson: dict, *, key: str, names: pd.Series | None = None,
-    profile: Profile | None = None, selected_code: str = "", height: int = 560,
+    profile: Profile | None = None, context: pd.Series | None = None,
+    selected_code: str = "", height: int = 560,
 ) -> go.Figure:
     frame = scores.copy()
     frame[key] = frame[key].astype(str)
@@ -142,17 +158,20 @@ def alignment_map(
     )
     frame["icp_genero"] = profile.percentages.get("genero", np.nan) if profile else np.nan
     frame["icp_idade"] = profile.percentages.get("idade", np.nan) if profile else np.nan
+    frame["contexto"] = frame[key].map(context).fillna("Sem bairro vinculado") if context is not None else ""
+    context_hover = "<br>Bairros de referência: %{customdata[7]}" if context is not None else ""
     figure = go.Figure(go.Choropleth(
         geojson=geojson, locations=frame[key], z=frame["alinhamento"],
         zmin=0, zmax=100, featureidkey="properties.id", colorscale=GREEN_SCALE,
         colorbar={"title": "Alinhamento", "tickvals": [0, 60, 75, 85, 93, 100], "ticksuffix": "/100"},
         marker_line_color="rgba(201,230,214,0.78)", marker_line_width=0.55,
         customdata=frame[["nome", "alinhamento_label", "local_genero", "icp_genero",
-                          "local_idade", "icp_idade", "dimensoes"]].to_numpy(),
+                          "local_idade", "icp_idade", "dimensoes", "contexto"]].to_numpy(),
         hovertemplate=("<b>%{customdata[0]}</b><br>Alinhamento: %{customdata[1]}"
                        "<br>Gênero local × ICP: %{customdata[2]:.1f}% × %{customdata[3]:.1f}%"
                        "<br>Idade local × ICP: %{customdata[4]:.1f}% × %{customdata[5]:.1f}%"
-                       "<br>Dimensões válidas: %{customdata[6]:.0f}/2<extra></extra>"),
+                       "<br>Dimensões válidas: %{customdata[6]:.0f}/2"
+                       + context_hover + "<extra></extra>"),
     ))
     if key == "area":
         geometry_ids = {str(feature.get("properties", {}).get("id", "")) for feature in geojson.get("features", [])}

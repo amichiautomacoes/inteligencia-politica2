@@ -67,6 +67,18 @@ def load_tse_neighborhood_sector_crosswalk() -> pd.DataFrame:
         )
 
 
+@st.cache_data(show_spinner=False)
+def load_area_ponderada_bairro_crosswalk() -> pd.DataFrame:
+    """Map TSE reference neighborhoods to their weighted Census area."""
+    env = load_env()
+    path = geography_reference_path(env, "crosswalk_area_ponderada_bairro.parquet")
+    with hf_filesystem(env.get("HF_TOKEN")).open(path, "rb") as source:
+        return pd.read_parquet(
+            source,
+            columns=["cd_ibge_municipio", "id_unidade", "nm_bairro", "id_bairro_tse"],
+        )
+
+
 def _read_geo_parquet(
     path: str, *, columns: list[str], filters: list[tuple] | None = None
 ) -> pd.DataFrame:

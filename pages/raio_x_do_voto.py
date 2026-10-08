@@ -4224,9 +4224,9 @@ with map_col:
             st.info("Mapa territorial indisponível.")
 with cards_col:
     _render_map_side_cards(votos_municipio_df)
-_section_header(
+_major_section_header(
     "Como foi sua votação em Belo Horizonte",
-    "Veja sua performance dentro da sua cidade",
+    "Veja o histórico dos seus votos na sua Base Eleitoral",
 )
 selected_bh_neighborhood_df = votos_bairro_df
 selected_bh_municipality_df = votos_municipio_df

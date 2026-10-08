@@ -1977,7 +1977,18 @@ def _render_neighborhood_side_cards(
         )
     ]
 
+    def neighborhood_concentration(with_votes: int) -> tuple[str, str]:
+        if total_neighborhoods is None or total_neighborhoods <= 0:
+            return "", ""
+        coverage = min(with_votes / total_neighborhoods, 1.0)
+        if coverage < 1 / 3:
+            return "Concentração baixa", "bad"
+        if coverage <= 2 / 3:
+            return "Concentração moderada", "warn"
+        return "Concentração alta", "good"
+
     def neighborhood_coverage_card(with_votes: int) -> str:
+        concentration, tone = neighborhood_concentration(with_votes)
         if total_neighborhoods is None or total_neighborhoods <= 0:
             return card(
                 "Penetração por bairros",
@@ -1985,12 +1996,6 @@ def _render_neighborhood_side_cards(
                 "Total de bairros oficiais indisponível",
             )
         coverage = min(with_votes / total_neighborhoods, 1.0)
-        if coverage < 1 / 3:
-            concentration, tone = "Concentração baixa", "bad"
-        elif coverage <= 2 / 3:
-            concentration, tone = "Concentração moderada", "warn"
-        else:
-            concentration, tone = "Concentração alta", "good"
         return card(
             "Penetração por bairros",
             f"{_format_number(with_votes)} bairros com voto",
@@ -1998,6 +2003,13 @@ def _render_neighborhood_side_cards(
             concentration,
             tone,
         )
+
+    def density_concentration(votes_per_neighborhood: int) -> tuple[str, str]:
+        if votes_per_neighborhood < 100:
+            return "Concentração baixa", "bad"
+        if votes_per_neighborhood <= 300:
+            return "Concentração moderada", "warn"
+        return "Concentração alta", "good"
 
     if rows.empty:
         cards.extend([
@@ -2021,6 +2033,12 @@ def _render_neighborhood_side_cards(
         )
         leader_votes = float(by_name.max()) if total > 0 else 0.0
         share = leader_votes / total if total > 0 else 0.0
+        average_votes_per_neighborhood = round(total / with_votes) if with_votes else None
+        density_badge, density_tone = (
+            density_concentration(average_votes_per_neighborhood)
+            if average_votes_per_neighborhood is not None
+            else ("", "")
+        )
         cards.extend([
             card(
                 "Bairro principal (Top 1)",
@@ -2039,8 +2057,11 @@ def _render_neighborhood_side_cards(
             neighborhood_coverage_card(with_votes),
             card(
                 "Densidade média por bairro",
-                f"{_format_number(round(total / with_votes))} votos / bairro" if with_votes else "—",
-                f"Considerando apenas os {_format_number(with_votes)} bairros com voto" if with_votes else "Sem votos por bairro",
+                f"{_format_number(average_votes_per_neighborhood)} votos"
+                if average_votes_per_neighborhood is not None else "—",
+                "Por Bairro" if with_votes else "Sem votos por bairro",
+                density_badge,
+                density_tone,
             ),
         ])
     st.markdown('<div class="raiox-map-side-cards">' + "".join(cards) + '</div>', unsafe_allow_html=True)

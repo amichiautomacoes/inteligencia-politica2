@@ -1876,8 +1876,15 @@ def _local_politics_municipality_dialog(
             )
 
 
-def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: str | None) -> None:
+def _render_neighborhood_side_cards(
+    df: pd.DataFrame | None,
+    municipality_code: str | None,
+    *,
+    year: str | int = "2026",
+    municipality_votes_df: pd.DataFrame | None = None,
+) -> None:
     card = _map_side_card
+    year = str(year)
     required = {"cd_ibge_municipio", "nm_bairro", "qt_votos"}
     municipality_rows = pd.DataFrame()
     rows = pd.DataFrame()
@@ -1889,14 +1896,42 @@ def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: 
         rows["qt_votos"] = pd.to_numeric(rows["qt_votos"], errors="coerce").fillna(0)
         rows = rows.loc[rows["nm_bairro"].ne("")]
 
-    municipality_total = pd.to_numeric(
-        municipality_rows.get("qt_votos", pd.Series(dtype=float)), errors="coerce"
-    ).fillna(0).sum()
+    municipal_vote_column = {
+        "2020": "qt_votos_candidato_2020",
+        "2024": "qt_votos_candidato_2024",
+        "2026": "qt_votos",
+    }.get(year, "qt_votos")
+    municipal_total = None
+    municipal_total_is_full = False
+    if (
+        municipality_votes_df is not None
+        and municipality_code is not None
+        and {"cd_ibge_municipio", municipal_vote_column}.issubset(municipality_votes_df.columns)
+    ):
+        municipal_codes = municipality_votes_df["cd_ibge_municipio"].astype("string")
+        selected_municipality = municipality_votes_df.loc[
+            municipal_codes.eq(str(municipality_code)), municipal_vote_column
+        ]
+        if not selected_municipality.empty:
+            numeric_total = pd.to_numeric(selected_municipality, errors="coerce")
+            if numeric_total.notna().any():
+                municipal_total = float(numeric_total.fillna(0).sum())
+                municipal_total_is_full = True
+    if municipal_total is None and not municipality_rows.empty:
+        neighborhood_total = pd.to_numeric(
+            municipality_rows.get("qt_votos", pd.Series(dtype=float)), errors="coerce"
+        )
+        if neighborhood_total.notna().any():
+            municipal_total = float(neighborhood_total.fillna(0).sum())
     cards = [
         card(
-            "Votos em Belo Horizonte (2026)",
-            _format_number(municipality_total) if not municipality_rows.empty else "—",
-            "Total municipal",
+            f"Votos em Belo Horizonte ({year})",
+            _format_number(municipal_total) if municipal_total is not None else "—",
+            (
+                "Total municipal da eleição selecionada"
+                if municipal_total_is_full
+                else "Soma dos bairros disponíveis"
+            ) if municipal_total is not None else "Dados da eleição indisponíveis",
         )
     ]
     if rows.empty:
@@ -4153,6 +4188,8 @@ _section_header(
     "Como foi sua votação em Belo Horizonte",
     "Veja sua performance dentro da sua cidade",
 )
+selected_bh_neighborhood_df = votos_bairro_df
+selected_bh_municipality_df = votos_municipio_df
 detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
 with detail_map_col:
     with st.container(border=True):
@@ -4168,6 +4205,17 @@ with detail_map_col:
             if bh_map_year in {"2020", "2024"}:
                 _render_bh_comparison_legend()
                 comparison_df = _read_selected_parquet("votos_bairro", scope="bh")
+                history_vote_column = f"qt_votos_candidato_bairro_{bh_map_year}"
+                if comparison_df is not None and history_vote_column in comparison_df.columns:
+                    selected_bh_neighborhood_df = comparison_df.copy()
+                    selected_bh_neighborhood_df["qt_votos"] = pd.to_numeric(
+                        selected_bh_neighborhood_df[history_vote_column], errors="coerce"
+                    ).fillna(0)
+                else:
+                    selected_bh_neighborhood_df = None
+                selected_bh_municipality_df = _read_selected_parquet(
+                    "votos_municipio", scope="bh"
+                )
                 mesh_fig, _ = municipality_mesh_map(
                     "3106200", comparison_df, comparison_year=bh_map_year
                 )
@@ -4191,7 +4239,8 @@ with detail_map_col:
                     st.caption(
                         f"O mapa compara a participação do candidato em {bh_map_year} e 2026. "
                         "O tooltip mostra os votos totais de cada eleição e a diferença em pontos percentuais, "
-                        "calculada nos locais de votação correspondidos. Os cards laterais permanecem em 2026."
+                        "calculada nos locais de votação correspondidos. Os cards laterais mostram os indicadores "
+                        f"da eleição selecionada ({bh_map_year})."
                     )
                 elif scale_type == "uniform":
                     st.caption(
@@ -4207,7 +4256,12 @@ with detail_map_col:
         except Exception as exc:
             st.warning(f"Não foi possível carregar o mapa de bairros de Belo Horizonte: {exc}")
 with detail_cards_col:
-    _render_neighborhood_side_cards(votos_bairro_df, "3106200")
+    _render_neighborhood_side_cards(
+        selected_bh_neighborhood_df,
+        "3106200",
+        year=bh_map_year,
+        municipality_votes_df=selected_bh_municipality_df,
+    )
 
 _major_section_header(
     "Força da política local",

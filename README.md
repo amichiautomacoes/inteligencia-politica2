@@ -17,7 +17,7 @@ Este README é a referência técnica do projeto. A aparência, a hierarquia de 
 Dois blocos seguem parcialmente implementados:
 
 - **Força da política local**, no Raio X, cruza o capital político local do stage 7a com o market share municipal, colore os quatro quadrantes estratégicos e resume cada classe em um card lateral interativo.
-- **Matriz de Potencial Demográfico**, no DNA, exibe a malha intramunicipal em cor neutra e quatro cards vazios. A rotina analítica de compatibilidade existente em `pages/dna_eleitor.py` não é chamada pela rota atual.
+- **Matriz de Potencial Demográfico**, no DNA, exibe dois mapas em cor neutra: Minas Gerais pela malha municipal e o município selecionado pela malha intramunicipal. Cada mapa tem quatro cards laterais vazios. Os filtros dos dois blocos são independentes. A rotina analítica de compatibilidade existente em `pages/dna_eleitor.py` não é chamada pela rota atual.
 
 ## Arquitetura
 

@@ -286,8 +286,9 @@ def apply_shared_visual_model() -> None:
             font-size: 1.05rem;
             font-weight: 700;
         }}
-        .st-key-dna_potential_map_card [data-testid="stVerticalBlockBorderWrapper"] {{
-            border-color: var(--raiox-outline-border) !important;
+        .st-key-dna_potential_map_card,
+        .st-key-dna_state_potential_map_card {{
+            border: 1px solid var(--raiox-outline-border) !important;
             background: rgba(7, 24, 54, 0.18) !important;
             box-shadow: none;
         }}

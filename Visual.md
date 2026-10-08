@@ -139,7 +139,7 @@ O custo por voto é normalizado para ocupar no máximo 36% do comprimento da mai
 
 ## 3. Página 2 — DNA Eleitoral
 
-Depois do hero comum, a página apresenta **três faixas principais** nesta ordem: Identidade da Base Eleitoral, Distribuição do Perfil do Eleitorado e Matriz de Potencial Demográfico. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO; o mapa de potencial fecha a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
+Depois do hero comum, a página apresenta **três faixas principais** nesta ordem: Identidade da Base Eleitoral, Distribuição do Perfil do Eleitorado e Matriz de Potencial Demográfico. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO; os mapas estadual e municipal de potencial fecham a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
 
 ### 3.1 Identidade da Base Eleitoral
 
@@ -177,9 +177,11 @@ A lista abaixo contém **uma linha expansível por ICP**, ordenada dentro da cla
 
 Esta seção está em preparação para receber as métricas de potencial. A faixa principal mantém o subtítulo `Comparativo entre o perfil do eleitor do candidato e a população local. Identificação de sobre-representação e frentes de expansão.`.
 
-Logo após a faixa principal, o card interno **Potencial demográfico municipal** introduz uma estrutura em duas colunas, na proporção aproximada de 70% para o mapa e 30% para os cards laterais. À esquerda, seletores de **Mesorregião** e **Município** controlam a malha exibida. A formação territorial reutiliza exatamente a lógica do mapa detalhado do Raio X: bairros oficiais quando cobrem pelo menos 95% do município, áreas ponderadas quando existem duas ou mais unidades e setores censitários somente quando há uma única área ponderada.
+Logo após a faixa principal, o subcard **Potencial Demográfico Estadual** mostra a malha oficial dos 853 municípios de Minas Gerais em duas colunas: cerca de 70% para o mapa e 30% para quatro cards laterais vazios. Os seletores de **Mesorregião** e **Município** ficam no card do mapa. Todos os municípios continuam visíveis: selecionar uma mesorregião a destaca em azul claro e selecionar um município destaca seu polígono em azul mais forte. O hover mostra apenas o nome do município e da mesorregião. O destaque corresponde ao recorte geográfico, sem representar uma métrica de potencial; não há escala analítica nem legenda de potencial.
 
-Por enquanto, todos os polígonos aparecem no mesmo azul muito claro (`#e8f1ff`), com divisórias azuladas e contorno municipal branco mais espesso, apenas para apresentar a geometria. Não há informação analítica, intensidade de cor, legenda nem tooltip de dados. À direita ficam **quatro cards vazios**, empilhados e reservados para as próximas métricas. Se a malha não puder ser carregada, o card do mapa mostra uma mensagem de indisponibilidade.
+Em seguida, o subcard **Potencial demográfico municipal** mantém a mesma estrutura em duas colunas, com mapa à esquerda e quatro cards laterais vazios. Seus seletores de **Mesorregião** e **Município** têm estado independente dos filtros estaduais e controlam a malha intramunicipal. A formação territorial reutiliza exatamente a lógica do mapa detalhado do Raio X: bairros oficiais quando cobrem pelo menos 95% do município, áreas ponderadas quando existem duas ou mais unidades e setores censitários somente quando há uma única área ponderada.
+
+Por enquanto, os polígonos do mapa municipal aparecem no mesmo azul muito claro (`#e8f1ff`), com divisórias azuladas e contorno municipal branco mais espesso, apenas para apresentar a geometria. Não há informação analítica, intensidade de cor, legenda nem tooltip de dados. Os quatro cards de cada bloco permanecem vazios e reservados para as próximas métricas. Se uma malha não puder ser carregada, o card correspondente mostra uma mensagem de indisponibilidade.
 
 ## 4. Página 3 — Expansão 2030
 
@@ -211,7 +213,8 @@ O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640
 | Clique em município da força política local | Abre o mapa isolado, os indicadores e a composição política municipal | Janela modal; fecha sem alterar o filtro dos cards |
 | Tipo de despesa no treemap | KPIs de custo e gráfico territorial | Botão restaura gasto total |
 | Município e dimensão da rosca DNA | Rosca e total do recorte | Restrito à seção de distribuição |
-| Mesorregião e município da Matriz DNA | Malha neutra exibida na preparação do potencial | Restrito à Matriz de Potencial |
+| Mesorregião e município do bloco estadual da Matriz DNA | Destaque geográfico na malha dos municípios de MG | Restrito ao bloco estadual |
+| Mesorregião e município do bloco municipal da Matriz DNA | Malha intramunicipal neutra | Restrito ao bloco municipal |
 | Perfil para expansão | Classes e métricas do mapa de Expansão 2030 | Restrito à página de expansão |
 
 ### 5.2 Estado sem dados

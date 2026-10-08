@@ -64,6 +64,82 @@ def municipality_options(mesorregiao: str | None = None) -> list[tuple[str, str]
     )
 
 
+def state_municipality_mesh_map(
+    mesoregion: str = "Todas", municipality_code: str = "",
+) -> go.Figure | None:
+    """Show the neutral municipal mesh of Minas Gerais with geographic selection only."""
+    geojson, _, municipalities, regions = load_geo_reference()
+    if not geojson or municipalities is None or municipalities.empty:
+        return None
+
+    codes = [
+        str(feature.get("properties", {}).get("id", ""))
+        for feature in geojson.get("features", [])
+    ]
+    codes = list(dict.fromkeys(code for code in codes if code))
+    if not codes:
+        return None
+
+    frame = pd.DataFrame({"code": codes})
+    names = municipalities[["codigo_ibge", "nome"]].drop_duplicates("codigo_ibge").copy()
+    names["codigo_ibge"] = names["codigo_ibge"].astype("string")
+    frame = frame.merge(names, left_on="code", right_on="codigo_ibge", how="left")
+    frame["nome"] = frame["nome"].fillna("Município")
+    frame["mesorregiao"] = "Mesorregião não informada"
+    if regions is not None and {"codigo_ibge", "mesorregiao_nome"}.issubset(regions.columns):
+        region_names = regions[["codigo_ibge", "mesorregiao_nome"]].drop_duplicates("codigo_ibge").copy()
+        region_names["codigo_ibge"] = region_names["codigo_ibge"].astype("string")
+        frame = frame.merge(region_names, on="codigo_ibge", how="left")
+        frame["mesorregiao"] = frame["mesorregiao_nome"].fillna(frame["mesorregiao"])
+
+    frame["selection"] = 0
+    if mesoregion and mesoregion != "Todas":
+        frame.loc[frame["mesorregiao"].eq(mesoregion), "selection"] = 1
+    if municipality_code:
+        frame.loc[frame["code"].eq(str(municipality_code)), "selection"] = 2
+
+    fig = go.Figure(go.Choropleth(
+        geojson=geojson,
+        locations=frame["code"],
+        z=frame["selection"],
+        zmin=0,
+        zmax=2,
+        featureidkey="properties.id",
+        colorscale=[
+            [0, "#e8f1ff"], [0.2499, "#e8f1ff"],
+            [0.25, "#bfd9ff"], [0.7499, "#bfd9ff"],
+            [0.75, "#60a5fa"], [1, "#60a5fa"],
+        ],
+        showscale=False,
+        marker_line_color="rgba(197,221,255,0.86)",
+        marker_line_width=0.65,
+        customdata=frame[["nome", "mesorregiao"]].to_numpy(),
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+    ))
+    state_lon, state_lat = geojson.get("regional_lines", {}).get("state", ([], []))
+    if state_lon and state_lat:
+        fig.add_trace(go.Scattergeo(
+            lon=state_lon,
+            lat=state_lat,
+            mode="lines",
+            line={"color": "rgba(248,251,255,0.98)", "width": 2.2},
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+    fig.update_geos(
+        fitbounds="locations", visible=False, projection_type="mercator",
+        bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_layout(
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#eaf2ff"},
+        meta={"mesh_kind": "municipio", "display_mode": "neutral"},
+    )
+    return fig
+
+
 def _municipality_geometry(municipality_code: str):
     municipalities = load_geo_layer("municipio")
     municipality_rows = municipalities.loc[

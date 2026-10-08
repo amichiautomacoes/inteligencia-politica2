@@ -20,6 +20,7 @@ from eleitoral.maps.territorial_mesh import (
     mesoregion_options,
     municipality_mesh_map,
     municipality_options,
+    state_municipality_mesh_map,
 )
 from eleitoral.common.shared_header import (
     apply_shared_visual_model,
@@ -684,6 +685,49 @@ def _render_empty_potential_cards() -> None:
     )
 
 
+def _render_state_demographic_potential() -> None:
+    map_col, cards_col = st.columns([0.70, 0.30], gap="large")
+    with map_col:
+        with st.container(border=True, key="dna_state_potential_map_card"):
+            try:
+                selected_mesorregiao = st.selectbox(
+                    "Mesorregião",
+                    ["Todas", *mesoregion_options()],
+                    key="dna_state_potential_mesorregiao",
+                )
+                municipality_choices = municipality_options(selected_mesorregiao)
+                if not municipality_choices:
+                    st.info("Nenhum município disponível para a mesorregião selecionada.")
+                else:
+                    municipality_labels = dict(municipality_choices)
+                    selected_code = st.selectbox(
+                        "Município",
+                        ["", *municipality_labels],
+                        format_func=lambda code: (
+                            "Todos os municípios" if not code else municipality_labels.get(code, code)
+                        ),
+                        key=f"dna_state_potential_municipio_{selected_mesorregiao}",
+                    )
+                    fig = state_municipality_mesh_map(selected_mesorregiao, selected_code)
+                    if fig is None:
+                        st.info("Malha municipal de Minas Gerais indisponível.")
+                    else:
+                        st.plotly_chart(
+                            fig,
+                            width="stretch",
+                            height=560,
+                            key="dna_state_potential_municipality_mesh",
+                            config={"displayModeBar": False},
+                        )
+                        st.caption(
+                            "O destaque indica apenas o filtro geográfico; este mapa ainda não representa valores de potencial."
+                        )
+            except Exception as exc:
+                st.warning(f"Não foi possível carregar a malha estadual: {exc}")
+    with cards_col:
+        _render_empty_potential_cards()
+
+
 def _render_demographic_potential() -> None:
     map_col, cards_col = st.columns([0.70, 0.30], gap="large")
     with map_col:
@@ -748,6 +792,8 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
         icp_general_df = _read_selected_parquet("icp_geral")
         _render_icp_geral_card(icp_general_df)
     elif index == 2:
+        section_header("Potencial Demográfico Estadual")
+        _render_state_demographic_potential()
         section_header("Potencial demográfico municipal")
         _render_demographic_potential()
     else:

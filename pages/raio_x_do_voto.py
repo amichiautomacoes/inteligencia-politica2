@@ -241,7 +241,35 @@ def _apply_visual_model() -> None:
         }}
         .raiox-expense-side-card {{
             min-height: 0;
-            margin-bottom: 1rem;
+            margin-bottom: 0;
+            box-sizing: border-box;
+        }}
+        .st-key-expense-layout {{
+            margin-top: 1.25rem;
+        }}
+        @media (min-width: 900px) {{
+            .st-key-expense-layout > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] {{
+                align-items: stretch;
+            }}
+            .st-key-expense-layout [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"] {{
+                height: 100%;
+                gap: 1rem;
+            }}
+            .st-key-expense-layout [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] {{
+                flex: 1 0 auto;
+                display: flex;
+            }}
+            .st-key-expense-layout [data-testid="stColumn"]:last-child [data-testid="stMarkdown"],
+            .st-key-expense-layout [data-testid="stColumn"]:last-child [data-testid="stMarkdownContainer"] {{
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+            }}
+            .st-key-expense-layout .raiox-expense-side-card {{
+                flex: 1;
+                min-height: 13.5rem;
+                padding: 1.15rem;
+            }}
         }}
         .raiox-expense-summary-card .raiox-insight-value {{
             white-space: normal;
@@ -3341,49 +3369,50 @@ def _render_cost_efficiency_section(
     selected_expense_label = _short_expense_type_label(selected_expense) if selected_expense else None
     _render_cost_efficiency_kpis(chart_df, selected_expense)
 
-    treemap_col, future_col = st.columns([0.8, 0.2], gap="medium")
-    with treemap_col:
-        with st.container(border=True):
-            treemap_title = (
-                f"Gastos por tipo de despesa · filtrando {selected_expense_label}"
-                if selected_expense_label else "Gastos por tipo de despesa"
-            )
-            st.markdown(
-                f"<div class='raiox-chart-card-title'>{html.escape(treemap_title)}</div>",
-                unsafe_allow_html=True,
-            )
-            if selected_expense and st.button("Mostrar gasto total", key="pagina1_reset_tipo_despesa"):
-                st.session_state.pop(EXPENSE_SELECTION_KEY, None)
-                st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
-                    st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
+    with st.container(key="expense-layout"):
+        treemap_col, future_col = st.columns([0.75, 0.25], gap="medium")
+        with treemap_col:
+            with st.container(border=True):
+                treemap_title = (
+                    f"Gastos por tipo de despesa · filtrando {selected_expense_label}"
+                    if selected_expense_label else "Gastos por tipo de despesa"
                 )
-                st.rerun()
-            clicked_points = plotly_events(
-                _expense_cost_by_type_chart(chart_df, selected_expense),
-                click_event=True,
-                select_event=False,
-                hover_event=False,
-                override_height=620,
-                override_width="100%",
-                key=f"{EXPENSE_TREEMAP_KEY}_{st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0)}",
-            )
-            st.caption(
-                "Áreas ajustadas para facilitar a leitura das despesas menores; "
-                "percentuais e valores exibidos correspondem aos gastos reais."
-            )
-            clicked_expense = _selected_expense_from_treemap(
-                clicked_points, _expense_treemap_display_frame(chart_df)
-            )
-            if clicked_expense and clicked_expense != selected_expense:
-                st.session_state[EXPENSE_SELECTION_KEY] = clicked_expense
-                st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
-                    st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
+                st.markdown(
+                    f"<div class='raiox-chart-card-title'>{html.escape(treemap_title)}</div>",
+                    unsafe_allow_html=True,
                 )
-                st.rerun()
-    with future_col:
-        _render_expense_cost_insight(chart_df, selected_expense)
-        _render_expense_budget_insight(chart_df, selected_expense)
-        _render_expense_average_comparison(chart_df, selected_expense)
+                if selected_expense and st.button("Mostrar gasto total", key="pagina1_reset_tipo_despesa"):
+                    st.session_state.pop(EXPENSE_SELECTION_KEY, None)
+                    st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
+                        st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
+                    )
+                    st.rerun()
+                clicked_points = plotly_events(
+                    _expense_cost_by_type_chart(chart_df, selected_expense),
+                    click_event=True,
+                    select_event=False,
+                    hover_event=False,
+                    override_height=620,
+                    override_width="100%",
+                    key=f"{EXPENSE_TREEMAP_KEY}_{st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0)}",
+                )
+                st.caption(
+                    "Áreas ajustadas para facilitar a leitura das despesas menores; "
+                    "percentuais e valores exibidos correspondem aos gastos reais."
+                )
+                clicked_expense = _selected_expense_from_treemap(
+                    clicked_points, _expense_treemap_display_frame(chart_df)
+                )
+                if clicked_expense and clicked_expense != selected_expense:
+                    st.session_state[EXPENSE_SELECTION_KEY] = clicked_expense
+                    st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
+                        st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
+                    )
+                    st.rerun()
+        with future_col:
+            _render_expense_cost_insight(chart_df, selected_expense)
+            _render_expense_budget_insight(chart_df, selected_expense)
+            _render_expense_average_comparison(chart_df, selected_expense)
 
 
 def _parliamentary_action_frame(

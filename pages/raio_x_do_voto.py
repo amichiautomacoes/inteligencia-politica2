@@ -1161,11 +1161,15 @@ def _map_side_card(title: str, value: str, caption: str, badge: str = "", tone: 
         f'<div class="raiox-map-side-badge {tone}">{html.escape(badge)}</div>'
         if badge else ""
     )
+    caption_html = (
+        f'<div class="raiox-map-side-caption">{html.escape(caption)}</div>'
+        if caption else ""
+    )
     return (
         '<div class="raiox-map-side-card">'
         f'<div class="raiox-map-side-label">{html.escape(title)}</div>'
         f'<div class="raiox-map-side-value">{html.escape(value)}</div>'
-        f'<div class="raiox-map-side-caption">{html.escape(caption)}</div>'
+        f'{caption_html}'
         f'{badge_html}</div>'
     )
 
@@ -1876,12 +1880,39 @@ def _local_politics_municipality_dialog(
             )
 
 
+def _candidate_total_votes_for_year(
+    votes_df: pd.DataFrame | None,
+    year: str,
+) -> float | None:
+    if votes_df is None or votes_df.empty:
+        return None
+    vote_column = {
+        "2020": "qt_votos_candidato_2020",
+        "2024": "qt_votos_candidato_2024",
+        "2026": "qt_votos",
+    }.get(str(year))
+    if vote_column is None or vote_column not in votes_df.columns:
+        return None
+    rows = votes_df
+    if "nivel_territorial" in rows.columns:
+        municipal_rows = rows.loc[
+            rows["nivel_territorial"].astype(str).str.strip().str.casefold().eq("municipio")
+        ]
+        if not municipal_rows.empty:
+            rows = municipal_rows
+    values = pd.to_numeric(rows[vote_column], errors="coerce")
+    if not values.notna().any():
+        return None
+    return float(values.fillna(0).sum())
+
+
 def _render_neighborhood_side_cards(
     df: pd.DataFrame | None,
     municipality_code: str | None,
     *,
     year: str | int = "2026",
     municipality_votes_df: pd.DataFrame | None = None,
+    statewide_votes_df: pd.DataFrame | None = None,
 ) -> None:
     card = _map_side_card
     year = str(year)
@@ -1902,7 +1933,6 @@ def _render_neighborhood_side_cards(
         "2026": "qt_votos",
     }.get(year, "qt_votos")
     municipal_total = None
-    municipal_total_is_full = False
     if (
         municipality_votes_df is not None
         and municipality_code is not None
@@ -1916,22 +1946,32 @@ def _render_neighborhood_side_cards(
             numeric_total = pd.to_numeric(selected_municipality, errors="coerce")
             if numeric_total.notna().any():
                 municipal_total = float(numeric_total.fillna(0).sum())
-                municipal_total_is_full = True
     if municipal_total is None and not municipality_rows.empty:
         neighborhood_total = pd.to_numeric(
             municipality_rows.get("qt_votos", pd.Series(dtype=float)), errors="coerce"
         )
         if neighborhood_total.notna().any():
             municipal_total = float(neighborhood_total.fillna(0).sum())
+    candidate_total = _candidate_total_votes_for_year(statewide_votes_df, year)
+    if candidate_total is None and year in {"2020", "2024"}:
+        # In these two municipal elections, the selected candidacies represented in this dataset were in Belo Horizonte.
+        candidate_total = municipal_total
+    candidate_share = (
+        municipal_total / candidate_total
+        if municipal_total is not None and candidate_total is not None and candidate_total > 0
+        else None
+    )
+    municipal_badge = (
+        f"Total municipal · {_format_number(municipal_total)} votos"
+        if municipal_total is not None else ""
+    )
     cards = [
         card(
             f"Votos em Belo Horizonte ({year})",
-            _format_number(municipal_total) if municipal_total is not None else "—",
-            (
-                "Total municipal da eleição selecionada"
-                if municipal_total_is_full
-                else "Soma dos bairros disponíveis"
-            ) if municipal_total is not None else "Dados da eleição indisponíveis",
+            _format_percent(candidate_share) if candidate_share is not None else "—",
+            "",
+            municipal_badge,
+            "good" if municipal_badge else "",
         )
     ]
     if rows.empty:
@@ -4261,6 +4301,7 @@ with detail_cards_col:
         "3106200",
         year=bh_map_year,
         municipality_votes_df=selected_bh_municipality_df,
+        statewide_votes_df=votos_municipio_df,
     )
 
 _major_section_header(

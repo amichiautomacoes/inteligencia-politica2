@@ -4413,7 +4413,12 @@ with detail_map_col:
                     "3106200", projection_map_df
                 )
             else:
-                mesh_fig, mesh_count = municipality_mesh_map("3106200", votos_bairro_df)
+                mesh_fig, mesh_count = municipality_mesh_map(
+                    "3106200",
+                    votos_bairro_df,
+                    log_scale_gamma=0.8,
+                    zero_vote_color="#64748b",
+                )
             if mesh_fig is not None and (mesh_fig.layout.meta or {}).get("mesh_kind") == "bairro":
                 bh_mesh_neighborhood_count = mesh_count
             if mesh_fig is None:
@@ -4446,15 +4451,15 @@ with detail_map_col:
                     )
                 elif scale_type == "uniform":
                     st.caption(
-                        "Belo Horizonte tem menos de 1.000 votos neste recorte e usa um único tom de azul, "
-                        "sem escala de intensidade. Passe o cursor para ver os bairros e seus votos."
+                        "Bairros com votos usam um único tom de azul, sem escala de intensidade; "
+                        "bairros sem votos ficam cinza. Passe o cursor para ver os bairros e seus votos."
                     )
                 elif mesh_kind == "setor":
                     scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                    st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} é relativa ao maior valor de Belo Horizonte e, nos setores censitários, ocupa toda a faixa de cores para manter visíveis os setores com votos. O tooltip identifica os bairros do TSE mesmo onde o candidato não recebeu votos; setores sem referência direta usam o bairro territorialmente mais próximo na cidade.")
+                    st.caption(f"Azul mais escuro indica mais votos; cinza indica nenhum voto. A escala {scale_label} é relativa ao maior valor de Belo Horizonte e, nos setores censitários, ocupa toda a faixa de cores para manter visíveis os setores com votos. O tooltip identifica os bairros do TSE mesmo onde o candidato não recebeu votos; setores sem referência direta usam o bairro territorialmente mais próximo na cidade.")
                 else:
                     scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                    st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} considera também a proporção de bairros com votos em Belo Horizonte. Passe o cursor para ver os bairros e seus votos.")
+                    st.caption(f"Azul mais escuro indica mais votos; cinza indica nenhum voto. A escala {scale_label} considera também a proporção de bairros com votos em Belo Horizonte. Passe o cursor para ver os bairros e seus votos.")
         except Exception as exc:
             st.warning(f"Não foi possível carregar o mapa de bairros de Belo Horizonte: {exc}")
 with detail_cards_col:

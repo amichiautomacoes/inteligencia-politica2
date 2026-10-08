@@ -428,6 +428,8 @@ def municipality_mesh_map(
     *,
     neutral: bool = False,
     comparison_year: str | int | None = None,
+    log_scale_gamma: float = 1.0,
+    zero_vote_color: str | None = None,
 ) -> tuple[go.Figure | None, int]:
     if comparison_year is not None:
         comparison_year = str(comparison_year)
@@ -591,11 +593,14 @@ def municipality_mesh_map(
     use_uniform_color = 0 < municipality_vote_total < 1_000
     use_log_scale = municipality_vote_total > 5_000
     if max_votes <= 0:
-        relative_intensity = 0.0
+        relative_intensity = pd.Series(0.0, index=mesh.index)
     elif use_uniform_color:
         relative_intensity = np.ones(len(mesh))
     elif use_log_scale:
         relative_intensity = np.log1p(mesh["votes"]) / np.log1p(max_votes)
+        if log_scale_gamma != 1.0:
+            # A gamma below 1 softens the compressed log ramp for positive vote counts.
+            relative_intensity = relative_intensity.pow(log_scale_gamma)
     else:
         relative_intensity = mesh["votes"] / max_votes
     mesh["color_intensity"] = (
@@ -611,20 +616,36 @@ def municipality_mesh_map(
             [0.75, "#2563eb"], [1, "#0b1f4d"],
         ]
     )
-    fig = go.Figure(go.Choropleth(
-        geojson=geojson,
-        locations=mesh["id"],
-        z=mesh["color_intensity"],
-        zmin=0,
-        zmax=1,
-        featureidkey="properties.id",
-        colorscale=colorscale,
-        showscale=False,
-        marker_line_color="rgba(235,244,255,0.98)",
-        marker_line_width=1.3,
-        customdata=mesh[["total_label", "details"]],
-        hovertemplate="<b>Total de votos: %{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
-    ))
+    trace_frames = [(mesh, mesh["color_intensity"], colorscale)]
+    if zero_vote_color is not None:
+        no_vote_rows = mesh.loc[mesh["votes"].le(0)]
+        vote_rows = mesh.loc[mesh["votes"].gt(0)]
+        trace_frames = []
+        if not no_vote_rows.empty:
+            trace_frames.append((
+                no_vote_rows,
+                np.zeros(len(no_vote_rows)),
+                [[0, zero_vote_color], [1, zero_vote_color]],
+            ))
+        if not vote_rows.empty:
+            trace_frames.append((vote_rows, vote_rows["color_intensity"], colorscale))
+
+    fig = go.Figure()
+    for trace_rows, trace_values, trace_colorscale in trace_frames:
+        fig.add_trace(go.Choropleth(
+            geojson=geojson,
+            locations=trace_rows["id"],
+            z=trace_values,
+            zmin=0,
+            zmax=1,
+            featureidkey="properties.id",
+            colorscale=trace_colorscale,
+            showscale=False,
+            marker_line_color="rgba(235,244,255,0.98)",
+            marker_line_width=1.3,
+            customdata=trace_rows[["total_label", "details"]],
+            hovertemplate="<b>Total de votos: %{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+        ))
     boundary_lon, boundary_lat = _boundary_coordinates(municipality_geometry)
     if boundary_lon and boundary_lat:
         fig.add_trace(go.Scattergeo(
@@ -649,6 +670,8 @@ def municipality_mesh_map(
                 else "logarithmic" if use_log_scale else "linear"
             ),
             "municipality_vote_total": municipality_vote_total,
+            "log_scale_gamma": log_scale_gamma if use_log_scale else None,
+            "zero_vote_color": zero_vote_color,
         },
     )
     return fig, len(mesh)

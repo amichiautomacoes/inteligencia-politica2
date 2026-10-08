@@ -279,9 +279,154 @@ def _plotly_polygon_geometry(geometry, municipality_geometry):
     return MultiPolygon(polygons)
 
 
-def municipality_mesh_map(
-    municipality_code: str, votes: pd.DataFrame | None, *, neutral: bool = False,
+def _municipality_comparison_map(
+    mesh: pd.DataFrame,
+    geojson: dict[str, object],
+    municipality_geometry,
+    kind: str,
+    rows: pd.DataFrame,
+    year: str,
 ) -> tuple[go.Figure | None, int]:
+    history_votes = f"qt_votos_candidato_bairro_{year}"
+    history_valid = f"qt_votos_validos_bairro_{year}"
+    current_matched_votes = f"qt_votos_candidato_bairro_2026_locais_correspondidos_{year}"
+    current_matched_valid = f"qt_votos_validos_bairro_2026_locais_correspondidos_{year}"
+    source_diff = f"diff_market_share_bairro_pp_vs_{year}"
+    required = {
+        history_votes, history_valid, current_matched_votes,
+        current_matched_valid, source_diff,
+    }
+    if not required.issubset(rows.columns):
+        return None, 0
+
+    for column in required:
+        rows[column] = pd.to_numeric(rows[column], errors="coerce")
+    full_votes = (
+        rows.groupby("_code", as_index=False)
+        .agg(votos_2026=("qt_votos", "sum"))
+    )
+    comparable = rows.loc[
+        rows[source_diff].notna()
+        & rows[history_votes].notna()
+        & rows[history_valid].notna()
+        & rows[current_matched_votes].notna()
+        & rows[current_matched_valid].notna()
+    ]
+    if comparable.empty:
+        return None, 0
+
+    comparison = (
+        comparable.groupby("_code", as_index=False)
+        .agg(
+            votos_referencia=(history_votes, "sum"),
+            validos_referencia=(history_valid, "sum"),
+            votos_2026_comparaveis=(current_matched_votes, "sum"),
+            validos_2026_comparaveis=(current_matched_valid, "sum"),
+        )
+    )
+    comparison["share_referencia"] = np.where(
+        comparison["validos_referencia"].gt(0),
+        comparison["votos_referencia"] / comparison["validos_referencia"] * 100,
+        np.nan,
+    )
+    comparison["share_2026"] = np.where(
+        comparison["validos_2026_comparaveis"].gt(0),
+        comparison["votos_2026_comparaveis"] / comparison["validos_2026_comparaveis"] * 100,
+        np.nan,
+    )
+    comparison["diff_pp"] = comparison["share_2026"] - comparison["share_referencia"]
+    comparison = full_votes.merge(comparison, on="_code", how="left")
+
+    by_code = comparison.set_index("_code")
+    mesh["votos_2026"] = mesh["id"].map(by_code["votos_2026"]).fillna(0)
+    mesh["votos_referencia"] = mesh["id"].map(by_code["votos_referencia"])
+    mesh["diff_pp"] = mesh["id"].map(by_code["diff_pp"])
+    epsilon = 1e-9
+    mesh["classe_diff"] = 0
+    mesh.loc[mesh["diff_pp"].lt(-epsilon), "classe_diff"] = 1
+    mesh.loc[mesh["diff_pp"].abs().le(epsilon), "classe_diff"] = 2
+    mesh.loc[mesh["diff_pp"].gt(epsilon), "classe_diff"] = 3
+
+    def format_votes(value: object) -> str:
+        if pd.isna(value):
+            return "Sem dados"
+        return f"{int(round(float(value))):,}".replace(",", ".")
+
+    def format_diff(value: object) -> str:
+        if pd.isna(value):
+            return "Sem comparação disponível"
+        numeric = float(value)
+        if abs(numeric) <= epsilon:
+            return "Sem variação (0,00 p.p.)"
+        direction = "Ganho" if numeric > 0 else "Perda"
+        return f"{direction} de {abs(numeric):.2f} p.p.".replace(".", ",", 1)
+
+    mesh["bairro_hover"] = mesh["_mesh_name"].fillna("").astype(str).str.strip()
+    mesh.loc[mesh["bairro_hover"].eq(""), "bairro_hover"] = "Bairro sem nome disponível"
+    mesh["votos_referencia_label"] = mesh["votos_referencia"].map(format_votes)
+    mesh["votos_2026_label"] = mesh["votos_2026"].map(format_votes)
+    mesh["diff_label"] = mesh["diff_pp"].map(format_diff)
+    customdata = mesh[[
+        "bairro_hover", "votos_referencia_label", "votos_2026_label", "diff_label",
+    ]].to_numpy()
+    colorscale = [
+        [0.00, "#94a3b8"], [0.25, "#94a3b8"],
+        [0.2501, "#ef4444"], [0.50, "#ef4444"],
+        [0.5001, "#3b82f6"], [0.75, "#3b82f6"],
+        [0.7501, "#22c55e"], [1.00, "#22c55e"],
+    ]
+    fig = go.Figure(go.Choropleth(
+        geojson=geojson,
+        locations=mesh["id"],
+        z=mesh["classe_diff"],
+        zmin=0,
+        zmax=3,
+        featureidkey="properties.id",
+        colorscale=colorscale,
+        showscale=False,
+        marker_line_color="rgba(235,244,255,0.98)",
+        marker_line_width=1.3,
+        customdata=customdata,
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>"
+            f"Votos {year}: %{{customdata[1]}}<br>"
+            "Votos 2026: %{customdata[2]}<br>"
+            f"Diferença de participação (2026 vs {year}): %{{customdata[3]}}"
+            "<extra></extra>"
+        ),
+    ))
+    boundary_lon, boundary_lat = _boundary_coordinates(municipality_geometry)
+    if boundary_lon and boundary_lat:
+        fig.add_trace(go.Scattergeo(
+            lon=boundary_lon,
+            lat=boundary_lat,
+            mode="lines",
+            line={"color": "rgba(248,251,255,1)", "width": 3.2},
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+    fig.update_geos(fitbounds="locations", visible=False, projection_type="mercator", bgcolor="rgba(0,0,0,0)")
+    fig.update_layout(
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#eaf2ff"},
+        meta={"mesh_kind": kind, "comparison_year": year, "display_mode": "market_share_change"},
+    )
+    return fig, len(mesh)
+
+
+def municipality_mesh_map(
+    municipality_code: str,
+    votes: pd.DataFrame | None,
+    *,
+    neutral: bool = False,
+    comparison_year: str | int | None = None,
+) -> tuple[go.Figure | None, int]:
+    if comparison_year is not None:
+        comparison_year = str(comparison_year)
+        if comparison_year not in {"2020", "2024"}:
+            return None, 0
     kind, mesh, code_column, label_column = municipality_mesh(municipality_code)
     mesh = mesh.dropna(subset=[code_column, "geometry"]).copy()
     mesh = mesh.loc[mesh["geometry"].map(lambda shape: not shape.is_empty)]
@@ -394,7 +539,11 @@ def municipality_mesh_map(
     rows["qt_votos"] = pd.to_numeric(rows["qt_votos"], errors="coerce").fillna(0)
     municipality_vote_total = float(rows["qt_votos"].sum())
     rows = _attach_coordinate_matches(rows, mesh)
-    rows = rows.loc[rows["_code"].notna() & rows["_code"].ne("")]
+    rows = rows.loc[rows["_code"].notna() & rows["_code"].ne("")].copy()
+    if comparison_year is not None:
+        return _municipality_comparison_map(
+            mesh, geojson, municipality_geometry, kind, rows, comparison_year
+        )
     by_neighborhood = rows.groupby(["_code", "_name"], as_index=False)["qt_votos"].sum()
     by_neighborhood["_name"] = by_neighborhood["_name"].replace("", "Bairro não informado")
     by_neighborhood = by_neighborhood.groupby(["_code", "_name"], as_index=False)["qt_votos"].sum()

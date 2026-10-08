@@ -915,10 +915,10 @@ def _current_files() -> list[str]:
         return []
 
 
-def _selected_files() -> list[str]:
+def _selected_files(scope: str | None = None) -> list[str]:
     files = _current_files()
     filters = st.session_state.get("deputados_filters", {})
-    return selected_deputado_files(files, filters)
+    return selected_deputado_files(files, filters, scope=scope)
 
 
 def _selected_deputado_label() -> dict[str, str]:
@@ -967,8 +967,8 @@ def _render_page_header(total_votes: str) -> None:
     render_page_header("raio_x", total_votes=total_votes)
 
 
-def _read_selected_parquet(kind: str) -> pd.DataFrame | None:
-    file_name = file_by_kind(_selected_files(), kind)
+def _read_selected_parquet(kind: str, scope: str | None = None) -> pd.DataFrame | None:
+    file_name = file_by_kind(_selected_files(scope), kind)
     if not file_name:
         return None
     try:
@@ -1894,7 +1894,7 @@ def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: 
     ).fillna(0).sum()
     cards = [
         card(
-            "Votos em Belo Horizonte",
+            "Votos em Belo Horizonte (2026)",
             _format_number(municipality_total) if not municipality_rows.empty else "—",
             "Total municipal",
         )
@@ -1946,6 +1946,18 @@ def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: 
             ),
         ])
     st.markdown('<div class="raiox-map-side-cards">' + "".join(cards) + '</div>', unsafe_allow_html=True)
+
+
+def _render_bh_comparison_legend() -> None:
+    st.markdown(
+        '''<div style="display:flex;flex-wrap:wrap;gap:12px;margin:0 0 8px;color:#dbeafe;font-size:.76rem">
+            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#22c55e;margin-right:5px"></i>Ganhou participação</span>
+            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#3b82f6;margin-right:5px"></i>Sem variação</span>
+            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#ef4444;margin-right:5px"></i>Perdeu participação</span>
+            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#94a3b8;margin-right:5px"></i>Sem comparação</span>
+        </div>''',
+        unsafe_allow_html=True,
+    )
 
 
 def _municipal_concentration_frame(df: pd.DataFrame | None) -> pd.DataFrame:
@@ -4020,16 +4032,44 @@ _section_header(
 detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
 with detail_map_col:
     with st.container(border=True):
+        bh_map_year = st.radio(
+            "Eleição exibida no mapa",
+            ["2020", "2024", "2026"],
+            index=2,
+            horizontal=True,
+            key="bh_neighborhood_map_year",
+        )
         try:
             # Belo Horizonte is fixed for this section (IBGE municipality code).
-            mesh_fig, _ = municipality_mesh_map("3106200", votos_bairro_df)
-            if mesh_fig is None:
-                st.info("Mapa de votos por bairro indisponível para Belo Horizonte.")
+            if bh_map_year in {"2020", "2024"}:
+                _render_bh_comparison_legend()
+                comparison_df = _read_selected_parquet("votos_bairro", scope="bh")
+                mesh_fig, _ = municipality_mesh_map(
+                    "3106200", comparison_df, comparison_year=bh_map_year
+                )
             else:
-                st.plotly_chart(mesh_fig, width="stretch", height=680, key="pagina1_malha_belo_horizonte")
+                mesh_fig, _ = municipality_mesh_map("3106200", votos_bairro_df)
+            if mesh_fig is None:
+                if bh_map_year in {"2020", "2024"}:
+                    st.info(f"Comparação de votos por bairro para {bh_map_year} indisponível nesta pasta.")
+                else:
+                    st.info("Mapa de votos por bairro indisponível para Belo Horizonte.")
+            else:
+                st.plotly_chart(
+                    mesh_fig,
+                    width="stretch",
+                    height=680,
+                    key=f"pagina1_malha_belo_horizonte_{bh_map_year}",
+                )
                 mesh_kind = (mesh_fig.layout.meta or {}).get("mesh_kind")
                 scale_type = (mesh_fig.layout.meta or {}).get("scale_type")
-                if scale_type == "uniform":
+                if bh_map_year in {"2020", "2024"}:
+                    st.caption(
+                        f"O mapa compara a participação do candidato em {bh_map_year} e 2026. "
+                        "O tooltip mostra os votos totais de cada eleição e a diferença em pontos percentuais, "
+                        "calculada nos locais de votação correspondidos. Os cards laterais permanecem em 2026."
+                    )
+                elif scale_type == "uniform":
                     st.caption(
                         "Belo Horizonte tem menos de 1.000 votos neste recorte e usa um único tom de azul, "
                         "sem escala de intensidade. Passe o cursor para ver os bairros e seus votos."

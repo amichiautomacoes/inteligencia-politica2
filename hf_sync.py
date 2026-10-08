@@ -290,7 +290,9 @@ def deputados_index(files: list[str]) -> list[dict[str, str]]:
     )
 
 
-def selected_deputado_files(files: list[str], filters: dict[str, str]) -> list[str]:
+def selected_deputado_files(
+    files: list[str], filters: dict[str, str], *, scope: str | None = None,
+) -> list[str]:
     if filters.get("pasta") in (None, "", "Todos"):
         return []
 
@@ -299,7 +301,12 @@ def selected_deputado_files(files: list[str], filters: dict[str, str]) -> list[s
         (file_name, parsed)
         for file_name, parsed in parsed_files
         if parsed
-        and parsed["base_path"] == parsed["ano"]
+        and (
+            parsed["base_path"] == parsed["ano"]
+            if scope is None
+            else parsed["base"].casefold() == scope.casefold()
+            and parsed["base_path"].casefold() == f"{scope}_{parsed['ano']}".casefold()
+        )
         and filters.get("cargo") in (None, "Todos", parsed["cargo"])
         and filters.get("nome") in (None, "Todos", parsed["nome"])
         and filters.get("pasta") in (None, "", "Todos", parsed["pasta"])

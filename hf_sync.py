@@ -41,12 +41,15 @@ def load_env(path: str | Path = ".env") -> dict[str, str]:
             values[key.strip()] = value.strip().strip('"').strip("'")
 
     for key, value in os.environ.items():
-        values.setdefault(key, value)
+        values[key] = value
     return values
 
 
 def _visualizacao_prefix(config: dict[str, str]) -> str:
-    return config.get("HF_VISUALIZACAO_PREFIX", DEFAULT_VISUALIZACAO_PREFIX).strip("/")
+    prefix = config.get("HF_VISUALIZACAO_PREFIX", DEFAULT_VISUALIZACAO_PREFIX).strip("/")
+    # The previous bucket layout stored candidates under this prefix. Treat a
+    # stale EasyPanel setting as the new bucket root.
+    return "" if prefix.casefold() == "vereadores" else prefix
 
 
 def hf_visualizacao_path(env: dict[str, str] | None = None) -> str:

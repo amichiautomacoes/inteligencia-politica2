@@ -89,7 +89,7 @@ HF_TOKEN="seu_token"
 | `HF_GEOGRAPHY_REFERENCE_PREFIX` | Tabelas auxiliares de códigos e nomes territoriais |
 | `HF_TOKEN` | Autenticação do Hugging Face; não deve ser versionada |
 
-O prefixo de visualização fica vazio por padrão: a aplicação descobre as pastas de candidatos diretamente em `HF_BUCKET_URL` e ignora as pastas compartilhadas do bucket. `HF_VISUALIZACAO_PREFIX` continua disponível para instalações que guardem os candidatos sob um prefixo. `HF_TOKEN` é necessário quando o bucket exige autenticação.
+O prefixo de visualização fica vazio por padrão: a aplicação descobre as pastas de candidatos diretamente em `HF_BUCKET_URL` e ignora as pastas compartilhadas do bucket. Variáveis do ambiente, como as configuradas no EasyPanel, têm precedência sobre `.env`, inclusive quando o valor é vazio. `HF_VISUALIZACAO_PREFIX` continua disponível para instalações que guardem os candidatos sob outro prefixo; o valor legado `vereadores` é tratado como vazio para evitar que configurações antigas apontem para o caminho removido. `HF_TOKEN` é necessário quando o bucket exige autenticação.
 
 ### Descoberta de candidatos
 

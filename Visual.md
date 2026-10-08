@@ -27,7 +27,7 @@ Os preenchimentos dos mapas são opacos e aparecem sobre fundo transparente, sem
 
 ### 1.2 Hierarquia de texto e formatação
 
-O hero usa título grande e pesado, subtítulo menor e nome/cargo/partido em maiúsculas. Quando exibido, o total de votos segue a mesma tipografia dessas linhas de identificação. Os títulos principais de seção são largos, brancos e densos; subtítulos ficam em azul claro. Labels de KPI são pequenos; o valor tem protagonismo. Cards e legendas não devem exigir que a cor sozinha explique um resultado: os textos e tooltips dão o nome da categoria, a unidade e o recorte. Números de votos usam separador de milhar; percentuais e valores monetários aparecem com unidade explícita. Onde os dados são estimados ou rateados, a interface informa isso junto à visualização.
+O hero usa título grande e pesado, subtítulo menor e nome/cargo/partido em maiúsculas. Quando exibido, o total de votos segue a mesma tipografia dessas linhas de identificação. Os títulos principais de seção são largos, brancos e densos; subtítulos ficam em azul claro. Labels dos KPIs gerais são compactos; no card do eleitor ideal, os títulos das dimensões têm fonte ampliada. Cards e legendas não devem exigir que a cor sozinha explique um resultado: os textos e tooltips dão o nome da categoria, a unidade e o recorte. Números de votos usam separador de milhar; percentuais e valores monetários aparecem com unidade explícita. Onde os dados são estimados ou rateados, a interface informa isso junto à visualização.
 
 ### 1.3 Capa comum às três páginas
 
@@ -149,9 +149,9 @@ A faixa principal usa o subtítulo `Quem é o eleitor-chave e quais atributos de
 
 #### 3.1.1 Eleitor ideal do candidato
 
-O primeiro card tem borda azul clara, fundo profundo e espaçamento amplo. O título `Eleitor ideal do candidato` aparece antes da descrição `Síntese do perfil demográfico predominante na base eleitoral do candidato.`. A persona, precedida do emoji de pessoa, é apresentada como badges coloridas, uma para cada atributo predominante. Quando o resumo agrega informação, ele aparece abaixo com emoji de fala; se apenas repete a persona, é ocultado. **A confiança do modelo não aparece no card.**
+O card principal é um `st.container(border=True)` com borda azul clara, fundo profundo e espaçamento amplo. O título `Eleitor ideal do candidato` aparece antes da descrição `Síntese do perfil demográfico predominante na base eleitoral do candidato.`. A persona, precedida do emoji de pessoa, é apresentada como badges coloridas, uma para cada atributo predominante. Quando o resumo agrega informação, ele aparece abaixo com emoji de fala; se apenas repete a persona, é ocultado. **A confiança do modelo não aparece no card.**
 
-Na base do card, **quatro sub-cards com borda**, em colunas, apresentam Gênero, Faixa etária, Escolaridade e Estado civil. Os títulos das dimensões e as categorias dominantes usam fonte ampliada. O percentual de cada categoria é renderizado como indicador numérico Plotly. Os percentuais das quatro dimensões são independentes; não formam fatias de uma soma de 100%. Se o percentual não é válido ou não existe, o card não inventa o número.
+Na base do card, **quatro sub-cards com borda**, em `st.columns`, apresentam Gênero, Faixa etária, Escolaridade e Estado civil. Cada sub-card também usa `st.container(border=True)`. Os títulos das dimensões e as categorias dominantes usam fonte ampliada. Cada percentual válido é renderizado com `go.Indicator` dentro de `st.plotly_chart`. Os percentuais das quatro dimensões são independentes; não formam fatias de uma soma de 100%. Se o percentual não é válido ou não existe, o card não inventa o número. Os estilos desses badges e sub-cards são locais à página DNA; o hero e a navegação seguem o CSS compartilhado.
 
 ### 3.2 Distribuição do Perfil do Eleitorado
 
@@ -200,7 +200,7 @@ O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640
 | Controle | Onde atua | Persistência observável |
 | --- | --- | --- |
 | Pasta do candidato na barra lateral | Três páginas | Lista as pastas de candidatos encontradas na raiz configurada do HF e preserva a seleção ao trocar de rota |
-| Cápsula Raio X / DNA / Expansão 2030 | Navegação | Opção ativa destacada no hero |
+| Faixa vertical Raio X / DNA / Expansão 2030 | Navegação | Opção ativa destacada no hero |
 | Filtro territorial Mesorregião / Município | Mapa estadual do Raio X e conteúdo da janela aberta por clique | Restrito ao primeiro mapa |
 | Eleição no mapa de Belo Horizonte | Mapa de bairros do Raio X | 2020/2024 mostram comparação com 2026; 2026 mostra votos atuais; Projeção 2028 mostra as categorias estratégicas |
 | Cards de votação em Belo Horizonte | Cinco indicadores calculados para a cidade | Atualizam em 2020/2024; ficam nos dados de 2026 em 2026 e Projeção 2028 |
@@ -220,7 +220,7 @@ Falta de parquet, malha ou dimensão não deve parecer valor zero. A implementa�
 
 ### 5.3 Responsividade implementada
 
-No hero, a cápsula de navegação, a foto e os textos se reorganizam em larguras menores por regras CSS próprias. Os KPIs da página 1 passam de linha para uma coluna em telas até cerca de **900 px**. A faixa Top 1/5/15/20 passa para duas colunas; a lista de municípios reduz colunas novamente abaixo de **600 px**. O card do eleitor ideal reduz sua grade de quatro para duas e depois uma coluna. No card dos ICPs, o resumo e as barras demográficas empilham abaixo de **600 px**; o cabeçalho de cada perfil pode quebrar em telas estreitas. A legenda de expansão passa de quatro para duas colunas abaixo de **900 px** e para uma abaixo de **560 px**.
+No hero, a faixa vertical de navegação, a foto e os textos se reorganizam em larguras menores por regras CSS próprias. Os KPIs da página 1 passam de linha para uma coluna em telas até cerca de **900 px**. A faixa Top 1/5/15/20 passa para duas colunas; a lista de municípios reduz colunas novamente abaixo de **600 px**. Os quatro sub-cards do eleitor ideal passam para duas colunas abaixo de **900 px** e uma coluna abaixo de **760 px**. No card dos ICPs, o resumo e as barras demográficas empilham abaixo de **600 px**; o cabeçalho de cada perfil pode quebrar em telas estreitas. A legenda de expansão passa de quatro para duas colunas abaixo de **900 px** e para uma abaixo de **560 px**.
 
 Os pares de mapa e cards laterais da página 1, os gráficos de custos lado a lado e o par rosca/filtros do DNA são montados com `st.columns`; a experiência móvel também depende do empilhamento padrão do Streamlit. Nomes longos de município, persona e despesa podem quebrar linha. Tooltips complementam os rótulos que não cabem nos cards.
 

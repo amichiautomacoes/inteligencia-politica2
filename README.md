@@ -9,7 +9,7 @@ Este README é a referência técnica do projeto. A aparência, a hierarquia de 
 | Rota | Arquivo | Responsabilidade |
 | --- | --- | --- |
 | `/raio-x-eleitoral` | `pages/raio_x_do_voto.py` | Votação estadual e intramunicipal, concentração, atuação parlamentar e custo do voto |
-| `/dna-eleitoral` | `pages/dna_eleitor.py` | Eleitor ideal, distribuição demográfica, clusters de ICP e estrutura inicial da matriz de potencial |
+| `/dna-eleitoral` | `pages/dna_eleitor.py` | Card do eleitor ideal, distribuição demográfica, clusters de ICP e estrutura inicial da matriz de potencial |
 | `/expansao-2030` | `pages/expansao_2030.py` | Classificação municipal de proteção de base e oportunidade demográfica |
 
 `app.py` registra as três rotas com `st.navigation`, descobre as pastas de candidatos na raiz configurada do Hugging Face e mantém a seleção em `st.session_state`. A troca de página preserva o candidato selecionado.
@@ -27,11 +27,11 @@ Dois blocos seguem parcialmente implementados:
 ├── hf_sync.py                     # Acesso ao Hugging Face, descoberta e leitura dos arquivos
 ├── pages/
 │   ├── raio_x_do_voto.py          # Página analítica principal
-│   ├── dna_eleitor.py             # Página de perfil eleitoral
+│   ├── dna_eleitor.py             # Página de perfil eleitoral e estilos locais do card ICP
 │   └── expansao_2030.py           # Página de expansão territorial
 ├── src/eleitoral/
 │   ├── common/
-│   │   ├── shared_header.py       # Hero, navegação interna, CSS e seleção compartilhada
+│   │   ├── shared_header.py       # Hero, navegação interna, CSS global e seleção compartilhada
 │   │   └── dna_copy.py            # Normalização de textos do DNA
 │   ├── dna/
 │   │   ├── cluster_cards.py       # Cards expansíveis dos perfis de ICP
@@ -132,6 +132,10 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 | Potencial | `potencial_demografico/stage08c_potencial_demografico_icp_geral.parquet` | Expansão para o eleitor ideal |
 | Potencial | `potencial_demografico/stage08c_potencial_demografico_icp_clusters.parquet` | Expansão por classificação de ICP |
 
+### Card do eleitor ideal — DNA Eleitoral
+
+`pages/dna_eleitor.py` consolida o parquet `perfil/stage04_icp_geral_geo.parquet` para apresentar a persona predominante como badges por atributo. Gênero, faixa etária, escolaridade e estado civil aparecem em quatro sub-cards; cada percentual válido usa um `go.Indicator` exibido com `st.plotly_chart`. Os percentuais são dimensões independentes, não partes de uma distribuição de 100%. O card usa contêineres nativos com borda; seu CSS específico fica na própria página para não afetar o cabeçalho compartilhado.
+
 O app também reconhece CSV, JSON, JSONL, XLS/XLSX e imagens ao listar o bucket, mas as seções analíticas atuais leem os artefatos tabulares acima como Parquet. JPG, JPEG e PNG podem fornecer a foto do candidato.
 
 Na auditoria do bucket em 8 de outubro de 2026, cada candidato tinha 29 Parquets na pasta `2026/`. Os esquemas dos dois candidatos têm os mesmos nomes e tipos de coluna; somente a ordem das colunas difere em `IBGE/censo/genero_apond.parquet` e `IBGE/censo/idade_apond.parquet`. O leitor usa nomes, então essa diferença não altera as consultas. As contagens de linhas variam entre candidatos.
@@ -190,7 +194,7 @@ Para o mapa intramunicipal, `territorial_mesh.municipality_mesh()` escolhe:
 
 Linhas eleitorais sem código territorial aproveitável podem ser associadas por latitude/longitude ao polígono que contém o local de votação, ou ao polígono mais próximo dentro da tolerância definida. O contorno municipal é desenhado por cima da subdivisão escolhida.
 
-O mapa estadual usa `log1p(votos)` para distribuir a intensidade. No mapa detalhado, a escala é linear até 5 mil votos no município e logarítmica acima desse total.
+O mapa estadual usa `log1p(votos)` para distribuir a intensidade. No mapa detalhado, a escala é linear até 5 mil votos no município e logarítmica acima desse total. No mapa **Como foi sua votação em Belo Horizonte**, a escala logarítmica de 2026 aplica gamma 0,8 após a normalização para suavizar a compressão e destacar variações entre bairros com votos baixos e médios; bairros com zero votos recebem cinza e ficam fora da escala. Esses ajustes são opcionais em `municipality_mesh_map()` e não alteram os demais mapas que usam os valores padrão.
 
 ## Cache e estado
 

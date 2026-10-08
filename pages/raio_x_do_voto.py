@@ -10,6 +10,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit_plotly_events2 import plotly_events
 
 from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, file_by_kind, hf_filesystem, hf_visualizacao_path, load_env, load_parquet, selected_deputado_files
 from eleitoral.maps.dna_geo_reference import load_geo_reference
@@ -236,6 +237,10 @@ def _apply_visual_model() -> None:
             border-radius: 16px;
             background: var(--raiox-card-bg);
             box-shadow: 0 12px 30px rgba(1, 8, 24, 0.22);
+        }}
+        .raiox-expense-side-card {{
+            min-height: 0;
+            margin-bottom: 1rem;
         }}
         .raiox-map-side-label {{
             color: #93c5fd;
@@ -2930,7 +2935,7 @@ def _expense_treemap_display_frame(chart_df: pd.DataFrame) -> pd.DataFrame:
 
     display_df = chart_df.sort_values("valor_total_despesa", ascending=False).copy()
     display_df["_rank"] = np.arange(1, len(display_df) + 1)
-    small_share = pd.to_numeric(display_df["pct_gasto"], errors="coerce").fillna(0).lt(0.025)
+    small_share = pd.to_numeric(display_df["pct_gasto"], errors="coerce").fillna(0).lt(0.01)
     tail_mask = small_share & display_df["_rank"].gt(4)
     if not tail_mask.any():
         return display_df.drop(columns=["_rank"])
@@ -3137,6 +3142,7 @@ def _render_expense_cost_insight(chart_df: pd.DataFrame, selected_expense: str |
     campaign_label = html.escape(_format_currency(insight["campaign_cost"]))
     share_label = html.escape(_format_percent(insight["ratio"]))
     st.markdown(
+        "<div class='raiox-map-side-card raiox-expense-side-card'>"
         "<div class='raiox-insight-title'>Custo por voto da despesa</div>"
         f"<div class='raiox-insight-category'>{expense_name}</div>"
         f"<div class='raiox-insight-value'>{cost_label} <span>/ voto</span></div>"
@@ -3144,7 +3150,7 @@ def _render_expense_cost_insight(chart_df: pd.DataFrame, selected_expense: str |
         f"{share_label} do custo geral</div>"
         f"<div class='raiox-insight-note'>Média da campanha: {campaign_label} / voto.</div>"
         "<div class='raiox-insight-note'>Parcela desta categoria por voto conquistado "
-        "pela campanha; não mede retorno isolado da despesa.</div>",
+        "pela campanha; não mede retorno isolado da despesa.</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -3174,11 +3180,12 @@ def _render_expense_budget_insight(chart_df: pd.DataFrame, selected_expense: str
     expense_label = html.escape(_format_currency(insight["expense_spend"]))
     campaign_label = html.escape(_format_currency(insight["campaign_spend"]))
     st.markdown(
+        "<div class='raiox-map-side-card raiox-expense-side-card'>"
         "<div class='raiox-insight-title'>Peso no orçamento</div>"
         f"<div class='raiox-insight-category'>{expense_name}</div>"
         f"<div class='raiox-insight-value'>{share_label}</div>"
         f"<div class='raiox-insight-note'>{expense_label} de {campaign_label}</div>"
-        f"<div class='raiox-insight-badge {insight['band']}'>{insight['label']}</div>",
+        f"<div class='raiox-insight-badge {insight['band']}'>{insight['label']}</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -3217,12 +3224,13 @@ def _render_expense_average_comparison(chart_df: pd.DataFrame, selected_expense:
     pct_label = f"{difference_pct * 100:+.1f}%".replace(".", ",")
     currency_label = f"{'+' if difference > 0 else '-' if difference < 0 else ''}{_format_currency(abs(difference))}"
     st.markdown(
+        "<div class='raiox-map-side-card raiox-expense-side-card'>"
         "<div class='raiox-insight-title'>Comparativo com a média</div>"
         f"<div class='raiox-insight-category'>{expense_name}</div>"
         f"<div class='raiox-insight-value'>{html.escape(pct_label)} "
         "<span>da média</span></div>"
         f"<div class='raiox-insight-note'>{html.escape(currency_label)} vs. média da campanha</div>"
-        f"<div class='raiox-insight-badge {comparison['band']}'>{comparison['label']}</div>",
+        f"<div class='raiox-insight-badge {comparison['band']}'>{comparison['label']}</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -3243,6 +3251,11 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
         return fig
 
     display_df = _expense_treemap_display_frame(chart_df)
+    # Compress the visual area of dominant expenses while keeping every displayed
+    # percentage, amount, and cost based on the original spending values.
+    display_df["treemap_area"] = np.sqrt(
+        pd.to_numeric(display_df["valor_total_despesa"], errors="coerce").fillna(0).clip(lower=0)
+    )
     display_df["treemap_color"] = display_df["tipo_despesa"].map(EXPENSE_TREEMAP_COLORS).fillna("#475569")
     if selected_expense:
         selected_mask = display_df["tipo_despesa"].eq(selected_expense)
@@ -3281,7 +3294,7 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
     fig = go.Figure(go.Treemap(
         labels=display_df["tipo_despesa_treemap"],
         parents=[""] * len(display_df),
-        values=display_df["valor_total_despesa"],
+        values=display_df["treemap_area"],
         customdata=custom_data,
         texttemplate="%{text}",
         text=display_df["texto_treemap"],
@@ -3324,29 +3337,17 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
     return fig
 
 
-def _selected_expense_from_treemap(event: object | None, chart_df: pd.DataFrame) -> str | None:
-    if not event:
+def _selected_expense_from_treemap(clicked_points: list[dict], display_df: pd.DataFrame) -> str | None:
+    if not clicked_points:
         return None
-    valid_expenses = set(chart_df["tipo_despesa"].astype(str))
-    selection = getattr(event, "selection", None)
-    if selection is None and isinstance(event, dict):
-        selection = event.get("selection", {})
-    points = getattr(selection, "points", None)
-    if points is None and isinstance(selection, dict):
-        points = selection.get("points", [])
-    for point in points or []:
-        customdata = point.get("customdata") if isinstance(point, dict) else getattr(point, "customdata", None)
-        if customdata is not None and len(customdata) > 5 and str(customdata[5]).lower() == "true":
-            continue
-        expense_type = str(customdata[0]) if customdata is not None and len(customdata) else ""
-        if expense_type in valid_expenses:
-            return expense_type
-        label = point.get("label") if isinstance(point, dict) else getattr(point, "label", "")
-        label = str(label or "").strip()
-        if label:
-            matching = chart_df.loc[chart_df["tipo_despesa_treemap"].astype(str).eq(label), "tipo_despesa"]
-            if not matching.empty:
-                return str(matching.iloc[0])
+    try:
+        point_number = int(clicked_points[0]["pointNumber"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if 0 <= point_number < len(display_df):
+        row = display_df.iloc[point_number]
+        if not bool(row.get("is_grouped_tail", False)):
+            return str(row["tipo_despesa"])
     return None
 
 
@@ -3387,24 +3388,32 @@ def _render_cost_efficiency_section(
                     st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
                 )
                 st.rerun()
-            treemap_event = st.plotly_chart(
+            clicked_points = plotly_events(
                 _expense_cost_by_type_chart(chart_df, selected_expense),
-                width="stretch",
+                click_event=True,
+                select_event=False,
+                hover_event=False,
+                override_height=620,
+                override_width="100%",
                 key=f"{EXPENSE_TREEMAP_KEY}_{st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0)}",
-                on_select="rerun",
-                selection_mode="points",
             )
-            clicked_expense = _selected_expense_from_treemap(treemap_event, chart_df)
+            st.caption(
+                "Áreas ajustadas para facilitar a leitura das despesas menores; "
+                "percentuais e valores exibidos correspondem aos gastos reais."
+            )
+            clicked_expense = _selected_expense_from_treemap(
+                clicked_points, _expense_treemap_display_frame(chart_df)
+            )
             if clicked_expense and clicked_expense != selected_expense:
                 st.session_state[EXPENSE_SELECTION_KEY] = clicked_expense
+                st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
+                    st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
+                )
                 st.rerun()
     with future_col:
-        with st.container(border=True):
-            _render_expense_cost_insight(chart_df, selected_expense)
-        with st.container(border=True):
-            _render_expense_budget_insight(chart_df, selected_expense)
-        with st.container(border=True):
-            _render_expense_average_comparison(chart_df, selected_expense)
+        _render_expense_cost_insight(chart_df, selected_expense)
+        _render_expense_budget_insight(chart_df, selected_expense)
+        _render_expense_average_comparison(chart_df, selected_expense)
 
 
 def _parliamentary_action_frame(

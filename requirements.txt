@@ -7,4 +7,5 @@ pyarrow>=15.0.0
 shapely>=2.0.0
 openpyxl>=3.1.0
 plotly>=5.20.0
+streamlit-plotly-events2==0.0.7
 streamlit-shadcn-ui>=1.4.0

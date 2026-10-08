@@ -112,6 +112,7 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 | Território | `territorio/stage01a_municipios.parquet` | Cabeçalho (partido), mapa estadual, concentração, KPIs e votos totais |
 | Território | `territorio/stage01b_bairros.parquet` | Mapa intramunicipal e detalhamento por bairro |
 | Comparação de BH | `{candidato}/bh_2026/territorio/stage01b_bairros.parquet` | Votos de 2020/2024 e comparação de participação com 2026 no mapa de Belo Horizonte |
+| Emendas de BH | `{candidato}/bh_2026/emendas/emendas_municipais.parquet` | Resumo e detalhamento municipal de emendas na visualização de Belo Horizonte |
 | Demografia | `demografico/stage02_genero.parquet` | Distribuição do eleitorado |
 | Demografia | `demografico/stage02_idade.parquet` | Distribuição do eleitorado |
 | Demografia | `demografico/stage02_escolaridade.parquet` | Distribuição do eleitorado |
@@ -134,7 +135,7 @@ O app também reconhece CSV, JSON, JSONL, XLS/XLSX e imagens ao listar o bucket,
 
 Na auditoria do bucket em 8 de outubro de 2026, cada candidato tinha 29 Parquets na pasta `2026/`. Os esquemas dos dois candidatos têm os mesmos nomes e tipos de coluna; somente a ordem das colunas difere em `IBGE/censo/genero_apond.parquet` e `IBGE/censo/idade_apond.parquet`. O leitor usa nomes, então essa diferença não altera as consultas. As contagens de linhas variam entre candidatos.
 
-O arquivo `gastos/emendas_legislativa.parquet` tem esquema, mas está vazio para os dois candidatos. Por isso o mapa e os KPIs de atuação parlamentar exibem ausência de dados até que o arquivo receba registros. Os demais arquivos de força local e gastos territoriais consultados estão presentes: `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet`, `forca_local/stage07b_afinidade_municipios.parquet`, `gastos/gastos_territoriais.parquet` e `gastos/gastos_territoriais_por_tipo.parquet`.
+O arquivo anual `gastos/emendas_legislativa.parquet` tem esquema, mas está vazio para os dois candidatos; por isso o mapa estadual de atuação parlamentar exibe ausência de dados. A pasta especial `bh_2026/emendas/emendas_municipais.parquet` contém emendas para Belo Horizonte e alimenta o recorte por bairros. Esses registros estão no nível municipal, então seus valores são exibidos como total de BH, sem rateio entre bairros. Os demais arquivos de força local e gastos territoriais consultados estão presentes: `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet`, `forca_local/stage07b_afinidade_municipios.parquet`, `gastos/gastos_territoriais.parquet` e `gastos/gastos_territoriais_por_tipo.parquet`.
 
 O leitor de emendas aceita os campos `valor_pago_atualizado`, `valor_empenhado_ano`, `valor_indicado` ou `valor_emenda`; combina identificadores de município por código IBGE ou nome e lê finalidade/tipo dos campos disponíveis no arquivo.
 

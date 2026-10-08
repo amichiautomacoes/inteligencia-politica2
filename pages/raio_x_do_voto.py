@@ -3967,14 +3967,138 @@ def _parliamentary_emendas_dialog(
     st.caption("Valores, finalidade e tipo seguem os dados registrados no parquet de emendas.")
 
 
+def _bh_parliamentary_emendas_frame(emendas_df: pd.DataFrame | None) -> pd.DataFrame:
+    if emendas_df is None or emendas_df.empty:
+        return pd.DataFrame()
+
+    municipality_col = next(
+        (col for col in ("municipio_beneficiario", "nm_municipio", "municipio") if col in emendas_df.columns),
+        None,
+    )
+    if municipality_col is None:
+        return pd.DataFrame()
+
+    emendas = emendas_df.copy()
+    city_name = _normalize_municipio_name("Belo Horizonte")
+    city_mask = emendas[municipality_col].map(_normalize_municipio_name).eq(city_name)
+    return emendas.loc[city_mask].copy()
+
+
+def _render_bh_parliamentary_summary(
+    votos_bairro_df: pd.DataFrame | None,
+    emendas_df: pd.DataFrame | None,
+) -> pd.DataFrame:
+    emendas = _bh_parliamentary_emendas_frame(emendas_df)
+    votes = (
+        pd.to_numeric(votos_bairro_df.get("qt_votos"), errors="coerce").fillna(0)
+        if votos_bairro_df is not None and "qt_votos" in votos_bairro_df.columns
+        else pd.Series(dtype=float)
+    )
+    total_votes = float(votes.sum())
+    value_col = next(
+        (col for col in ("valor_pago_atualizado", "valor_empenhado_ano", "valor_indicado", "valor_emenda") if col in emendas.columns),
+        None,
+    )
+    values = (
+        pd.to_numeric(emendas[value_col], errors="coerce")
+        if value_col else pd.Series(dtype=float)
+    )
+    total_emendas = float(values.fillna(0).sum()) if value_col else None
+    years = sorted(
+        emendas.get("ano_emenda", pd.Series(dtype=object)).dropna().astype(str).unique().tolist()
+    )
+    period = f"{years[0]}–{years[-1]}" if years else "Período não informado"
+    emenda_count = int(values.notna().sum()) if value_col else 0
+    kpis = [
+        ("Votos nos bairros de BH", _format_number(total_votes) if total_votes > 0 else "—", "Votação de 2026 no parquet territorial"),
+        (
+            "Emendas registradas para BH",
+            _format_currency(total_emendas) if total_emendas is not None and emenda_count else "Sem dados",
+            "Total municipal, sem rateio entre bairros",
+        ),
+        ("Registros de emenda", _format_number(emenda_count) if emenda_count else "—", period),
+    ]
+    cards = "".join(
+        f'''<div class="raiox-kpi-card" style="margin:.65rem 0">
+            <div class="mapa-kpi-label">{html.escape(label)}</div>
+            <div class="mapa-kpi-value">{html.escape(value)}</div>
+            <div class="mapa-kpi-caption">{html.escape(caption)}</div>
+        </div>'''
+        for label, value, caption in kpis
+    )
+    st.markdown(cards, unsafe_allow_html=True)
+    return emendas
+
+
+def _render_bh_emendas_table(emendas: pd.DataFrame) -> None:
+    if emendas.empty:
+        st.info("Não há registros de emendas para Belo Horizonte nesta pasta.")
+        return
+    columns = [
+        ("ano_emenda", "Ano"),
+        ("numero_emenda", "Número"),
+        ("tipo_emenda", "Tipo"),
+        ("valor_emenda", "Valor indicado"),
+        ("objeto_finalidade", "Finalidade / objeto"),
+        ("beneficiario_final", "Beneficiário"),
+        ("status_emenda", "Status"),
+    ]
+    selected = [column for column, _ in columns if column in emendas.columns]
+    display = emendas[selected].rename(columns=dict(columns)).copy()
+    if "Valor indicado" in display.columns:
+        display["Valor indicado"] = pd.to_numeric(display["Valor indicado"], errors="coerce")
+    st.dataframe(
+        display,
+        hide_index=True,
+        width="stretch",
+        column_config={"Valor indicado": st.column_config.NumberColumn(format="R$ %.2f")},
+    )
+
+
 def _render_parliamentary_action_section(
     votos_df: pd.DataFrame | None,
     emendas_df: pd.DataFrame | None,
 ) -> None:
     _major_section_header(
         "Mapa da atuação parlamentar de acordo com os votos",
-        "Índice de Retorno Parlamentar: valor total de emendas no município dividido pelos votos recebidos.",
+        "Compare a atuação municipal em Minas Gerais com a votação por bairro em Belo Horizonte.",
     )
+    map_scope = st.radio(
+        "Recorte do mapa",
+        ["Minas Gerais · municípios", "Belo Horizonte · bairros"],
+        horizontal=True,
+        key="parliamentary_map_scope",
+    )
+    if map_scope == "Belo Horizonte · bairros":
+        bh_votes = _read_selected_parquet("votos_bairro", scope="bh")
+        bh_emendas = _read_selected_parquet("emendas_legislativa", scope="bh")
+        map_col, summary_col = st.columns([0.70, 0.30], gap="large")
+        with map_col:
+            with st.container(border=True, key="parliamentary-bh-map-container"):
+                try:
+                    fig, _ = municipality_mesh_map("3106200", bh_votes)
+                    if fig is None:
+                        st.info("Mapa de votação por bairro indisponível para Belo Horizonte.")
+                    else:
+                        st.plotly_chart(
+                            fig,
+                            width="stretch",
+                            height=680,
+                            key=f"pagina1_parliamentary_bh_map_{_candidate_widget_suffix()}",
+                            config={"displayModeBar": False},
+                        )
+                        st.caption(
+                            "O mapa mostra os votos de 2026 por bairro. As emendas desta pasta estão registradas "
+                            "para Belo Horizonte como um todo e não são distribuídas entre os bairros."
+                        )
+                except Exception as exc:
+                    st.warning(f"Não foi possível carregar o mapa de bairros de Belo Horizonte: {exc}")
+        with summary_col:
+            bh_emendas_rows = _render_bh_parliamentary_summary(bh_votes, bh_emendas)
+        with st.expander("Consultar emendas registradas para Belo Horizonte"):
+            _render_bh_emendas_table(bh_emendas_rows)
+        return
+
     action_df = _parliamentary_action_frame(votos_df, emendas_df)
     parliamentary_map_col, parliamentary_cards_col = st.columns([0.70, 0.30], gap="large")
     with parliamentary_map_col:

@@ -800,12 +800,18 @@ def municipality_neighborhood_category_map(
         "Base Crítica (Fortaleza)": 3,
     }
     rows["_priority"] = rows["_category"].map(category_priority).fillna(0)
+    rows["_detail"] = rows.get("projection_detail", pd.Series("", index=rows.index)).fillna("")
+    detail_by_code = (
+        rows.sort_values("_priority").drop_duplicates("_code", keep="last")
+        .set_index("_code")["_detail"]
+    )
     category_by_code = (
         rows.sort_values("_priority")
         .drop_duplicates("_code", keep="last")
         .set_index("_code")["_category"]
     )
     mesh["_category"] = mesh["id"].map(category_by_code).fillna("Demais bairros")
+    mesh["_detail"] = mesh["id"].map(detail_by_code).fillna("Sem comparação demográfica disponível")
 
     geojson = {
         "type": "FeatureCollection",
@@ -835,9 +841,9 @@ def municipality_neighborhood_category_map(
             marker_line_color="rgba(235,244,255,0.98)",
             marker_line_width=1.3,
             customdata=selected[["_mesh_name"]].assign(
-                category=selected["_category"]
+                category=selected["_category"], detail=selected["_detail"]
             ).to_numpy(),
-            hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+            hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>",
             showlegend=False,
         ))
 

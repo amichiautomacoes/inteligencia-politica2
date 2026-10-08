@@ -13,6 +13,7 @@ import streamlit as st
 from streamlit_plotly_events2 import plotly_events
 
 from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, file_by_kind, hf_filesystem, hf_visualizacao_path, load_env, load_parquet, selected_deputado_files
+from eleitoral.maps.bh_projection import bh_projection_map_frame as _bh_projection_map_frame
 from eleitoral.maps.dna_geo_reference import load_geo_reference
 from eleitoral.maps.choropleth_maps import (
     ACTION_COLORS,
@@ -241,6 +242,10 @@ def _apply_visual_model() -> None:
         .raiox-expense-side-card {{
             min-height: 0;
             margin-bottom: 1rem;
+        }}
+        .raiox-expense-summary-card .raiox-insight-value {{
+            white-space: normal;
+            overflow-wrap: anywhere;
         }}
         .raiox-map-side-label {{
             color: #93c5fd;
@@ -510,9 +515,16 @@ def _apply_visual_model() -> None:
             margin-top: 0.6rem;
         }}
         .raiox-concentration-pill-label {{
-            color: #86efac;
-            font-size: 0.82rem;
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.8rem;
+            border-radius: 999px;
+            background: #15803d;
+            border: 1px solid rgba(134, 239, 172, 0.45);
+            color: #ffffff;
+            font-size: 1.15rem;
             font-weight: 900;
+            line-height: 1.2;
             text-transform: uppercase;
             letter-spacing: 0.075em;
         }}
@@ -2000,67 +2012,7 @@ def _render_bh_comparison_legend() -> None:
     )
 
 
-def _bh_projection_map_frame(
-    strategy_df: pd.DataFrame | None,
-    votes_df: pd.DataFrame | None,
-) -> pd.DataFrame:
-    required_strategy = {"nm_bairro", "segmento_estrategico"}
-    required_votes = {"cd_ibge_municipio", "cd_ibge_bairro", "nm_bairro"}
-    output_columns = [
-        "cd_ibge_municipio", "cd_ibge_bairro", "nm_bairro",
-        "categoria_projecao_2028", "nr_latitude", "nr_longitude",
-    ]
-    if (
-        strategy_df is None
-        or votes_df is None
-        or not required_strategy.issubset(strategy_df.columns)
-        or not required_votes.issubset(votes_df.columns)
-    ):
-        return pd.DataFrame(columns=output_columns)
-
-    segment_labels = {
-        "BASE CRITICA": "Base Crítica (Fortaleza)",
-        "VULNERAVEL": "Vulnerável/Ameaçado",
-        "OPORTUNIDADE DE CRESCIMENTO": "Oportunidade BH",
-    }
-    strategy = strategy_df[["nm_bairro", "segmento_estrategico"]].copy()
-    strategy["_bairro_norm"] = strategy["nm_bairro"].map(_normalized_text)
-    strategy["categoria_projecao_2028"] = strategy["segmento_estrategico"].map(
-        lambda value: segment_labels.get(_normalized_text(value), "Demais bairros")
-    )
-    strategy = strategy.loc[strategy["_bairro_norm"].ne("")].drop_duplicates(
-        "_bairro_norm", keep="first"
-    )
-
-    reference_columns = ["cd_ibge_municipio", "cd_ibge_bairro", "nm_bairro"]
-    for column in ("nr_latitude", "nr_longitude"):
-        if column in votes_df.columns:
-            reference_columns.append(column)
-    reference = votes_df.loc[
-        votes_df["cd_ibge_municipio"].astype("string").eq("3106200"),
-        reference_columns,
-    ].copy()
-    reference["_bairro_norm"] = reference["nm_bairro"].map(_normalized_text)
-    merged = reference.merge(
-        strategy[["_bairro_norm", "categoria_projecao_2028"]],
-        on="_bairro_norm",
-        how="inner",
-    )
-    for column in output_columns:
-        if column not in merged.columns:
-            merged[column] = pd.NA
-    if {"nr_latitude", "nr_longitude"}.issubset(merged.columns):
-        merged["_has_coordinates"] = (
-            pd.to_numeric(merged["nr_latitude"], errors="coerce").notna()
-            & pd.to_numeric(merged["nr_longitude"], errors="coerce").notna()
-        )
-        merged = merged.sort_values("_has_coordinates", ascending=False)
-    return merged[output_columns].drop_duplicates(
-        ["cd_ibge_bairro", "categoria_projecao_2028"], keep="first"
-    )
-
-
-def _render_bh_projection_legend() -> None:
+def _render_bh_projection_legend(vote_threshold: float | None = None) -> None:
     legend_items = [
         ("Base Crítica (Fortaleza)", "Base Crítica (Fortaleza)", "#bfdbfe", "rgba(37, 99, 235, 0.18)"),
         ("Vulnerável/Ameaçado", "Vulnerável", "#fef08a", "rgba(250, 204, 21, 0.18)"),
@@ -2079,6 +2031,19 @@ def _render_bh_projection_legend() -> None:
     st.html(
         f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px">{badges_html}</div>'
     )
+    threshold_label = (
+        f"{vote_threshold:.1f}".replace(".", ",")
+        if vote_threshold is not None and pd.notna(vote_threshold) else "indisponível"
+    )
+    st.caption(
+        f"Base forte: votos iguais ou superiores à mediana dos bairros com voto ({threshold_label}). "
+        "Azul: base forte com perfil na média ou acima da população. "
+        "Amarelo (Vulnerável): base forte com espaço demográfico a trabalhar. "
+        "Verde: votação abaixo da mediana com espaço demográfico. "
+        "Cinza: demais situações ou comparação incompleta. "
+        "Espaço demográfico significa média ICP − população negativa, com dados válidos de gênero, idade e escolaridade."
+    )
+
 
 
 def _municipal_concentration_frame(df: pd.DataFrame | None) -> pd.DataFrame:
@@ -3104,9 +3069,14 @@ def _render_cost_efficiency_kpis(
     )
     for column, (label, value, caption) in zip(metric_columns, metric_data):
         with column:
-            with st.container(border=True):
-                st.metric(label, value)
-                st.caption(caption)
+            st.markdown(
+                '<div class="raiox-map-side-card raiox-expense-summary-card">'
+                f'<div class="raiox-insight-title">{html.escape(label)}</div>'
+                f'<div class="raiox-insight-value">{html.escape(value)}</div>'
+                f'<div class="raiox-insight-note">{html.escape(caption)}</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
 
 def _expense_cost_insight(chart_df: pd.DataFrame, selected_expense: str | None) -> dict[str, object]:
@@ -4180,12 +4150,12 @@ with detail_map_col:
                 )
             elif bh_map_year == "Projeção 2028":
                 projection_df = _read_selected_parquet(
-                    "bh_bairros_estrategicos", scope="bh"
+                    "bh_potencial_bairro", scope="bh"
                 )
                 projection_map_df = _bh_projection_map_frame(
-                    projection_df, votos_bairro_df
+                    projection_df, _read_selected_parquet("votos_bairro", scope="bh")
                 )
-                _render_bh_projection_legend()
+                _render_bh_projection_legend(projection_map_df.attrs.get("strong_vote_threshold"))
                 mesh_fig, mesh_count = municipality_neighborhood_category_map(
                     "3106200", projection_map_df
                 )
@@ -4223,7 +4193,9 @@ with detail_map_col:
                     )
                 elif bh_map_year == "Projeção 2028":
                     st.caption(
-                        "Classificação estratégica dos bairros para 2028. Os demais bairros aparecem em tom neutro. "
+                        "Classificação descritiva por votos de referência e espaço demográfico. "
+                        "A diferença média compara separadamente gênero, idade e escolaridade; "
+                        "não representa cruzamento individual, perda histórica ou previsão de votos em 2028. "
                         "Os cards laterais continuam mostrando os indicadores da votação de 2026."
                     )
                 elif scale_type == "uniform":

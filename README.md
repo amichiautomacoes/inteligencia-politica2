@@ -112,7 +112,7 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 | Território | `territorio/stage01a_municipios.parquet` | Cabeçalho (partido), mapa estadual, concentração, KPIs e votos totais |
 | Território | `territorio/stage01b_bairros.parquet` | Mapa intramunicipal e detalhamento por bairro |
 | Comparação de BH | `{candidato}/bh_2026/territorio/stage01b_bairros.parquet` | Votos de 2020/2024 e comparação de participação com 2026 no mapa de Belo Horizonte |
-| Projeção estratégica de BH | `{candidato}/bh_2026/territorio/stage07_bairros_estrategicos.parquet` | Categorias estratégicas por bairro no filtro **Projeção 2028** |
+| Potencial demográfico de BH | `{candidato}/bh_2026/potencial_demografico/stage08c_potencial_demografico_icp_bairro.parquet` | Votos e comparação ICP/população por bairro e dimensão no filtro **Projeção 2028** |
 | Emendas de BH | `{candidato}/bh_2026/emendas/emendas_municipais.parquet` | Resumo e detalhamento municipal de emendas na visualização de Belo Horizonte |
 | Demografia | `demografico/stage02_genero.parquet` | Distribuição do eleitorado |
 | Demografia | `demografico/stage02_idade.parquet` | Distribuição do eleitorado |
@@ -145,7 +145,11 @@ O leitor de emendas aceita os campos `valor_pago_atualizado`, `valor_empenhado_a
 
 Na pasta especial `bh_2026`, `territorio/stage01b_bairros.parquet` traz votos históricos e os campos `diff_market_share_bairro_pp_vs_2020` e `diff_market_share_bairro_pp_vs_2024`. A comparação do mapa agrega os registros por bairro e calcula a diferença de participação em pontos percentuais usando os locais correspondidos entre as eleições.
 
-O arquivo `bh_2026/territorio/stage07_bairros_estrategicos.parquet` classifica os bairros pelo campo `segmento_estrategico`. No filtro **Projeção 2028**, **Base crítica** aparece em azul (Base Crítica/Fortaleza), **Vulnerável** em amarelo e **Oportunidade de crescimento** em verde; as demais categorias ficam neutras. O mapa associa os bairros do arquivo estratégico aos códigos territoriais de 2026 e os cards laterais permanecem nos indicadores de 2026.
+O filtro **Projeção 2028** usa `bh_2026/potencial_demografico/stage08c_potencial_demografico_icp_bairro.parquet` do candidato selecionado, encontrado nesse caminho na consulta de 8 de outubro de 2026, e não em `IBGE/censo`. O alias `bh_potencial_bairro` resolve essa fonte. `src/eleitoral/maps/bh_projection.py` calcula a média simples de `pct_icp_categoria - pct_populacao_categoria` em gênero, idade e escolaridade, exigindo as três comparações válidas e `situacao_icp=calculado`. As dimensões são marginais independentes; a média não descreve um perfil conjunto individual. Os votos repetidos por dimensão não são somados: usa-se `qt_votos_candidato_bairro` uma vez por bairro (máximo).
+
+Base forte significa votos iguais ou superiores à mediana dos bairros com voto do candidato. Base forte com índice não negativo recebe **Base Crítica (Fortaleza)** (azul); base forte com índice negativo recebe **Vulnerável** (amarelo); votação abaixo da mediana com índice negativo recebe **Oportunidade** (verde); demais situações e comparações incompletas ficam neutras. “Vulnerável” indica espaço demográfico na base existente, sem inferir queda histórica ou risco causal. Não é previsão de votos para 2028.
+
+A associação geográfica usa `cd_bairro` do TSE no arquivo territorial de `bh_2026`; o nome normalizado é fallback apenas quando é único na fonte de potencial. O código municipal TSE `41238` corresponde ao IBGE `3106200` nessa seção. Os tooltips exibem votos de referência e diferença média em pontos percentuais. As quatro pílulas mantêm as cores e são acompanhadas dos critérios, incluindo a mediana calculada. Os cards laterais permanecem nos indicadores de 2026. A fonte antiga `stage07_bairros_estrategicos.parquet` não alimenta mais esse filtro.
 
 ### Semântica dos gastos de campanha
 

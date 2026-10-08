@@ -335,9 +335,7 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "estado_civil": "demografico/stage02_estado_civil.parquet",
         "genero": "demografico/stage02_genero.parquet",
         "idade": "demografico/stage02_idade.parquet",
-        "gastos_territoriais": "gastos/gastos_territoriais.parquet",
-        "gastos_territoriais_por_tipo": "gastos/gastos_territoriais_por_tipo.parquet",
-        "despesas_campanha": "gastos/despesas_campanha.parquet",
+        "gastos_por_tipo": "gastos/gastos_por_tipo.parquet",
         "emendas_legislativa": (
             "emendas/emendas_municipais.parquet",
             "gastos/emendas_legislativa.parquet",

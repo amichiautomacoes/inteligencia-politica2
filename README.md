@@ -120,9 +120,8 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 | Demografia | `demografico/stage02_estado_civil.parquet` | Distribuição do eleitorado |
 | Perfil | `perfil/stage04_icp_geral_geo.parquet` | Eleitor ideal |
 | Perfil | `perfil/stage04_icp_clusters_geo.parquet` | Base eleitoral e perfis de expansão |
-| Gastos | `gastos/despesas_campanha.parquet` | Treemap e KPIs de custo |
-| Gastos | `gastos/gastos_territoriais_por_tipo.parquet` | Custo de referência por tipo e território |
-| Gastos | `gastos/gastos_territoriais.parquet` | Fallback com rateio territorial |
+| Gastos | `gastos/gastos_por_tipo.parquet` | Treemap e KPIs de custo da campanha |
+| Gastos | `gastos/gastos_municipais_teoricos.parquet` | Disponível no bucket; ainda não utilizado na interface |
 | Emendas | `gastos/emendas_legislativa.parquet` (ou `emendas/emendas_municipais.parquet`, quando fornecido) | Mapa de atuação parlamentar e detalhamento |
 | Força local | `forca_local/stage07a_capital_local_municipios.parquet` | Quadrantes de efetividade da estrutura política municipal |
 | Força local | `forca_local/stage07b_afinidade_eleitos.parquet` | Composição nominal de prefeitos e vereadores no detalhe municipal |
@@ -140,7 +139,7 @@ O app também reconhece CSV, JSON, JSONL, XLS/XLSX e imagens ao listar o bucket,
 
 Na auditoria do bucket em 8 de outubro de 2026, cada candidato tinha 29 Parquets na pasta `2026/`. Os esquemas dos dois candidatos têm os mesmos nomes e tipos de coluna; somente a ordem das colunas difere em `IBGE/censo/genero_apond.parquet` e `IBGE/censo/idade_apond.parquet`. O leitor usa nomes, então essa diferença não altera as consultas. As contagens de linhas variam entre candidatos.
 
-O arquivo anual `gastos/emendas_legislativa.parquet` tem esquema, mas está vazio para os dois candidatos; por isso o mapa estadual de atuação parlamentar exibe ausência de dados. A pasta especial `bh_2026/emendas/emendas_municipais.parquet` contém emendas para Belo Horizonte e alimenta o recorte por bairros. Esses registros estão no nível municipal, então seus valores são exibidos como total de BH, sem rateio entre bairros. Os demais arquivos de força local e gastos territoriais consultados estão presentes: `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet`, `forca_local/stage07b_afinidade_municipios.parquet`, `gastos/gastos_territoriais.parquet` e `gastos/gastos_territoriais_por_tipo.parquet`.
+O arquivo anual `gastos/emendas_legislativa.parquet` tem esquema, mas está vazio para os dois candidatos; por isso o mapa estadual de atuação parlamentar exibe ausência de dados. A pasta especial `bh_2026/emendas/emendas_municipais.parquet` contém emendas para Belo Horizonte e alimenta o recorte por bairros. Esses registros estão no nível municipal, então seus valores são exibidos como total de BH, sem rateio entre bairros. Os arquivos de força local consultados estão presentes: `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet` e `forca_local/stage07b_afinidade_municipios.parquet`. Em `2026/gastos`, os arquivos atuais são `gastos_por_tipo.parquet` e `gastos_municipais_teoricos.parquet`.
 
 O leitor de emendas aceita os campos `valor_pago_atualizado`, `valor_empenhado_ano`, `valor_indicado` ou `valor_emenda`; combina identificadores de município por código IBGE ou nome e lê finalidade/tipo dos campos disponíveis no arquivo.
 
@@ -148,11 +147,11 @@ Na pasta especial `bh_2026`, `territorio/stage01b_bairros.parquet` traz votos hi
 
 O arquivo `bh_2026/territorio/stage07_bairros_estrategicos.parquet` classifica os bairros pelo campo `segmento_estrategico`. No filtro **Projeção 2028**, **Base crítica** aparece em azul (Base Crítica/Fortaleza), **Vulnerável** em amarelo e **Oportunidade de crescimento** em verde; as demais categorias ficam neutras. O mapa associa os bairros do arquivo estratégico aos códigos territoriais de 2026 e os cards laterais permanecem nos indicadores de 2026.
 
-### Semântica dos gastos territoriais
+### Semântica dos gastos de campanha
 
-Quando `gastos_territoriais_por_tipo.parquet` existe, cada linha municipal repete o total de campanha do tipo de despesa. O dashboard conta esse total uma vez e o divide pelos votos do território; o resultado é um **custo de referência**, não gasto observado naquele município.
+`gastos_por_tipo.parquet` contém um total por tipo de despesa. O treemap usa `valor_total_gasto` uma vez por tipo; os KPIs somam esses totais e dividem pelo total de votos da campanha para calcular o custo por voto. Ao selecionar um tipo, os KPIs mostram o gasto e o custo correspondentes àquele tipo.
 
-Sem esse arquivo, o app usa `gastos_territoriais.parquet`, aplica o rateio proporcional disponível e informa a limitação na interface.
+`gastos_municipais_teoricos.parquet` contém um rateio proporcional aos votos e não registra gasto observado em cada município. O treemap ocupa cerca de 80% da faixa. O primeiro card lateral mostra o gasto por voto da categoria selecionada (ou da despesa líder), calculado de `gastos_por_tipo.parquet` e dos votos totais. Seu badge compara a parcela desse custo com o custo geral da campanha: baixo abaixo de um terço, moderado até dois terços e alto acima disso. O segundo card mostra o peso percentual da categoria no orçamento e destaca a maior rubrica com badge verde; as demais recebem badge azul. O terceiro mostra a diferença percentual e em reais entre o custo por voto da categoria e o custo geral, com badge abaixo, moderado ou acima para cortes de −10% e +10%. O parquet municipal ainda não é usado na interface.
 
 ### Semântica da força política local
 

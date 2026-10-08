@@ -105,25 +105,31 @@ Ao clicar em um município no mapa parlamentar, uma janela mostra os votos, a ca
 
 ### 2.6 Eficiência por Custo do Voto
 
-**Pergunta visual:** que tipos de despesa dominam os gastos e qual o custo estimado por voto nos territórios?
+**Pergunta visual:** que tipos de despesa dominam os gastos e quanto foi gasto por voto na campanha?
 
-A seção abre com faixa principal e a frase `Participação de cada tipo de despesa nos gastos totais da campanha.`. Antes dos gráficos há três KPIs nativos `st.metric`: **Custo por Voto Total**, **Total Gasto** e **Despesa Líder**. Custo e gasto usam formatação monetária brasileira (`R$ X.XXX,XX`). Ao clicar em uma despesa no treemap, os KPIs e o gráfico territorial à direita atualizam para o tipo selecionado; os rótulos dos KPIs deixam explícito quando mostram o tipo selecionado.
+A seção abre com a frase `Participação de cada tipo de despesa nos gastos totais da campanha.`. Três KPIs nativos `st.metric` mostram **Custo por Voto Total**, **Total Gasto** e **Despesa Líder**, calculados de `gastos_por_tipo.parquet` e dos votos totais do candidato. Ao selecionar uma despesa no treemap, os KPIs mostram o gasto e o custo por voto desse tipo; o botão **Mostrar gasto total** restaura os totais da campanha. Se faltarem gastos ou votos, a seção informa a indisponibilidade sem apresentar zeros fictícios.
 
-Os gráficos ficam em **dois cards lado a lado**, com o treemap à esquerda e as barras territoriais à direita. Em telas estreitas, as colunas do Streamlit podem se empilhar. O primeiro, `Gastos por tipo de despesa`, é um **treemap Plotly** de cerca de **440 px** de altura. A área de cada retângulo corresponde ao valor gasto no tipo; cores categóricas distintas identificam os tipos e não representam uma escala financeira. Para evitar micro-retângulos sem legibilidade, despesas que representam menos de 1,5% cada são agrupadas depois dos quatro maiores tipos em um bloco **OUTRAS DESPESAS**; esse bloco informa no hover quantos tipos foram agrupados e não funciona como filtro individual. Quando há seleção, o bloco ativo clareia sua própria cor e recebe contorno claro; as demais categorias mantêm suas cores. O texto apresenta o rótulo compacto do tipo em caixa alta, seguido por participação no orçamento e valor em reais, por exemplo `63,6% do orçamento • R$ 450.000`. O contraste do texto varia conforme o fundo do retângulo; rótulos que não cabem são ocultados em vez de reduzidos a tamanhos difíceis de ler. A borda fina separa os retângulos. O hover detalha o alias do tipo, total em reais, participação e custo por voto. Treemap, hover, KPIs e filtro territorial usam os aliases abaixo; a seleção continua vinculada ao tipo de despesa original.
+O treemap Plotly ocupa cerca de **80% da largura** da faixa e tem **620 px** de altura. A área de cada retângulo corresponde a `valor_total_gasto`; as cores identificam tipos de despesa. Os nomes compactos das despesas aparecem dentro dos blocos; nos maiores, aparecem também participação e valor. Tipos que representam menos de 2,5% cada são agrupados depois dos quatro maiores em **OUTRAS DESPESAS**. O grupo informa seus componentes no hover e não é selecionável. A despesa selecionada recebe destaque; o hover mostra total gasto, participação e custo por voto na campanha. Os aliases e rótulos compactos são:
 
 | Tipo de despesa nos dados | Alias geral | Rótulo compacto no treemap |
 | --- | --- | --- |
+| Alimentação | Alimentação | Alimentação |
 | Atividades de militância e mobilização de rua | Militância | Militância |
 | Cessão ou locação de veículos | Locação de Veículos | Locação de Veículos |
 | Combustíveis e lubrificantes | Combustíveis | Combustíveis |
 | Correspondências e despesas postais | Correios | Correios |
 | Criação e inclusão de páginas na internet | Criação de Sites | Criação de Sites |
 | Despesa com Impulsionamento de Conteúdos | Anúncios Online | Anúncios Online |
+| Despesas com Hospedagem | Hospedagem | Hospedagem |
+| Despesas com pessoal | Equipe e Pessoal | Equipe e Pessoal |
+| Despesas com transporte ou deslocamento | Transporte | Transporte |
 | Encargos financeiros, taxas bancárias e/ou op. cartão de crédito | Taxas Bancárias | Taxas Bancárias |
+| Eventos de promoção da candidatura | Eventos | Eventos |
 | Locação/cessão de bens imóveis | Locação de Imóveis | Locação de Imóveis |
 | Locação/cessão de bens móveis (exceto veículos) | Locação de Bens Móveis | Locação de Bens Móveis |
 | Materiais de expediente | Material de Expediente | Material de Expediente |
 | Produção de jingles, vinhetas e slogans | Produção de Jingles e Áudio | Jingles e Áudio |
+| Produção de programas de rádio, televisão ou vídeo | Produção Audiovisual | Produção Audiovisual |
 | Publicidade por adesivos | Publicidade: Adesivos | Publicidade: Adesivos |
 | Publicidade por jornais e revistas | Publicidade: Impressa (Mídia) | Publicidade Impressa |
 | Publicidade por materiais impressos | Materiais Impressos | Materiais Impressos |
@@ -133,9 +139,11 @@ Os gráficos ficam em **dois cards lado a lado**, com o treemap à esquerda e as
 | Serviços prestados por terceiros | Serviços de Terceiros | Serviços de Terceiros |
 | Taxa de Administração de Financiamento Coletivo | Taxa de Vaquinha | Taxa de Vaquinha |
 
-O segundo card, `Votos e custo por voto territorial · Gasto total`, muda o sufixo para a despesa selecionada e exibe uma pílula com o nome do filtro ativo no cabeçalho. O botão **Mostrar gasto total** restaura o estado inicial. Um selectbox permite exibir **Top 15 por custo por voto** ou escolher um município; ao selecionar uma cidade, o gráfico mostra somente aquele município. O gráfico tem cerca de 560 px de altura e usa barras horizontais espelhadas: à direita, as barras azuis mostram os votos dos 15 municípios de maior custo por voto ou somente do município selecionado; à esquerda, barras amarelas comparativas mostram o custo por voto em escala própria. O eixo inferior explicita `R$/voto (esquerda) · Votos (direita)`, e cada barra de votos recebe o rótulo de custo por voto ao lado. O novo parquet repete o total da campanha de cada tipo de despesa em todos os municípios; o gráfico conta esse total uma vez e o divide pelos votos do território. O hover mostra custo, total usado e votos. O resultado não representa despesa local observada. Na ausência do novo parquet, a interface usa o rateio territorial anterior e informa essa condição.
+À direita, três cards empilhados ocupam cerca de **20% da faixa**. O primeiro, **Custo por voto da despesa**, mostra o valor gasto na categoria dividido pelos votos totais da campanha. Ao selecionar uma categoria no treemap, o card a acompanha; sem seleção, mostra a despesa líder. O card também informa o custo médio geral da campanha e um badge que compara a contribuição da categoria com esse custo total: **Baixo** (verde) abaixo de um terço, **Moderado** (amarelo) de um a dois terços e **Alto** (vermelho) a partir de dois terços. O texto esclarece que a razão não mede retorno isolado nem causalidade da despesa.
 
-O custo por voto é normalizado para ocupar no máximo 36% do comprimento da maior barra de votos, mantendo as medidas em lados opostos do zero sem comprimir a escala eleitoral. Os ticks à esquerda mostram reais por voto; os da direita, votos. Se o parquet territorial estiver vazio ou não trouxer linhas válidas para o recorte, o card mostra a mensagem `Sem dados territoriais de gastos válidos para este recorte. Não é possível calcular o custo por voto.` no lugar do gráfico.
+O segundo card, **Peso no orçamento**, mostra `valor_total_gasto` da categoria dividido pelo gasto total da campanha, em percentual com uma casa decimal. O subtexto mostra o gasto da categoria e o total em reais. O badge verde **Rubrica principal** identifica a categoria de maior gasto; as demais recebem o badge azul **Gasto secundário**. Ele acompanha o filtro do treemap e, sem seleção, mostra a rubrica líder.
+
+O terceiro card, **Comparativo com a média**, mostra `(custo por voto da categoria - custo por voto total) / custo por voto total` como variação percentual com sinal. O subtexto mostra a diferença em reais por voto, com o mesmo sinal. O badge indica **Despesa acima** (vermelho) para variação maior que +10%, **Despesa moderada** (amarelo) entre −10% e +10%, ou **Despesa abaixo** (verde) para variação menor que −10%. Com gastos positivos, cada categoria compõe o total, então a variação acima da média total não ocorre nos dados atuais. `gastos_municipais_teoricos.parquet` ainda não alimenta a seção; o custo por voto da categoria é calculado dos totais por tipo e dos votos, com o mesmo significado de `custo_por_voto_tipo`.
 
 ## 3. Página 2 — DNA Eleitoral
 
@@ -211,7 +219,7 @@ O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640
 | Filtro Município da força política local | Mapa categórico dos quatro quadrantes em Minas Gerais | Única granularidade disponível nesta etapa |
 | Cards da força política local | Destacam ou restauram uma classe do mapa | Card ativo recebe contorno reforçado |
 | Clique em município da força política local | Abre o mapa isolado, os indicadores e a composição política municipal | Janela modal; fecha sem alterar o filtro dos cards |
-| Tipo de despesa no treemap | KPIs de custo e gráfico territorial | Botão restaura gasto total |
+| Tipo de despesa no treemap | KPIs de custo e destaque no treemap | Botão restaura gasto total |
 | Município e dimensão da rosca DNA | Rosca e total do recorte | Restrito à seção de distribuição |
 | Mesorregião e município do bloco estadual da Matriz DNA | Destaque geográfico na malha dos municípios de MG | Restrito ao bloco estadual |
 | Mesorregião e município do bloco municipal da Matriz DNA | Malha intramunicipal neutra | Restrito ao bloco municipal |
@@ -225,7 +233,7 @@ Falta de parquet, malha ou dimensão não deve parecer valor zero. A implementa�
 
 No hero, a navegação permanece vertical à direita em telas largas; quando as colunas do Streamlit se reorganizam, o painel passa para baixo do conteúdo mantendo os três botões empilhados. A foto e os textos também se ajustam por regras CSS próprias. Os KPIs da página 1 passam de linha para uma coluna em telas até cerca de **900 px**. A faixa Top 1/5/15/20 passa para duas colunas; a lista de municípios reduz colunas novamente abaixo de **600 px**. Os quatro sub-cards do eleitor ideal passam para duas colunas abaixo de **900 px** e uma coluna abaixo de **760 px**. No card dos ICPs, o resumo e as barras demográficas empilham abaixo de **600 px**; o cabeçalho de cada perfil pode quebrar em telas estreitas. A legenda de expansão passa de quatro para duas colunas abaixo de **900 px** e para uma abaixo de **560 px**.
 
-Os pares de mapa e cards laterais da página 1, os gráficos de custos lado a lado e o par rosca/filtros do DNA são montados com `st.columns`; a experiência móvel também depende do empilhamento padrão do Streamlit. Nomes longos de município, persona e despesa podem quebrar linha. Tooltips complementam os rótulos que não cabem nos cards.
+Os pares de mapa e cards laterais da página 1, o treemap com os três cards de insights ao lado e o par rosca/filtros do DNA são montados com `st.columns`; a experiência móvel também depende do empilhamento padrão do Streamlit. Nomes longos de município, persona e despesa podem quebrar linha. Tooltips complementam os rótulos que não cabem nos cards.
 
 ## 6. Critérios de fidelidade para futuras alterações
 

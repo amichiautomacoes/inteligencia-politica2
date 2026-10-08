@@ -371,6 +371,52 @@ def _apply_visual_model() -> None:
             margin: 0.12rem 0 0.78rem 0;
             text-align: center;
         }}
+        .raiox-insight-title {{
+            color: #dbeafe;
+            font-size: 0.85rem;
+            font-weight: 800;
+            line-height: 1.25;
+        }}
+        .raiox-insight-category {{
+            color: #93c5fd;
+            font-size: 0.76rem;
+            line-height: 1.2;
+            margin-top: 0.3rem;
+            overflow-wrap: anywhere;
+        }}
+        .raiox-insight-value {{
+            color: #f8fbff;
+            font-size: clamp(1.45rem, 2.2vw, 2.15rem);
+            font-weight: 850;
+            line-height: 1.15;
+            margin: 1rem 0 0.15rem;
+            white-space: nowrap;
+        }}
+        .raiox-insight-value span {{
+            color: #bfdbfe;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }}
+        .raiox-insight-badge {{
+            display: inline-block;
+            border-radius: 999px;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.74rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin: 0.55rem 0;
+        }}
+        .raiox-insight-badge.high {{ color: #fecaca; background: rgba(220, 38, 38, 0.22); }}
+        .raiox-insight-badge.moderate {{ color: #fde68a; background: rgba(202, 138, 4, 0.22); }}
+        .raiox-insight-badge.low {{ color: #bbf7d0; background: rgba(22, 163, 74, 0.22); }}
+        .raiox-insight-badge.primary {{ color: #bbf7d0; background: rgba(22, 163, 74, 0.22); }}
+        .raiox-insight-badge.secondary {{ color: #bfdbfe; background: rgba(37, 99, 235, 0.24); }}
+        .raiox-insight-note {{
+            color: #cbd5e1;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            margin-top: 0.35rem;
+        }}
         .raiox-cost-chart-heading {{
             display: flex;
             align-items: center;
@@ -2794,6 +2840,7 @@ def _campaign_total_votes(votos_df: pd.DataFrame | None) -> float:
 
 
 EXPENSE_TYPE_ALIASES = {
+    "Alimentação": "Alimentação",
     "Atividades de militância e mobilização de rua": "Militância",
     "Cessão ou locação de veículos": "Locação de Veículos",
     "Combustíveis e lubrificantes": "Combustíveis",
@@ -2816,6 +2863,10 @@ EXPENSE_TYPE_ALIASES = {
     "Comícios": "Comícios",
     "Diversas a especificar": "Outras Despesas",
     "Despesas com pessoal": "Equipe e Pessoal",
+    "Despesas com Hospedagem": "Hospedagem",
+    "Despesas com transporte ou deslocamento": "Transporte",
+    "Eventos de promoção da candidatura": "Eventos",
+    "Produção de programas de rádio, televisão ou vídeo": "Produção Audiovisual",
 }
 
 EXPENSE_TREEMAP_SHORT_LABELS = {
@@ -2825,17 +2876,23 @@ EXPENSE_TREEMAP_SHORT_LABELS = {
 }
 
 EXPENSE_TREEMAP_COLORS = {
+    "Alimentação": "#B45309",
     "Atividades de militância e mobilização de rua": "#15803D",
     "Cessão ou locação de veículos": "#6D28D9",
     "Combustíveis e lubrificantes": "#C2410C",
     "Correspondências e despesas postais": "#0369A1",
     "Criação e inclusão de páginas na internet": "#A16207",
+    "Despesas com Hospedagem": "#7C3AED",
+    "Despesas com pessoal": "#1E40AF",
+    "Despesas com transporte ou deslocamento": "#EA580C",
     "Despesa com Impulsionamento de Conteúdos": "#A21CAF",
     "Encargos financeiros, taxas bancárias e/ou op. cartão de crédito": "#475569",
+    "Eventos de promoção da candidatura": "#BE185D",
     "Locação/cessão de bens imóveis": "#0F766E",
     "Locação/cessão de bens móveis (exceto veículos)": "#B45309",
     "Materiais de expediente": "#4338CA",
     "Produção de jingles, vinhetas e slogans": "#BE123C",
+    "Produção de programas de rádio, televisão ou vídeo": "#0891B2",
     "Publicidade por adesivos": "#047857",
     "Publicidade por jornais e revistas": "#9D174D",
     "Publicidade por materiais impressos": "#1D4ED8",
@@ -2873,7 +2930,7 @@ def _expense_treemap_display_frame(chart_df: pd.DataFrame) -> pd.DataFrame:
 
     display_df = chart_df.sort_values("valor_total_despesa", ascending=False).copy()
     display_df["_rank"] = np.arange(1, len(display_df) + 1)
-    small_share = pd.to_numeric(display_df["pct_gasto"], errors="coerce").fillna(0).lt(0.015)
+    small_share = pd.to_numeric(display_df["pct_gasto"], errors="coerce").fillna(0).lt(0.025)
     tail_mask = small_share & display_df["_rank"].gt(4)
     if not tail_mask.any():
         return display_df.drop(columns=["_rank"])
@@ -2946,15 +3003,15 @@ def _expense_cost_by_type_frame(
         despesas_df is None
         or despesas_df.empty
         or "tipo_despesa" not in despesas_df.columns
-        or "valor_despesa" not in despesas_df.columns
+        or "valor_total_gasto" not in despesas_df.columns
         or total_votes <= 0
     ):
         return pd.DataFrame()
 
-    result = despesas_df[["tipo_despesa", "valor_despesa"]].copy()
+    result = despesas_df[["tipo_despesa", "valor_total_gasto"]].copy()
     result["tipo_despesa"] = result["tipo_despesa"].fillna("Nao informado").astype(str).str.strip()
     result.loc[result["tipo_despesa"].eq(""), "tipo_despesa"] = "Nao informado"
-    result["valor_total_despesa"] = pd.to_numeric(result["valor_despesa"], errors="coerce").fillna(0)
+    result["valor_total_despesa"] = pd.to_numeric(result["valor_total_gasto"], errors="coerce").fillna(0)
     result = (
         result.groupby("tipo_despesa", as_index=False)["valor_total_despesa"]
         .sum()
@@ -3047,6 +3104,129 @@ def _render_cost_efficiency_kpis(
                 st.caption(caption)
 
 
+def _expense_cost_insight(chart_df: pd.DataFrame, selected_expense: str | None) -> dict[str, object]:
+    campaign_spend = float(chart_df["valor_total_despesa"].sum())
+    campaign_votes = float(chart_df["qt_votos"].max())
+    expense = (
+        chart_df.loc[chart_df["tipo_despesa"].eq(selected_expense)].iloc[0]
+        if selected_expense else chart_df.iloc[0]
+    )
+    expense_cost = float(expense["custo_por_voto"])
+    campaign_cost = campaign_spend / campaign_votes
+    ratio = expense_cost / campaign_cost
+    if ratio >= 2 / 3:
+        band, label = "high", "Alto"
+    elif ratio >= 1 / 3:
+        band, label = "moderate", "Moderado"
+    else:
+        band, label = "low", "Baixo"
+    return {
+        "expense_name": _short_expense_type_label(str(expense["tipo_despesa"])),
+        "expense_cost": expense_cost,
+        "campaign_cost": campaign_cost,
+        "ratio": ratio,
+        "band": band,
+        "label": label,
+    }
+
+
+def _render_expense_cost_insight(chart_df: pd.DataFrame, selected_expense: str | None) -> None:
+    insight = _expense_cost_insight(chart_df, selected_expense)
+    expense_name = html.escape(str(insight["expense_name"]))
+    cost_label = html.escape(_format_currency(insight["expense_cost"]))
+    campaign_label = html.escape(_format_currency(insight["campaign_cost"]))
+    share_label = html.escape(_format_percent(insight["ratio"]))
+    st.markdown(
+        "<div class='raiox-insight-title'>Custo por voto da despesa</div>"
+        f"<div class='raiox-insight-category'>{expense_name}</div>"
+        f"<div class='raiox-insight-value'>{cost_label} <span>/ voto</span></div>"
+        f"<div class='raiox-insight-badge {insight['band']}'>{insight['label']} · "
+        f"{share_label} do custo geral</div>"
+        f"<div class='raiox-insight-note'>Média da campanha: {campaign_label} / voto.</div>"
+        "<div class='raiox-insight-note'>Parcela desta categoria por voto conquistado "
+        "pela campanha; não mede retorno isolado da despesa.</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _expense_budget_insight(chart_df: pd.DataFrame, selected_expense: str | None) -> dict[str, object]:
+    campaign_spend = float(chart_df["valor_total_despesa"].sum())
+    expense = (
+        chart_df.loc[chart_df["tipo_despesa"].eq(selected_expense)].iloc[0]
+        if selected_expense else chart_df.iloc[0]
+    )
+    expense_spend = float(expense["valor_total_despesa"])
+    is_primary = expense_spend == float(chart_df["valor_total_despesa"].max())
+    return {
+        "expense_name": _short_expense_type_label(str(expense["tipo_despesa"])),
+        "expense_spend": expense_spend,
+        "campaign_spend": campaign_spend,
+        "share": expense_spend / campaign_spend,
+        "band": "primary" if is_primary else "secondary",
+        "label": "Rubrica principal" if is_primary else "Gasto secundário",
+    }
+
+
+def _render_expense_budget_insight(chart_df: pd.DataFrame, selected_expense: str | None) -> None:
+    insight = _expense_budget_insight(chart_df, selected_expense)
+    expense_name = html.escape(str(insight["expense_name"]))
+    share_label = html.escape(_format_percent(insight["share"]))
+    expense_label = html.escape(_format_currency(insight["expense_spend"]))
+    campaign_label = html.escape(_format_currency(insight["campaign_spend"]))
+    st.markdown(
+        "<div class='raiox-insight-title'>Peso no orçamento</div>"
+        f"<div class='raiox-insight-category'>{expense_name}</div>"
+        f"<div class='raiox-insight-value'>{share_label}</div>"
+        f"<div class='raiox-insight-note'>{expense_label} de {campaign_label}</div>"
+        f"<div class='raiox-insight-badge {insight['band']}'>{insight['label']}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _expense_average_comparison(chart_df: pd.DataFrame, selected_expense: str | None) -> dict[str, object]:
+    campaign_spend = float(chart_df["valor_total_despesa"].sum())
+    campaign_votes = float(chart_df["qt_votos"].max())
+    expense = (
+        chart_df.loc[chart_df["tipo_despesa"].eq(selected_expense)].iloc[0]
+        if selected_expense else chart_df.iloc[0]
+    )
+    campaign_cost = campaign_spend / campaign_votes
+    expense_cost = float(expense["custo_por_voto"])
+    difference = expense_cost - campaign_cost
+    difference_pct = difference / campaign_cost
+    if difference_pct > 0.10:
+        band, label = "high", "Despesa acima"
+    elif difference_pct < -0.10:
+        band, label = "low", "Despesa abaixo"
+    else:
+        band, label = "moderate", "Despesa moderada"
+    return {
+        "expense_name": _short_expense_type_label(str(expense["tipo_despesa"])),
+        "difference": difference,
+        "difference_pct": difference_pct,
+        "band": band,
+        "label": label,
+    }
+
+
+def _render_expense_average_comparison(chart_df: pd.DataFrame, selected_expense: str | None) -> None:
+    comparison = _expense_average_comparison(chart_df, selected_expense)
+    expense_name = html.escape(str(comparison["expense_name"]))
+    difference_pct = float(comparison["difference_pct"])
+    difference = float(comparison["difference"])
+    pct_label = f"{difference_pct * 100:+.1f}%".replace(".", ",")
+    currency_label = f"{'+' if difference > 0 else '-' if difference < 0 else ''}{_format_currency(abs(difference))}"
+    st.markdown(
+        "<div class='raiox-insight-title'>Comparativo com a média</div>"
+        f"<div class='raiox-insight-category'>{expense_name}</div>"
+        f"<div class='raiox-insight-value'>{html.escape(pct_label)} "
+        "<span>da média</span></div>"
+        f"<div class='raiox-insight-note'>{html.escape(currency_label)} vs. média da campanha</div>"
+        f"<div class='raiox-insight-badge {comparison['band']}'>{comparison['label']}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | None = None) -> go.Figure:
     if chart_df.empty:
         fig = go.Figure()
@@ -3059,7 +3239,7 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
             showarrow=False,
             font={"color": "#eaf2ff", "size": 16},
         )
-        fig.update_layout(height=440, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        fig.update_layout(height=620, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         return fig
 
     display_df = _expense_treemap_display_frame(chart_df)
@@ -3072,6 +3252,15 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
     display_df["treemap_text_color"] = display_df["treemap_color"].map(_text_color_for_background)
     display_df["rotulo_pct_orcamento"] = display_df["pct_gasto"].map(_format_percent)
     display_df["rotulo_valor_despesa"] = display_df["valor_total_despesa"].map(_format_currency_whole)
+    display_df["texto_treemap"] = display_df.apply(
+        lambda row: (
+            f"<b>{row['tipo_despesa_treemap']}</b><br>"
+            f"{row['rotulo_pct_orcamento']} · {row['rotulo_valor_despesa']}"
+            if row["pct_gasto"] >= 0.08
+            else f"<b>{row['tipo_despesa_treemap']}</b>"
+        ),
+        axis=1,
+    )
     border_colors = [
         "#f8fbff" if selected_expense and expense_type == selected_expense else "rgba(191,219,254,0.55)"
         for expense_type in display_df["tipo_despesa"]
@@ -3094,13 +3283,11 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
         parents=[""] * len(display_df),
         values=display_df["valor_total_despesa"],
         customdata=custom_data,
-        texttemplate=(
-            "<b>%{label}</b><br>"
-            "%{customdata[1]} do orçamento • %{customdata[2]}"
-        ),
+        texttemplate="%{text}",
+        text=display_df["texto_treemap"],
         textfont={
             "color": display_df["treemap_text_color"].tolist(),
-            "size": 16,
+            "size": 14,
             "family": "Segoe UI, Inter, sans-serif",
         },
         marker={
@@ -3122,7 +3309,7 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
         pathbar={"visible": False},
     )
     fig.update_layout(
-        height=440,
+        height=620,
         margin={"l": 8, "r": 8, "t": 8, "b": 8},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -3132,7 +3319,7 @@ def _expense_cost_by_type_chart(chart_df: pd.DataFrame, selected_expense: str | 
             "font_color": "#EAF2FF",
             "bordercolor": "rgba(147,197,253,0.55)",
         },
-        uniformtext={"minsize": 12, "mode": "hide"},
+        uniformtext={"minsize": 11, "mode": "hide"},
     )
     return fig
 
@@ -3163,237 +3350,27 @@ def _selected_expense_from_treemap(event: object | None, chart_df: pd.DataFrame)
     return None
 
 
-def _territorial_expense_cost_frame(
-    gastos_df: pd.DataFrame | None,
-    expense_share: float,
-    territory: str,
-) -> pd.DataFrame:
-    required = {"qt_votos", "valor_despesas_rateado", "nm_municipio", "nm_mesorregiao"}
-    if gastos_df is None or gastos_df.empty or not required.issubset(gastos_df.columns):
-        return pd.DataFrame()
-    frame = gastos_df.copy()
-    if "nivel_territorial" in frame.columns:
-        levels = frame["nivel_territorial"].astype(str).str.strip().str.lower()
-        if levels.eq("municipio").any():
-            frame = frame[levels.eq("municipio")].copy()
-        elif levels.eq("bairro").any():
-            frame = frame[levels.eq("bairro")].copy()
-        else:
-            return pd.DataFrame()
-    frame["qt_votos"] = pd.to_numeric(frame["qt_votos"], errors="coerce").fillna(0)
-    frame["valor_despesas_rateado"] = pd.to_numeric(
-        frame["valor_despesas_rateado"], errors="coerce"
-    ).fillna(0)
-    group_col = "nm_municipio" if territory == "Municípios" else "nm_mesorregiao"
-    frame[group_col] = frame[group_col].fillna("Não informado").astype(str).str.strip()
-    result = frame.groupby(group_col, as_index=False)[["qt_votos", "valor_despesas_rateado"]].sum()
-    result = result[result["qt_votos"].gt(0)].copy()
-    result["gasto_atribuido"] = result["valor_despesas_rateado"] * expense_share
-    result["custo_por_voto"] = result["gasto_atribuido"] / result["qt_votos"]
-    return result.sort_values("qt_votos", ascending=False)
-
-
-def _territorial_expense_cost_by_type_frame(
-    gastos_por_tipo_df: pd.DataFrame | None,
-    selected_expense: str | None,
-    territory: str,
-) -> pd.DataFrame:
-    required = {
-        "cd_municipio", "nm_municipio", "nm_mesorregiao", "tipo_despesa",
-        "valor_total_tipo_despesa", "qt_votos_municipio",
-    }
-    if gastos_por_tipo_df is None or gastos_por_tipo_df.empty or not required.issubset(gastos_por_tipo_df.columns):
-        return pd.DataFrame()
-
-    frame = gastos_por_tipo_df.copy()
-    frame["qt_votos_municipio"] = pd.to_numeric(frame["qt_votos_municipio"], errors="coerce")
-    frame["valor_total_tipo_despesa"] = pd.to_numeric(
-        frame["valor_total_tipo_despesa"], errors="coerce"
-    )
-    frame = frame.dropna(subset=["qt_votos_municipio", "valor_total_tipo_despesa"])
-    if frame.empty:
-        return pd.DataFrame()
-
-    # Each type's campaign total and each city's votes repeat across the city/type rows.
-    type_totals = frame.groupby("tipo_despesa")["valor_total_tipo_despesa"].first()
-    if selected_expense:
-        if selected_expense not in type_totals.index:
-            return pd.DataFrame()
-        campaign_spend = float(type_totals.loc[selected_expense])
-    else:
-        campaign_spend = float(type_totals.sum())
-
-    municipalities = frame.drop_duplicates("cd_municipio").copy()
-    group_col = "nm_municipio" if territory == "Municípios" else "nm_mesorregiao"
-    municipalities[group_col] = municipalities[group_col].fillna("Não informado").astype(str).str.strip()
-    result = municipalities.groupby(group_col, as_index=False)["qt_votos_municipio"].sum()
-    result = result[result["qt_votos_municipio"].gt(0)].copy()
-    result = result.rename(columns={"qt_votos_municipio": "qt_votos"})
-    result["gasto_atribuido"] = campaign_spend
-    result["custo_por_voto"] = campaign_spend / result["qt_votos"]
-    return result.sort_values("qt_votos", ascending=False)
-
-
-def _territorial_expense_cost_chart(
-    frame: pd.DataFrame, territory: str, campaign_total: bool = False
-) -> go.Figure:
-    def unavailable_chart() -> go.Figure:
-        empty_fig = go.Figure()
-        empty_fig.add_annotation(
-            text="Sem dados territoriais de gastos para este recorte.",
-            x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False,
-            font={"color": "#eaf2ff", "size": 16},
-        )
-        empty_fig.update_layout(
-            height=560,
-            margin={"l": 10, "r": 10, "t": 30, "b": 10},
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font={"color": "#eaf2ff"},
-            xaxis={"visible": False},
-            yaxis={"visible": False},
-            showlegend=False,
-        )
-        return empty_fig
-
-    if frame.empty:
-        return unavailable_chart()
-
-    label_col = "nm_municipio" if territory == "Municípios" else "nm_mesorregiao"
-    display = frame.copy()
-    for column in ("qt_votos", "custo_por_voto", "gasto_atribuido"):
-        display[column] = pd.to_numeric(display[column], errors="coerce")
-    display = display.replace([np.inf, -np.inf], np.nan).dropna(
-        subset=["qt_votos", "custo_por_voto", "gasto_atribuido"]
-    )
-    display = display.loc[display["qt_votos"].gt(0) & display["custo_por_voto"].ge(0)].copy()
-    if display.empty:
-        return unavailable_chart()
-
-    display = display.nlargest(15, "custo_por_voto").sort_values("custo_por_voto", ascending=True)
-    max_votes = float(display["qt_votos"].max())
-    max_cost = float(display["custo_por_voto"].max())
-    display["rotulo_custo"] = display["custo_por_voto"].map(_format_currency)
-    display["territory_label"] = display[label_col].astype(str)
-    customdata = display[[
-        "territory_label", "gasto_atribuido", "qt_votos", "custo_por_voto", "rotulo_custo",
-    ]].to_numpy()
-
-    # Keep the cost bars in a fixed portion of the shared axis so votes retain their own range.
-    left_extent = max_votes * 0.36 if max_cost > 0 else 0.0
-    if max_cost > 0:
-        cost_scale = left_extent / max_cost
-        display["custo_espelhado"] = -(display["custo_por_voto"] * cost_scale)
-    else:
-        display["custo_espelhado"] = 0.0
-
-    fig = go.Figure()
-    if max_cost > 0:
-        fig.add_trace(go.Bar(
-            x=display["custo_espelhado"],
-            y=display["territory_label"],
-            orientation="h",
-            name="R$/voto",
-            marker={
-                "color": "rgba(251,191,36,0.72)",
-                "line": {"color": "rgba(254,243,199,0.78)", "width": 1},
-            },
-            customdata=customdata,
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                "Custo por voto: %{customdata[4]}<br>"
-                f"{'Total da campanha' if campaign_total else 'Gasto atribuído'}: R$ %{{customdata[1]:,.2f}}<br>"
-                "Votos: %{customdata[2]:,.0f}<extra></extra>"
-            ),
-        ))
-    fig.add_trace(go.Bar(
-        x=display["qt_votos"],
-        y=display["territory_label"],
-        orientation="h",
-        name="Votos",
-        marker={
-            "color": "#60a5fa",
-            "line": {"color": "rgba(248,251,255,0.45)", "width": 1},
-        },
-        text=display["rotulo_custo"].map(lambda value: f"{value}/voto"),
-        textposition="outside",
-        textfont={"color": "#eaf2ff", "size": 12},
-        cliponaxis=False,
-        customdata=customdata,
-        hovertemplate=(
-            "<b>%{customdata[0]}</b><br>"
-            "Votos: %{customdata[2]:,.0f}<br>"
-            "Custo por voto: %{customdata[4]}<br>"
-            f"{'Total da campanha' if campaign_total else 'Gasto atribuído'}: R$ %{{customdata[1]:,.2f}}<extra></extra>"
-        ),
-    ))
-    fig.add_vline(x=0, line_width=1, line_color="rgba(226,232,240,0.52)")
-
-    right_extent = max_votes
-    tickvals = [0.0]
-    ticktext = ["0"]
-    if max_cost > 0:
-        tickvals = [-left_extent, -(left_extent / 2), 0.0]
-        ticktext = [_format_currency(max_cost), _format_currency(max_cost / 2), "0"]
-    tickvals.extend([right_extent / 2, right_extent])
-    ticktext.extend([_format_number(right_extent / 2), _format_number(right_extent)])
-    x_range = [-(left_extent * 1.15), right_extent * 1.48] if max_cost > 0 else [0.0, right_extent * 1.48]
-    x_title = "R$/voto (esquerda) · Votos (direita)" if max_cost > 0 else "Votos"
-
-    fig.update_layout(
-        height=560,
-        margin={"l": 10, "r": 10, "t": 30, "b": 10},
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font={"color": "#eaf2ff"},
-        xaxis={
-            "title": x_title,
-            "gridcolor": "rgba(255,255,255,0.10)",
-            "zeroline": False,
-            "tickmode": "array",
-            "tickvals": tickvals,
-            "ticktext": ticktext,
-            "range": x_range,
-            "automargin": True,
-        },
-        yaxis={"title": "", "automargin": True},
-        barmode="overlay",
-        bargap=0.34,
-        legend={
-            "orientation": "h",
-            "yanchor": "bottom",
-            "y": 1.02,
-            "xanchor": "right",
-            "x": 1,
-            "font": {"color": "#dbeafe"},
-        },
-        hoverlabel={
-            "bgcolor": "rgba(5,12,28,0.95)",
-            "font_color": "#EAF2FF",
-            "bordercolor": "rgba(147,197,253,0.55)",
-        },
-    )
-    return fig
-
-
 def _render_cost_efficiency_section(
     votos_df: pd.DataFrame | None,
-    despesas_df: pd.DataFrame | None,
-    gastos_df: pd.DataFrame | None,
     gastos_por_tipo_df: pd.DataFrame | None,
 ) -> None:
     _major_section_header(
         "Eficiência por Custo do Voto",
         "Participação de cada tipo de despesa nos gastos totais da campanha.",
     )
-    chart_df = _expense_cost_by_type_frame(despesas_df, _campaign_total_votes(votos_df))
+    chart_df = _expense_cost_by_type_frame(gastos_por_tipo_df, _campaign_total_votes(votos_df))
+    if chart_df.empty:
+        st.info("Dados de gastos por tipo ou votos da campanha indisponíveis para este candidato.")
+        return
+
     selected_expense = st.session_state.get(EXPENSE_SELECTION_KEY)
-    if chart_df.empty or selected_expense not in chart_df["tipo_despesa"].values:
+    if selected_expense not in chart_df["tipo_despesa"].values:
         selected_expense = None
         st.session_state.pop(EXPENSE_SELECTION_KEY, None)
     selected_expense_label = _short_expense_type_label(selected_expense) if selected_expense else None
     _render_cost_efficiency_kpis(chart_df, selected_expense)
-    treemap_col, territorial_col = st.columns(2, gap="large")
+
+    treemap_col, future_col = st.columns([0.8, 0.2], gap="medium")
     with treemap_col:
         with st.container(border=True):
             treemap_title = (
@@ -3404,6 +3381,12 @@ def _render_cost_efficiency_section(
                 f"<div class='raiox-chart-card-title'>{html.escape(treemap_title)}</div>",
                 unsafe_allow_html=True,
             )
+            if selected_expense and st.button("Mostrar gasto total", key="pagina1_reset_tipo_despesa"):
+                st.session_state.pop(EXPENSE_SELECTION_KEY, None)
+                st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
+                    st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
+                )
+                st.rerun()
             treemap_event = st.plotly_chart(
                 _expense_cost_by_type_chart(chart_df, selected_expense),
                 width="stretch",
@@ -3415,87 +3398,13 @@ def _render_cost_efficiency_section(
             if clicked_expense and clicked_expense != selected_expense:
                 st.session_state[EXPENSE_SELECTION_KEY] = clicked_expense
                 st.rerun()
-    with territorial_col:
+    with future_col:
         with st.container(border=True):
-            title = selected_expense_label or "Gasto total"
-            filter_tag = (
-                f"<span class='raiox-cost-filter-tag'>{html.escape(selected_expense_label)}</span>"
-                if selected_expense_label else ""
-            )
-            st.markdown(
-                "<div class='raiox-cost-chart-heading'>"
-                f"<div class='raiox-chart-card-title'>Votos e custo por voto territorial · {html.escape(title)}</div>"
-                f"{filter_tag}"
-                "</div>",
-                unsafe_allow_html=True,
-            )
-            if selected_expense and st.button("Mostrar gasto total", key="pagina1_reset_tipo_despesa"):
-                st.session_state.pop(EXPENSE_SELECTION_KEY, None)
-                st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
-                    st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
-                )
-                st.rerun()
-            share = 1.0
-            if selected_expense:
-                share = float(chart_df.loc[
-                    chart_df["tipo_despesa"].eq(selected_expense), "pct_gasto"
-                ].iloc[0])
-            has_type_data = gastos_por_tipo_df is not None and not gastos_por_tipo_df.empty
-            if has_type_data:
-                municipality_cost = _territorial_expense_cost_by_type_frame(
-                    gastos_por_tipo_df, selected_expense, "Municípios"
-                )
-            else:
-                municipality_cost = _territorial_expense_cost_frame(gastos_df, share, "Municípios")
-            municipality_names = (
-                sorted(municipality_cost["nm_municipio"].dropna().astype(str).unique().tolist())
-                if "nm_municipio" in municipality_cost.columns else []
-            )
-            top15_option = "Top 15 municípios por custo por voto"
-            territory_filter = st.selectbox(
-                "Filtrar por município",
-                [top15_option, *municipality_names],
-                key=f"pagina1_custo_municipio_filtro_{_candidate_widget_suffix()}",
-            )
-            territory = "Municípios"
-            territorial_cost = municipality_cost.copy()
-            if territory_filter != top15_option:
-                territorial_cost = territorial_cost.loc[
-                    territorial_cost["nm_municipio"].astype(str).eq(territory_filter)
-                ].copy()
-            if not territorial_cost.empty and {
-                "qt_votos", "custo_por_voto", "gasto_atribuido",
-            }.issubset(territorial_cost.columns):
-                territorial_cost = territorial_cost.replace([np.inf, -np.inf], np.nan).dropna(
-                    subset=["qt_votos", "custo_por_voto", "gasto_atribuido"]
-                )
-                territorial_cost = territorial_cost.loc[
-                    pd.to_numeric(territorial_cost["qt_votos"], errors="coerce").gt(0)
-                    & pd.to_numeric(territorial_cost["custo_por_voto"], errors="coerce").ge(0)
-                ]
-            if territorial_cost.empty:
-                st.info(
-                    "Sem dados territoriais de gastos válidos para este recorte. "
-                    "Não é possível calcular o custo por voto."
-                )
-            else:
-                st.plotly_chart(
-                    _territorial_expense_cost_chart(territorial_cost, territory, has_type_data),
-                    width="stretch",
-                )
-                if has_type_data:
-                    st.caption(
-                        "Custo de referência: valor total da campanha para o tipo selecionado "
-                        "(ou todos os tipos) dividido pelos votos do território. "
-                        "O parquet repete o total da campanha em cada município; "
-                        "não registra gasto realizado em cada local."
-                    )
-                else:
-                    st.caption(
-                        "Gasto atribuído proporcionalmente aos votos em cada território. "
-                        "O parquet não identifica o tipo de despesa por local; por isso "
-                        "o custo por voto é igual entre territórios neste rateio."
-                    )
+            _render_expense_cost_insight(chart_df, selected_expense)
+        with st.container(border=True):
+            _render_expense_budget_insight(chart_df, selected_expense)
+        with st.container(border=True):
+            _render_expense_average_comparison(chart_df, selected_expense)
 
 
 def _parliamentary_action_frame(
@@ -4384,12 +4293,8 @@ with local_cards_col:
 _render_accumulated_concentration_section(votos_municipio_df)
 emendas_legislativa_df = _read_selected_parquet("emendas_legislativa")
 _render_parliamentary_action_section(votos_municipio_df, emendas_legislativa_df)
-despesas_campanha_df = _read_selected_parquet("despesas_campanha")
-gastos_territoriais_df = _read_selected_parquet("gastos_territoriais")
-gastos_territoriais_por_tipo_df = _read_selected_parquet("gastos_territoriais_por_tipo")
-_render_cost_efficiency_section(
-    votos_municipio_df, despesas_campanha_df, gastos_territoriais_df, gastos_territoriais_por_tipo_df
-)
+gastos_por_tipo_df = _read_selected_parquet("gastos_por_tipo")
+_render_cost_efficiency_section(votos_municipio_df, gastos_por_tipo_df)
 
 
 

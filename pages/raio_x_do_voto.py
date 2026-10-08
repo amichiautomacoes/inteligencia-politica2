@@ -408,6 +408,7 @@ def _apply_visual_model() -> None:
         }}
         .raiox-map-side-badge.good {{ background: rgba(22, 163, 74, 0.2); color: #86efac; }}
         .raiox-map-side-badge.warn {{ background: rgba(245, 158, 11, 0.2); color: #fcd34d; }}
+        .raiox-map-side-badge.bad {{ background: rgba(220, 38, 38, 0.2); color: #fca5a5; }}
         .mapa-kpi-wide-card {{
             position: relative;
             overflow: hidden;
@@ -1913,6 +1914,7 @@ def _render_neighborhood_side_cards(
     year: str | int = "2026",
     municipality_votes_df: pd.DataFrame | None = None,
     statewide_votes_df: pd.DataFrame | None = None,
+    total_neighborhoods: int | None = None,
 ) -> None:
     card = _map_side_card
     year = str(year)
@@ -1974,11 +1976,36 @@ def _render_neighborhood_side_cards(
             "good" if municipal_badge else "",
         )
     ]
+
+    def neighborhood_coverage_card(with_votes: int) -> str:
+        if total_neighborhoods is None or total_neighborhoods <= 0:
+            return card(
+                "Penetração por bairros",
+                f"{_format_number(with_votes)} bairros com voto",
+                "Total de bairros oficiais indisponível",
+            )
+        coverage = min(with_votes / total_neighborhoods, 1.0)
+        if coverage < 1 / 3:
+            concentration, tone = "Concentração baixa", "bad"
+        elif coverage <= 2 / 3:
+            concentration, tone = "Concentração moderada", "warn"
+        else:
+            concentration, tone = "Concentração alta", "good"
+        return card(
+            "Penetração por bairros",
+            f"{_format_number(with_votes)} bairros com voto",
+            f"{_format_percent(coverage)} dos {_format_number(total_neighborhoods)} bairros oficiais",
+            concentration,
+            tone,
+        )
+
     if rows.empty:
         cards.extend([
             card("Bairro principal (Top 1)", "—", "Dados de bairros indisponíveis"),
             card("Dependência do bairro principal", "—", "Dados de bairros indisponíveis"),
-            card("Penetração por bairros", "—", "Dados de bairros indisponíveis"),
+            neighborhood_coverage_card(0) if not municipality_rows.empty else card(
+                "Penetração por bairros", "—", "Dados de bairros indisponíveis"
+            ),
             card("Densidade média por bairro", "—", "Dados de bairros indisponíveis"),
         ])
     else:
@@ -2009,11 +2036,7 @@ def _render_neighborhood_side_cards(
                 "Alerta de concentração" if share > 0.30 else "Concentração moderada",
                 "warn" if share > 0.30 else "good",
             ),
-            card(
-                "Penetração por bairros",
-                f"{_format_number(with_votes)} bairros com voto",
-                "Total de bairros do município indisponível",
-            ),
+            neighborhood_coverage_card(with_votes),
             card(
                 "Densidade média por bairro",
                 f"{_format_number(round(total / with_votes))} votos / bairro" if with_votes else "—",
@@ -4230,6 +4253,7 @@ _major_section_header(
 )
 selected_bh_neighborhood_df = votos_bairro_df
 selected_bh_municipality_df = votos_municipio_df
+bh_mesh_neighborhood_count = None
 detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
 with detail_map_col:
     with st.container(border=True):
@@ -4256,11 +4280,13 @@ with detail_map_col:
                 selected_bh_municipality_df = _read_selected_parquet(
                     "votos_municipio", scope="bh"
                 )
-                mesh_fig, _ = municipality_mesh_map(
+                mesh_fig, mesh_count = municipality_mesh_map(
                     "3106200", comparison_df, comparison_year=bh_map_year
                 )
             else:
-                mesh_fig, _ = municipality_mesh_map("3106200", votos_bairro_df)
+                mesh_fig, mesh_count = municipality_mesh_map("3106200", votos_bairro_df)
+            if mesh_fig is not None and (mesh_fig.layout.meta or {}).get("mesh_kind") == "bairro":
+                bh_mesh_neighborhood_count = mesh_count
             if mesh_fig is None:
                 if bh_map_year in {"2020", "2024"}:
                     st.info(f"Comparação de votos por bairro para {bh_map_year} indisponível nesta pasta.")
@@ -4302,6 +4328,7 @@ with detail_cards_col:
         year=bh_map_year,
         municipality_votes_df=selected_bh_municipality_df,
         statewide_votes_df=votos_municipio_df,
+        total_neighborhoods=bh_mesh_neighborhood_count,
     )
 
 _major_section_header(

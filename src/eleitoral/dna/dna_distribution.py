@@ -128,8 +128,7 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
     votes = read_parquet("votos_municipio")
     municipalities = _municipalities(votes)
     st.html('''<style>
-        .st-key-dna_distribution_card{margin:28px 0}
-        .st-key-dna_distribution_card [data-testid="stVerticalBlockBorderWrapper"]{padding:30px!important;border-color:rgba(96,165,250,.3)!important;border-radius:20px;background:linear-gradient(135deg,rgba(11,31,77,.76),rgba(7,24,54,.68))!important;box-shadow:0 12px 30px rgba(0,0,0,.14)}
+        .st-key-dna_distribution_card{margin:28px 0;padding:30px!important;border:1px solid rgba(96,165,250,.3)!important;border-radius:20px!important;background:linear-gradient(135deg,rgba(11,31,77,.76),rgba(7,24,54,.68))!important;box-shadow:0 12px 30px rgba(0,0,0,.14)!important}
         .dna-distribution-heading{padding-bottom:1.1rem;margin-bottom:1.2rem;border-bottom:1px solid rgba(147,197,253,.18)}
         .dna-distribution-heading h3{margin:0 0 .35rem;color:#f8fbff;font-size:1.55rem;font-weight:800;line-height:1.2}
         .dna-distribution-heading p{margin:0;color:#b7c7e6;font-size:.92rem;line-height:1.45}
@@ -147,7 +146,7 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
         .dna-distribution-legend-category{display:flex;align-items:center;gap:8px;min-width:0}
         .dna-distribution-swatch{width:11px;height:11px;border-radius:3px;flex:none}
         .dna-distribution-legend-row strong{text-align:right;color:#fff;font-variant-numeric:tabular-nums}
-        @media(max-width:560px){.st-key-dna_distribution_card [data-testid="stVerticalBlockBorderWrapper"]{padding:18px!important}.dna-distribution-legend-head,.dna-distribution-legend-row{grid-template-columns:minmax(0,1fr) 3.5rem;gap:4px}.dna-distribution-legend-head{font-size:.58rem}.dna-distribution-legend-row{font-size:.72rem;padding:8px 6px}}
+        @media(max-width:560px){.st-key-dna_distribution_card{padding:18px!important}.dna-distribution-legend-head,.dna-distribution-legend-row{grid-template-columns:minmax(0,1fr) 3.5rem;gap:4px}.dna-distribution-legend-head{font-size:.58rem}.dna-distribution-legend-row{font-size:.72rem;padding:8px 6px}}
     </style>''')
     with st.container(border=True, key="dna_distribution_card"):
         st.html('<div class="dna-distribution-heading"><h3>Distribuição do eleitorado</h3><p>Participação estimada de cada categoria demográfica na votação do recorte selecionado.</p></div>')

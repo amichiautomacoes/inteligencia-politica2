@@ -195,7 +195,7 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
         summary_html = ""
         attributes = []
 
-    badge_html = "".join(
+    badge_html = " ".join(
         f'<span class="dna-icp-badge dna-icp-badge-{index % 4}">{html.escape(value)}</span>'
         for index, value in enumerate(attributes)
     )
@@ -207,7 +207,7 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
                 <h3 class="dna-subsection-title">Eleitor ideal do candidato</h3>
                 <p class="dna-subsection-description">Síntese do perfil demográfico predominante na base eleitoral do candidato.</p>
             </div>
-            {f'<div class="dna-icp-persona-label">👤 PERFIL PREDOMINANTE</div><div class="dna-icp-badges">{badge_html}</div>' if badge_html else ''}
+            {f'<div class="dna-icp-persona"><div class="dna-icp-persona-label">👤 PERFIL PREDOMINANTE</div><div class="dna-icp-badges">{badge_html}</div></div>' if badge_html else ''}
             {summary_html}
             """)
         )
@@ -265,19 +265,21 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
 def _apply_icp_card_styles() -> None:
     st.html("""
     <style>
-    .st-key-dna_icp_general_card [data-testid="stVerticalBlockBorderWrapper"] {
-        border-color: rgba(96, 165, 250, 0.3) !important;
-        border-radius: 20px;
+    .st-key-dna_icp_general_card {
+        margin: 28px 0;
+        padding: 30px !important;
+        border: 1px solid rgba(96, 165, 250, 0.3) !important;
+        border-radius: 20px !important;
         background: linear-gradient(135deg, rgba(11, 31, 77, 0.76), rgba(7, 24, 54, 0.68)) !important;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14) !important;
     }
-    .st-key-dna_icp_metric_0 [data-testid="stVerticalBlockBorderWrapper"],
-    .st-key-dna_icp_metric_1 [data-testid="stVerticalBlockBorderWrapper"],
-    .st-key-dna_icp_metric_2 [data-testid="stVerticalBlockBorderWrapper"],
-    .st-key-dna_icp_metric_3 [data-testid="stVerticalBlockBorderWrapper"] {
+    .st-key-dna_icp_metric_0,
+    .st-key-dna_icp_metric_1,
+    .st-key-dna_icp_metric_2,
+    .st-key-dna_icp_metric_3 {
         min-height: 17rem;
-        border-color: rgba(177, 211, 255, 0.2) !important;
-        border-radius: 14px;
+        border: 1px solid rgba(177, 211, 255, 0.2) !important;
+        border-radius: 14px !important;
         background: rgba(4, 18, 43, 0.34) !important;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
     }
@@ -287,28 +289,34 @@ def _apply_icp_card_styles() -> None:
         margin-bottom: 1.35rem;
     }
     .dna-icp-heading .dna-subsection-description { font-size: 1rem; margin-bottom: 0; }
+    .dna-icp-persona {
+        margin: 0.5rem 0 1.5rem;
+        text-align: center;
+    }
     .dna-icp-persona-label {
-        margin: 0.25rem 0 0.7rem;
-        color: #b7c7e6;
-        font-size: 0.78rem;
-        font-weight: 800;
+        margin: 0 0 1rem;
+        color: #f8fbff;
+        font-size: 1.18rem;
+        font-weight: 850;
         letter-spacing: 0.08em;
     }
     .dna-icp-badges {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.6rem;
-        margin: 0 0 0.45rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.8rem;
+        margin: 0;
     }
     .dna-icp-badge {
         display: inline-flex;
         align-items: center;
-        min-height: 2.25rem;
-        padding: 0.4rem 0.85rem;
+        min-height: 2.55rem;
+        padding: 0.48rem 1rem;
         border: 1px solid rgba(147, 197, 253, 0.28);
         border-radius: 999px;
         color: #f8fbff;
-        font-size: 1rem;
+        font-size: 1.06rem;
         font-weight: 750;
         line-height: 1.25;
     }
@@ -316,6 +324,7 @@ def _apply_icp_card_styles() -> None:
     .dna-icp-badge-1 { background: rgba(59, 130, 246, 0.17); border-color: rgba(96, 165, 250, 0.36); }
     .dna-icp-badge-2 { background: rgba(139, 92, 246, 0.17); border-color: rgba(167, 139, 250, 0.36); }
     .dna-icp-badge-3 { background: rgba(245, 158, 11, 0.16); border-color: rgba(251, 191, 36, 0.35); }
+    .st-key-dna_icp_general_card .dna-icp-summary { text-align: center; }
     .dna-icp-kpi-label {
         color: #b7c7e6;
         font-size: 0.98rem;
@@ -350,6 +359,7 @@ def _apply_icp_card_styles() -> None:
         }
     }
     @media (max-width: 760px) {
+        .st-key-dna_icp_general_card { padding: 18px !important; }
         .st-key-dna_icp_general_card [data-testid="stColumn"] {
             flex: 1 1 100% !important;
             min-width: 100%;

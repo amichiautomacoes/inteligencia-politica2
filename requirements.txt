@@ -8,3 +8,4 @@ shapely>=2.0.0
 openpyxl>=3.1.0
 plotly>=5.20.0
 streamlit-shadcn-ui>=1.4.0
+streamlit-antd-components>=0.3.2

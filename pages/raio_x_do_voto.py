@@ -2071,14 +2071,22 @@ def _render_neighborhood_side_cards(
 
 
 def _render_bh_comparison_legend() -> None:
-    st.markdown(
-        '''<div style="display:flex;flex-wrap:wrap;gap:12px;margin:0 0 8px;color:#dbeafe;font-size:.76rem">
-            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#22c55e;margin-right:5px"></i>Ganhou participação</span>
-            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#3b82f6;margin-right:5px"></i>Sem variação</span>
-            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#ef4444;margin-right:5px"></i>Perdeu participação</span>
-            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#94a3b8;margin-right:5px"></i>Sem comparação</span>
-        </div>''',
-        unsafe_allow_html=True,
+    legend_items = [
+        ("Ganhou participação", "#86efac", "rgba(34, 197, 94, 0.16)", "#22c55e"),
+        ("Sem variação", "#93c5fd", "rgba(59, 130, 246, 0.16)", "#3b82f6"),
+        ("Perdeu participação", "#fca5a5", "rgba(239, 68, 68, 0.16)", "#ef4444"),
+        ("Sem comparação", "#cbd5e1", "rgba(148, 163, 184, 0.16)", "#94a3b8"),
+    ]
+    badges_html = "".join(
+        '<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;'
+        f'padding:5px 10px;border:1px solid {marker_color};border-radius:999px;'
+        f'background:{background};color:{text_color};font-size:.76rem;font-weight:700">'
+        f'<span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;'
+        f'background:{marker_color}"></span>{html.escape(label)}</span>'
+        for label, text_color, background, marker_color in legend_items
+    )
+    st.html(
+        f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px">{badges_html}</div>'
     )
 
 
@@ -2144,20 +2152,22 @@ def _bh_projection_map_frame(
 
 def _render_bh_projection_legend() -> None:
     legend_items = [
-        ("Base Crítica (Fortaleza)", "Base Crítica (Fortaleza)"),
-        ("Vulnerável/Ameaçado", "Vulnerável"),
-        ("Oportunidade BH", "Oportunidade"),
-        ("Demais bairros", "Demais bairros"),
+        ("Base Crítica (Fortaleza)", "Base Crítica (Fortaleza)", "#bfdbfe", "rgba(37, 99, 235, 0.18)"),
+        ("Vulnerável/Ameaçado", "Vulnerável", "#fef08a", "rgba(250, 204, 21, 0.18)"),
+        ("Oportunidade BH", "Oportunidade", "#86efac", "rgba(34, 197, 94, 0.18)"),
+        ("Demais bairros", "Demais bairros", "#cbd5e1", "rgba(148, 163, 184, 0.16)"),
     ]
-    items_html = "".join(
-        '<span style="display:inline-flex;align-items:center;gap:6px">'
-        f'<i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:{BH_PROJECTION_CATEGORY_COLORS[category]}"></i>'
-        f'{html.escape(label)}</span>'
-        for category, label in legend_items
+    badges_html = "".join(
+        '<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;'
+        f'padding:5px 10px;border:1px solid {BH_PROJECTION_CATEGORY_COLORS[category]};'
+        f'border-radius:999px;background:{background};color:{text_color};'
+        f'font-size:.76rem;font-weight:700">'
+        f'<span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;'
+        f'background:{BH_PROJECTION_CATEGORY_COLORS[category]}"></span>{html.escape(label)}</span>'
+        for category, label, text_color, background in legend_items
     )
-    st.markdown(
-        f'<div style="display:flex;flex-wrap:wrap;gap:12px;margin:0 0 8px;color:#dbeafe;font-size:.76rem">{items_html}</div>',
-        unsafe_allow_html=True,
+    st.html(
+        f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px">{badges_html}</div>'
     )
 
 
@@ -4361,12 +4371,15 @@ bh_mesh_neighborhood_count = None
 detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
 with detail_map_col:
     with st.container(border=True):
-        bh_map_year = st.radio(
+        bh_map_year_key = "bh_neighborhood_map_year_segmented"
+        bh_map_year_options = ["2020", "2024", "2026", "Projeção 2028"]
+        if st.session_state.get(bh_map_year_key) not in bh_map_year_options:
+            st.session_state[bh_map_year_key] = "2026"
+        bh_map_year = st.segmented_control(
             "Eleição exibida no mapa",
-            ["2020", "2024", "2026", "Projeção 2028"],
-            index=2,
-            horizontal=True,
-            key="bh_neighborhood_map_year",
+            bh_map_year_options,
+            selection_mode="single",
+            key=bh_map_year_key,
         )
         try:
             # Belo Horizonte is fixed for this section (IBGE municipality code).

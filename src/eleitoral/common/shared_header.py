@@ -302,6 +302,29 @@ def apply_shared_visual_model() -> None:
             border-radius: 16px;
             background: var(--raiox-card-bg);
             box-shadow: 0 12px 30px rgba(1, 8, 24, 0.22);
+            padding: 1.15rem 1.3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }}
+        .dna-potential-card-label {{
+            color: #b7c7e6;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }}
+        .dna-potential-card-value {{
+            color: #f8fbff;
+            font-size: clamp(1.55rem, 2.1vw, 2.2rem);
+            font-weight: 800;
+            line-height: 1.15;
+            margin-top: 0.65rem;
+        }}
+        .dna-potential-card-detail {{
+            color: #9fb6d8;
+            font-size: 0.84rem;
+            margin-top: 0.6rem;
         }}
         .dna-icp-card {{
             position: relative;

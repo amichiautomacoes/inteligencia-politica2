@@ -14,7 +14,10 @@ from hf_sync import file_by_kind, load_env, load_parquet
 from eleitoral.dna.cluster_cards import cluster_cards_html
 from eleitoral.common.dna_copy import sentence_label
 from eleitoral.dna.dna_distribution import render_electorate_distribution
-from eleitoral.maps.dna_geo_reference import load_geo_reference
+from eleitoral.maps.dna_geo_reference import load_geo_layer, load_geo_reference
+from eleitoral.dna.demographic_alignment import (
+    Profile, alignment, alignment_map, population_by_area, profile_options, weighted_area_geojson,
+)
 from eleitoral.maps.choropleth_maps import continuous_choropleth
 from eleitoral.maps.territorial_mesh import (
     mesoregion_options,
@@ -672,24 +675,59 @@ def _render_demographic_potential_analysis() -> None:
     st.caption(note)
 
 
-def _render_empty_potential_cards() -> None:
-    st.html(
-        dedent("""
-        <div class="dna-potential-side-cards" aria-hidden="true">
-            <div class="dna-potential-side-card"></div>
-            <div class="dna-potential-side-card"></div>
-            <div class="dna-potential-side-card"></div>
-            <div class="dna-potential-side-card"></div>
-        </div>
-        """)
+def _potential_cards(rows: pd.DataFrame, profile: Profile, scope: str) -> None:
+    if rows.empty:
+        st.info("Dados demográficos indisponíveis para o recorte.")
+        return
+    summary = rows.copy()
+    summary["municipio"] = "recorte"
+    totals = alignment(summary, profile, by_municipality=True).iloc[0]
+
+    def percent(value: object) -> str:
+        return f"{float(value):.1f}%".replace(".", ",") if pd.notna(value) else "—"
+
+    def population(value: object) -> str:
+        return f"{int(value):,}".replace(",", ".") if pd.notna(value) else "—"
+
+    cards = [
+        ("População nas áreas com dados", population(totals["populacao"]),
+         "Censo 2022 · todas as idades"),
+        ("Alinhamento demográfico", f'{percent(totals["alinhamento"])}'.replace("%", "/100"),
+         f'{int(totals["dimensoes"])} de 2 dimensões válidas'),
+        ("Gênero do ICP", percent(totals["local_genero"]),
+         f'Local × ICP {percent(profile.percentages.get("genero"))}'),
+        ("Faixa etária do ICP", percent(totals["local_idade"]),
+         f'Local × ICP {percent(profile.percentages.get("idade"))}'),
+    ]
+    st.html('<div class="dna-potential-side-cards" aria-label="Resumo demográfico de ' + html.escape(scope) + '">' + "".join(
+        '<div class="dna-potential-side-card">'
+        f'<div class="dna-potential-card-label">{html.escape(label)}</div>'
+        f'<div class="dna-potential-card-value">{html.escape(value)}</div>'
+        f'<div class="dna-potential-card-detail">{html.escape(detail)}</div>'
+        '</div>' for label, value, detail in cards
+    ) + '</div>')
+
+
+def _profile_select(profiles: list[Profile], key: str) -> Profile:
+    choices = {profile.key: profile for profile in profiles}
+    selected = st.selectbox(
+        "Perfil de eleitor", list(choices), format_func=lambda value: choices[value].label,
+        key=key,
     )
+    return choices[selected]
 
 
-def _render_state_demographic_potential() -> None:
+def _render_state_demographic_potential(population: pd.DataFrame, profiles: list[Profile]) -> None:
     map_col, cards_col = st.columns([0.70, 0.30], gap="large")
+    card_rows = population
+    card_profile = profiles[0]
+    scope = "Minas Gerais"
     with map_col:
         with st.container(border=True, key="dna_state_potential_map_card"):
             try:
+                _, profile_col = st.columns([0.57, 0.43], vertical_alignment="bottom")
+                with profile_col:
+                    card_profile = _profile_select(profiles, "dna_state_alignment_profile")
                 selected_mesorregiao = st.selectbox(
                     "Mesorregião",
                     ["Todas", *mesoregion_options()],
@@ -708,31 +746,48 @@ def _render_state_demographic_potential() -> None:
                         ),
                         key=f"dna_state_potential_municipio_{selected_mesorregiao}",
                     )
-                    fig = state_municipality_mesh_map(selected_mesorregiao, selected_code)
-                    if fig is None:
+                    geojson, _, municipalities, _ = load_geo_reference()
+                    if not geojson or municipalities is None:
                         st.info("Malha municipal de Minas Gerais indisponível.")
-                    else:
-                        st.plotly_chart(
-                            fig,
-                            width="stretch",
-                            height=560,
-                            key="dna_state_potential_municipality_mesh",
-                            config={"displayModeBar": False},
-                        )
-                        st.caption(
-                            "O destaque indica apenas o filtro geográfico; este mapa ainda não representa valores de potencial."
-                        )
+                        return
+                    scores = alignment(population, card_profile, by_municipality=True)
+                    allowed = {code for code, _ in municipality_choices}
+                    scores = scores.loc[scores["municipio"].isin(allowed)].copy()
+                    names = municipalities.drop_duplicates("codigo_ibge").set_index("codigo_ibge")["nome"]
+                    fig = alignment_map(scores, geojson, key="municipio", names=names,
+                                        profile=card_profile,
+                                        selected_code=selected_code)
+                    st.plotly_chart(fig, width="stretch", key="dna_state_potential_municipality_mesh",
+                                    config={"displayModeBar": False})
+                    if selected_code:
+                        card_rows = population.loc[population["municipio"].eq(selected_code)]
+                        scope = municipality_labels[selected_code]
+                    elif selected_mesorregiao != "Todas":
+                        card_rows = population.loc[population["municipio"].isin(allowed)]
+                        scope = selected_mesorregiao
+                    st.caption(
+                        "Escala verde: média de min(percentual local, percentual ICP) / "
+                        "max(percentual local, percentual ICP) em gênero e idade. "
+                        "O cálculo usa as áreas com dados; escolaridade não compõe a cor. "
+                        "É uma comparação descritiva, não uma estimativa de votos."
+                    )
             except Exception as exc:
-                st.warning(f"Não foi possível carregar a malha estadual: {exc}")
+                st.warning(f"Não foi possível carregar o alinhamento estadual: {exc}")
     with cards_col:
-        _render_empty_potential_cards()
+        _potential_cards(card_rows, card_profile, scope)
 
 
-def _render_demographic_potential() -> None:
+def _render_demographic_potential(population: pd.DataFrame, profiles: list[Profile]) -> None:
     map_col, cards_col = st.columns([0.70, 0.30], gap="large")
+    card_rows = pd.DataFrame()
+    card_profile = profiles[0]
+    scope = "município"
     with map_col:
         with st.container(border=True, key="dna_potential_map_card"):
             try:
+                _, profile_col = st.columns([0.57, 0.43], vertical_alignment="bottom")
+                with profile_col:
+                    card_profile = _profile_select(profiles, "dna_municipal_alignment_profile")
                 mesoregions = mesoregion_options()
                 selected_mesorregiao = st.selectbox(
                     "Mesorregião",
@@ -749,21 +804,34 @@ def _render_demographic_potential() -> None:
                         format_func=dict(municipality_choices).get,
                         key=f"dna_potential_municipio_{selected_mesorregiao}",
                     )
-                    mesh_fig, _ = municipality_mesh_map(selected_code, None, neutral=True)
-                    if mesh_fig is None:
-                        st.info("Malha territorial indisponível para este município.")
+                    scope = dict(municipality_choices)[selected_code]
+                    card_rows = population.loc[population["municipio"].eq(selected_code)].copy()
+                    areas = load_geo_layer("area_ponderada")
+                    areas = areas.loc[areas["code_muni"].astype("string").eq(selected_code)].copy()
+                    areas["code_weighting"] = areas["code_weighting"].astype("string").str.zfill(10)
+                    if areas.empty or card_rows.empty:
+                        st.info("Áreas ponderadas ou população indisponíveis para este município.")
                     else:
-                        st.plotly_chart(
-                            mesh_fig,
-                            width="stretch",
-                            height=560,
-                            key="dna_potential_municipality_mesh",
-                            config={"displayModeBar": False},
+                        scores = alignment(card_rows, card_profile, by_municipality=False)
+                        names = card_rows.drop_duplicates("area").set_index("area").index.to_series().map(
+                            lambda value: f"Área ponderada {value}"
                         )
+                        fig = alignment_map(scores, weighted_area_geojson(areas), key="area",
+                                            names=names, profile=card_profile)
+                        st.plotly_chart(fig, width="stretch", key="dna_potential_municipality_mesh",
+                                        config={"displayModeBar": False})
+                        if len(areas) == 1:
+                            st.caption("Este município possui uma única área ponderada; não há detalhe dentro do município.")
+                        else:
+                            missing = len(areas) - len(scores)
+                            note = f"{len(areas)} áreas ponderadas do Censo 2022. Passe o cursor para comparar população local e ICP."
+                            if missing:
+                                note += f" {missing} área(s) em cinza não têm população no arquivo deste candidato."
+                            st.caption(note)
             except Exception as exc:
-                st.warning(f"Não foi possível carregar a malha municipal: {exc}")
+                st.warning(f"Não foi possível carregar o alinhamento municipal: {exc}")
     with cards_col:
-        _render_empty_potential_cards()
+        _potential_cards(card_rows, card_profile, scope)
 
 
 apply_shared_visual_model()
@@ -792,10 +860,19 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
         icp_general_df = _read_selected_parquet("icp_geral")
         _render_icp_geral_card(icp_general_df)
     elif index == 2:
+        census_general = _read_selected_parquet("censo_icp_geral")
+        census_clusters = _read_selected_parquet("censo_icp_clusters")
+        profiles = profile_options(census_general, census_clusters)
+        population = population_by_area(
+            _read_selected_parquet("censo_genero"), _read_selected_parquet("censo_idade")
+        )
+        if not profiles or population.empty:
+            st.info("Dados do ICP ou do Censo indisponíveis para o candidato selecionado.")
+            continue
         section_header("Potencial Demográfico Estadual")
-        _render_state_demographic_potential()
+        _render_state_demographic_potential(population, profiles)
         section_header("Potencial demográfico municipal")
-        _render_demographic_potential()
+        _render_demographic_potential(population, profiles)
     else:
         render_electorate_distribution(_read_selected_parquet)
         _render_cluster_profiles(_read_selected_parquet("icp_clusters"))

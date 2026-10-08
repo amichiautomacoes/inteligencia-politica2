@@ -349,6 +349,8 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "censo_escolaridade": "IBGE/censo/escolaridade_apond.parquet",
         "censo_genero": "IBGE/censo/genero_apond.parquet",
         "censo_idade": "IBGE/censo/idade_apond.parquet",
+        "censo_icp_geral": "IBGE/censo/stage04_icp_geral_geo_por_area_ponderada.parquet",
+        "censo_icp_clusters": "IBGE/censo/stage04_icp_clusters_geo_por_area_ponderada.parquet",
         "potencial_geral": "potencial_demografico/stage08c_potencial_demografico_icp_geral.parquet",
         "potencial_clusters": "potencial_demografico/stage08c_potencial_demografico_icp_clusters.parquet",
     }

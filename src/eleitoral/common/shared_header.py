@@ -259,6 +259,23 @@ def apply_shared_visual_model() -> None:
             background: rgba(7, 24, 54, 0.18) !important;
             box-shadow: none;
         }}
+        .st-key-dna_icp_general_card [data-testid="stVerticalBlockBorderWrapper"] {{
+            border-color: var(--raiox-outline-border) !important;
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at 8% 0%, rgba(96, 165, 250, 0.18) 0%, rgba(96, 165, 250, 0) 32%),
+                linear-gradient(145deg, rgba(11, 31, 77, 0.78) 0%, rgba(7, 24, 54, 0.64) 100%) !important;
+            box-shadow: var(--raiox-card-shadow);
+        }}
+        .st-key-dna_icp_metric_0 [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-dna_icp_metric_1 [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-dna_icp_metric_2 [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-dna_icp_metric_3 [data-testid="stVerticalBlockBorderWrapper"] {{
+            border-color: rgba(177, 211, 255, 0.2) !important;
+            border-radius: 14px;
+            background: rgba(4, 18, 43, 0.34) !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+        }}
         .dna-potential-side-cards {{
             display: grid;
             gap: 1rem;
@@ -269,26 +286,6 @@ def apply_shared_visual_model() -> None:
             border-radius: 16px;
             background: var(--raiox-card-bg);
             box-shadow: 0 12px 30px rgba(1, 8, 24, 0.22);
-        }}
-        .dna-icp-card {{
-            position: relative;
-            overflow: hidden;
-            margin: 0.75rem 0 1.6rem 0;
-            padding: 1.65rem 1.75rem 1.5rem;
-            border: 1px solid var(--raiox-outline-border);
-            border-radius: 18px;
-            background:
-                radial-gradient(circle at 8% 0%, rgba(96, 165, 250, 0.18) 0%, rgba(96, 165, 250, 0) 32%),
-                linear-gradient(145deg, rgba(11, 31, 77, 0.78) 0%, rgba(7, 24, 54, 0.64) 100%);
-            box-shadow: var(--raiox-card-shadow);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-        }}
-        .dna-icp-header {{
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 1rem;
         }}
         .dna-subsection-title {{
             color: #f8fbff;
@@ -304,12 +301,35 @@ def apply_shared_visual_model() -> None:
             margin: 0 0 1.65rem;
         }}
         .dna-subsection-note {{ margin: 18px 0 0; }}
-        .dna-icp-title {{
-            color: #f8fbff;
-            font-size: clamp(1.25rem, 1.8vw, 1.5rem);
-            font-weight: 750;
-            line-height: 1.4;
+        .dna-icp-persona-label {{
+            margin: 0.25rem 0 0.7rem;
+            color: #b7c7e6;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
         }}
+        .dna-icp-badges {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin: 0 0 0.45rem;
+        }}
+        .dna-icp-badge {{
+            display: inline-flex;
+            align-items: center;
+            min-height: 2.25rem;
+            padding: 0.4rem 0.85rem;
+            border: 1px solid rgba(147, 197, 253, 0.28);
+            border-radius: 999px;
+            color: #f8fbff;
+            font-size: 1rem;
+            font-weight: 750;
+            line-height: 1.25;
+        }}
+        .dna-icp-badge-0 {{ background: rgba(16, 185, 129, 0.16); border-color: rgba(52, 211, 153, 0.34); }}
+        .dna-icp-badge-1 {{ background: rgba(59, 130, 246, 0.17); border-color: rgba(96, 165, 250, 0.36); }}
+        .dna-icp-badge-2 {{ background: rgba(139, 92, 246, 0.17); border-color: rgba(167, 139, 250, 0.36); }}
+        .dna-icp-badge-3 {{ background: rgba(245, 158, 11, 0.16); border-color: rgba(251, 191, 36, 0.35); }}
         .dna-icp-summary {{
             margin-top: 0.92rem;
             padding: 0.95rem 1rem;
@@ -321,42 +341,22 @@ def apply_shared_visual_model() -> None:
             font-weight: 650;
             line-height: 1.45;
         }}
-        .dna-icp-kpi-grid {{
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0;
-            margin-top: 1.55rem;
-            padding-top: 1.15rem;
-            border-top: 1px solid rgba(177, 211, 255, 0.2);
-        }}
-        .dna-icp-kpi {{
-            min-height: 6.4rem;
-            padding: 0.3rem 1.15rem;
-            border-left: 1px solid rgba(177, 211, 255, 0.18);
-        }}
-        .dna-icp-kpi:first-child {{
-            border-left: 0;
-            padding-left: 0;
-        }}
         .dna-icp-kpi-label {{
             color: #b7c7e6;
-            font-size: 0.76rem;
-            font-weight: 650;
+            font-size: 0.98rem;
+            font-weight: 750;
             letter-spacing: 0.02em;
         }}
         .dna-icp-kpi-value {{
-            margin-top: 0.65rem;
+            margin-top: 0.55rem;
             color: #f8fbff;
-            font-size: 1.05rem;
-            font-weight: 700;
+            font-size: 1.12rem;
+            font-weight: 750;
             line-height: 1.4;
             overflow-wrap: anywhere;
         }}
-        .dna-icp-kpi-pct {{
-            margin-top: 0.55rem;
-            color: #93c5fd;
-            font-size: 1.1rem;
-            font-weight: 800;
+        .st-key-dna_icp_general_card [data-testid="stPlotlyChart"] {{
+            margin-top: 0.45rem;
         }}
         @media (max-width: 900px) {{
             .st-key-raiox-hero {{
@@ -373,12 +373,12 @@ def apply_shared_visual_model() -> None:
             .raiox-hero-subtitle {{
                 max-width: 100%;
             }}
-            .dna-icp-kpi-grid {{
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+            .st-key-dna_icp_general_card [data-testid="stHorizontalBlock"] {{
+                flex-wrap: wrap;
             }}
-            .dna-icp-kpi:nth-child(odd) {{
-                border-left: 0;
-                padding-left: 0;
+            .st-key-dna_icp_general_card [data-testid="stColumn"] {{
+                flex: 1 1 calc(50% - 0.75rem) !important;
+                min-width: min(100%, 15rem);
             }}
         }}
         @media (max-width: 760px) {{
@@ -402,20 +402,9 @@ def apply_shared_visual_model() -> None:
             .mapa-major-section-title {{
                 font-size: 1.55rem;
             }}
-            .dna-icp-header {{
-                display: grid;
-            }}
-            .dna-icp-kpi-grid {{
-                grid-template-columns: 1fr;
-            }}
-            .dna-icp-kpi {{
-                min-height: 0;
-                padding: 0.85rem 0;
-                border-left: 0;
-                border-bottom: 1px solid rgba(177, 211, 255, 0.18);
-            }}
-            .dna-icp-kpi:last-child {{
-                border-bottom: 0;
+            .st-key-dna_icp_general_card [data-testid="stColumn"] {{
+                flex: 1 1 100% !important;
+                min-width: 100%;
             }}
         }}
         </style>

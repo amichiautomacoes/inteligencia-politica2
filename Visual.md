@@ -149,9 +149,9 @@ A faixa principal usa o subtítulo `Quem é o eleitor-chave e quais atributos de
 
 #### 3.1.1 Eleitor ideal do candidato
 
-O primeiro card tem borda azul clara, fundo profundo e espaçamento amplo. O título `Eleitor ideal do candidato` aparece antes da descrição `Síntese do perfil demográfico predominante na base eleitoral do candidato.`. A persona, precedida do emoji de pessoa, é o ponto central e recebe tamanho e peso maiores. Quando o resumo agrega informação, ele aparece abaixo com emoji de fala; se apenas repete a persona, é ocultado. **A confiança do modelo não aparece no card.**
+O primeiro card tem borda azul clara, fundo profundo e espaçamento amplo. O título `Eleitor ideal do candidato` aparece antes da descrição `Síntese do perfil demográfico predominante na base eleitoral do candidato.`. A persona, precedida do emoji de pessoa, é apresentada como badges coloridas, uma para cada atributo predominante. Quando o resumo agrega informação, ele aparece abaixo com emoji de fala; se apenas repete a persona, é ocultado. **A confiança do modelo não aparece no card.**
 
-Na base do card, **quatro colunas compactas** apresentam Gênero, Faixa etária, Escolaridade e Estado civil. Cada coluna contém um emoji colorido de identificação, a categoria dominante e seu percentual em azul claro. Divisórias sutis substituem caixas individuais. Os percentuais das quatro dimensões são independentes; não formam fatias de uma soma de 100%. Se o percentual não é válido ou não existe, o card não inventa o número.
+Na base do card, **quatro sub-cards com borda**, em colunas, apresentam Gênero, Faixa etária, Escolaridade e Estado civil. Os títulos das dimensões e as categorias dominantes usam fonte ampliada. O percentual de cada categoria é renderizado como indicador numérico Plotly. Os percentuais das quatro dimensões são independentes; não formam fatias de uma soma de 100%. Se o percentual não é válido ou não existe, o card não inventa o número.
 
 ### 3.2 Distribuição do Perfil do Eleitorado
 

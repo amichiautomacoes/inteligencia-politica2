@@ -7,6 +7,7 @@ from textwrap import dedent
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from hf_sync import file_by_kind, load_env, load_parquet
@@ -62,6 +63,12 @@ def _format_percent_value(value: str, *, fraction: bool = False) -> str:
     if fraction and abs(float(number)) <= 1:
         number = float(number) * 100
     return f"{float(number):.1f}%".replace(".", ",")
+
+
+def _has_profile_label(value: str) -> bool:
+    normalized = unicodedata.normalize("NFKD", str(value or "").casefold())
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+    return bool(normalized.strip()) and normalized.strip() != "nao informado"
 
 
 def _weighted_dominant(df: pd.DataFrame, value_col: str) -> tuple[str, float]:
@@ -162,53 +169,90 @@ def _icp_general_row(icp_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
-    if icp_df is None or icp_df.empty:
-        st.html('<div class="dna-icp-card"><h3 class="dna-subsection-title">Eleitor ideal do candidato</h3><p class="dna-subsection-description">Perfil geral indisponível para este candidato.</p></div>')
-        return
-
-    icp_df = _icp_general_row(icp_df)
-    persona = _first_value(icp_df, "persona_executiva", "Persona executiva dominante")
-    summary = _first_value(icp_df, "perfil_resumo", "Resumo analitico da persona nao informado.")
-    persona = sentence_label(persona)
-    summary = sentence_label(summary)
-    normalize = lambda text: " ".join(text.casefold().split()).rstrip(".")
-    summary_html = "" if normalize(summary) == normalize(persona) else f'<div class="dna-icp-summary">💬 {html.escape(summary)}</div>'
     kpis = [
         ("🟢 Gênero", "genero_principal", "pct_genero_principal"),
         ("🔵 Faixa etária", "idade_principal", "pct_idade_principal"),
         ("🟣 Escolaridade", "escolaridade_principal", "pct_escolaridade_principal"),
         ("🟡 Estado civil", "estado_civil_principal", "pct_estado_civil_principal"),
     ]
-    kpi_html = []
-    for label, value_col, pct_col in kpis:
-        value = sentence_label(_first_value(icp_df, value_col))
-        pct = _format_percent_value(_first_value(icp_df, pct_col, ""))
-        pct_html = "" if pct == "Nao informado" else f'<div class="dna-icp-kpi-pct">{html.escape(pct)}</div>'
-        kpi_html.append(
+    has_profile = icp_df is not None and not icp_df.empty
+    if has_profile:
+        icp_df = _icp_general_row(icp_df)
+        persona = sentence_label(_first_value(icp_df, "persona_executiva", "Persona executiva dominante"))
+        summary = sentence_label(_first_value(icp_df, "perfil_resumo", "Resumo analítico da persona não informado."))
+        normalize = lambda text: " ".join(text.casefold().split()).rstrip(".")
+        summary_html = "" if normalize(summary) == normalize(persona) else f'<div class="dna-icp-summary">💬 {html.escape(summary)}</div>'
+        if _has_profile_label(persona):
+            attributes = [part.strip() for part in re.split(r"[,;|]", persona) if part.strip()]
+        else:
+            attributes = [
+                sentence_label(_first_value(icp_df, value_col))
+                for _, value_col, _ in kpis
+            ]
+            attributes = [value for value in attributes if _has_profile_label(value)]
+    else:
+        icp_df = pd.DataFrame()
+        summary_html = ""
+        attributes = []
+
+    badge_html = "".join(
+        f'<span class="dna-icp-badge dna-icp-badge-{index % 4}">{html.escape(value)}</span>'
+        for index, value in enumerate(attributes)
+    )
+
+    with st.container(border=True, key="dna_icp_general_card"):
+        st.html(
             dedent(f"""
-            <div class="dna-icp-kpi">
-                <div class="dna-icp-kpi-label">{html.escape(label)}</div>
-                <div class="dna-icp-kpi-value">{html.escape(value)}</div>
-                {pct_html}
+            <div class="dna-icp-heading">
+                <h3 class="dna-subsection-title">Eleitor ideal do candidato</h3>
+                <p class="dna-subsection-description">Síntese do perfil demográfico predominante na base eleitoral do candidato.</p>
             </div>
+            {f'<div class="dna-icp-persona-label">👤 PERFIL PREDOMINANTE</div><div class="dna-icp-badges">{badge_html}</div>' if badge_html else ''}
+            {summary_html}
             """)
         )
+        if not has_profile:
+            st.info("Perfil geral indisponível para este candidato.")
+            return
 
-    st.html(
-        dedent(f"""
-        <div class="dna-icp-card">
-            <h3 class="dna-subsection-title">Eleitor ideal do candidato</h3>
-            <p class="dna-subsection-description">Síntese do perfil demográfico predominante na base eleitoral do candidato.</p>
-            <div class="dna-icp-header">
-                <div class="dna-icp-title">👤 {html.escape(persona)}</div>
-            </div>
-            {summary_html}
-            <div class="dna-icp-kpi-grid">
-                {''.join(kpi_html)}
-            </div>
-        </div>
-        """)
-    )
+        metric_columns = st.columns(4, gap="medium")
+        for index, (column, (label, value_col, pct_col)) in enumerate(zip(metric_columns, kpis)):
+            value = sentence_label(_first_value(icp_df, value_col))
+            pct = pd.to_numeric(pd.Series([_first_value(icp_df, pct_col, "")]), errors="coerce").iloc[0]
+            with column:
+                with st.container(border=True, key=f"dna_icp_metric_{index}"):
+                    st.html(
+                        f'<div class="dna-icp-kpi-label">{html.escape(label)}</div>'
+                        f'<div class="dna-icp-kpi-value">{html.escape(value)}</div>'
+                    )
+                    if not pd.isna(pct) and 0 <= float(pct) <= 100:
+                        indicator = go.Figure(
+                            go.Indicator(
+                                mode="number",
+                                value=float(pct),
+                                number={
+                                    "suffix": "%",
+                                    "valueformat": ".1f",
+                                    "font": {"size": 25, "color": "#93c5fd"},
+                                },
+                            )
+                        )
+                        indicator.update_layout(
+                            height=54,
+                            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            separators=",.",
+                        )
+                        st.plotly_chart(
+                            indicator,
+                            width="stretch",
+                            height=54,
+                            key=f"dna_icp_pct_{index}",
+                            config={"displayModeBar": False, "staticPlot": True},
+                        )
+                    else:
+                        st.caption("Percentual indisponível")
 
 
 def _cluster_profiles(clusters_df: pd.DataFrame | None) -> list[dict]:

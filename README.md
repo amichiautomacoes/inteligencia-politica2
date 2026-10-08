@@ -99,7 +99,7 @@ O formato canônico é:
 {pasta_do_candidato}/{ano}/...
 ```
 
-`hf_sync.deputado_parts()` reconhece a pasta do candidato e o ano nos caminhos remotos. A barra lateral lista candidatos que possuem uma pasta anual padrão, exibindo nome e slug; a seleção filtra os arquivos pelo candidato e pelo ano. O ano padrão é 2026 e as páginas usam a pasta simples `{pasta_do_candidato}/2026/`. Pastas com recortes próprios, como `bh_2026`, não entram nas consultas gerais; o mapa de Belo Horizonte lê essa pasta apenas para comparar 2020 ou 2024 com 2026. Como o formato novo não codifica o cargo, os candidatos na raiz são classificados como vereadores. `selected_deputado_files()` aplica o recorte da pasta, do ano e, quando pedido por uma seção específica, do recorte territorial.
+`hf_sync.deputado_parts()` reconhece a pasta do candidato e o ano nos caminhos remotos. A barra lateral lista candidatos que possuem uma pasta anual padrão, exibindo nome e slug; a seleção filtra os arquivos pelo candidato e pelo ano. O ano padrão é 2026 e as páginas usam a pasta simples `{pasta_do_candidato}/2026/`. Pastas com recortes próprios, como `bh_2026`, não entram nas consultas gerais; o mapa de Belo Horizonte lê essa pasta para comparar 2020/2024 com 2026 e exibir as categorias estratégicas da projeção 2028. Como o formato novo não codifica o cargo, os candidatos na raiz são classificados como vereadores. `selected_deputado_files()` aplica o recorte da pasta, do ano e, quando pedido por uma seção específica, do recorte territorial.
 
 Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretamente na raiz foram `bruno_miranda` e `marcela_tropia`. O bucket também contém pastas compartilhadas de geografia e processamento, que não são listadas como candidatos.
 
@@ -112,6 +112,7 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 | Território | `territorio/stage01a_municipios.parquet` | Cabeçalho (partido), mapa estadual, concentração, KPIs e votos totais |
 | Território | `territorio/stage01b_bairros.parquet` | Mapa intramunicipal e detalhamento por bairro |
 | Comparação de BH | `{candidato}/bh_2026/territorio/stage01b_bairros.parquet` | Votos de 2020/2024 e comparação de participação com 2026 no mapa de Belo Horizonte |
+| Projeção estratégica de BH | `{candidato}/bh_2026/territorio/stage07_bairros_estrategicos.parquet` | Categorias estratégicas por bairro no filtro **Projeção 2028** |
 | Emendas de BH | `{candidato}/bh_2026/emendas/emendas_municipais.parquet` | Resumo e detalhamento municipal de emendas na visualização de Belo Horizonte |
 | Demografia | `demografico/stage02_genero.parquet` | Distribuição do eleitorado |
 | Demografia | `demografico/stage02_idade.parquet` | Distribuição do eleitorado |
@@ -140,6 +141,8 @@ O arquivo anual `gastos/emendas_legislativa.parquet` tem esquema, mas está vazi
 O leitor de emendas aceita os campos `valor_pago_atualizado`, `valor_empenhado_ano`, `valor_indicado` ou `valor_emenda`; combina identificadores de município por código IBGE ou nome e lê finalidade/tipo dos campos disponíveis no arquivo.
 
 Na pasta especial `bh_2026`, `territorio/stage01b_bairros.parquet` traz votos históricos e os campos `diff_market_share_bairro_pp_vs_2020` e `diff_market_share_bairro_pp_vs_2024`. A comparação do mapa agrega os registros por bairro e calcula a diferença de participação em pontos percentuais usando os locais correspondidos entre as eleições.
+
+O arquivo `bh_2026/territorio/stage07_bairros_estrategicos.parquet` classifica os bairros pelo campo `segmento_estrategico`. No filtro **Projeção 2028**, **Base crítica** aparece em azul (Base Crítica/Fortaleza), **Vulnerável** em amarelo e **Oportunidade de crescimento** em verde; as demais categorias ficam neutras. O mapa associa os bairros do arquivo estratégico aos códigos territoriais de 2026 e os cards laterais permanecem nos indicadores de 2026.
 
 ### Semântica dos gastos territoriais
 

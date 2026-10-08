@@ -25,7 +25,9 @@ from eleitoral.maps.choropleth_maps import (
     territorial_map,
 )
 from eleitoral.maps.territorial_mesh import (
+    BH_PROJECTION_CATEGORY_COLORS,
     municipality_mesh_map,
+    municipality_neighborhood_category_map,
 )
 from eleitoral.common.shared_header import render_page_header
 
@@ -1151,8 +1153,9 @@ def _territorial_drilldown(territory: str, kind: str, municipal_votes: pd.DataFr
 
 
 def _normalized_text(value: object) -> str:
+    value = "" if value is None or pd.isna(value) else str(value)
     return " ".join("".join(
-        char for char in unicodedata.normalize("NFKD", str(value or "").strip().upper())
+        char for char in unicodedata.normalize("NFKD", value.strip().upper())
         if not unicodedata.combining(char)
     ).split())
 
@@ -2075,6 +2078,85 @@ def _render_bh_comparison_legend() -> None:
             <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#ef4444;margin-right:5px"></i>Perdeu participação</span>
             <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#94a3b8;margin-right:5px"></i>Sem comparação</span>
         </div>''',
+        unsafe_allow_html=True,
+    )
+
+
+def _bh_projection_map_frame(
+    strategy_df: pd.DataFrame | None,
+    votes_df: pd.DataFrame | None,
+) -> pd.DataFrame:
+    required_strategy = {"nm_bairro", "segmento_estrategico"}
+    required_votes = {"cd_ibge_municipio", "cd_ibge_bairro", "nm_bairro"}
+    output_columns = [
+        "cd_ibge_municipio", "cd_ibge_bairro", "nm_bairro",
+        "categoria_projecao_2028", "nr_latitude", "nr_longitude",
+    ]
+    if (
+        strategy_df is None
+        or votes_df is None
+        or not required_strategy.issubset(strategy_df.columns)
+        or not required_votes.issubset(votes_df.columns)
+    ):
+        return pd.DataFrame(columns=output_columns)
+
+    segment_labels = {
+        "BASE CRITICA": "Base Crítica (Fortaleza)",
+        "VULNERAVEL": "Vulnerável/Ameaçado",
+        "OPORTUNIDADE DE CRESCIMENTO": "Oportunidade BH",
+    }
+    strategy = strategy_df[["nm_bairro", "segmento_estrategico"]].copy()
+    strategy["_bairro_norm"] = strategy["nm_bairro"].map(_normalized_text)
+    strategy["categoria_projecao_2028"] = strategy["segmento_estrategico"].map(
+        lambda value: segment_labels.get(_normalized_text(value), "Demais bairros")
+    )
+    strategy = strategy.loc[strategy["_bairro_norm"].ne("")].drop_duplicates(
+        "_bairro_norm", keep="first"
+    )
+
+    reference_columns = ["cd_ibge_municipio", "cd_ibge_bairro", "nm_bairro"]
+    for column in ("nr_latitude", "nr_longitude"):
+        if column in votes_df.columns:
+            reference_columns.append(column)
+    reference = votes_df.loc[
+        votes_df["cd_ibge_municipio"].astype("string").eq("3106200"),
+        reference_columns,
+    ].copy()
+    reference["_bairro_norm"] = reference["nm_bairro"].map(_normalized_text)
+    merged = reference.merge(
+        strategy[["_bairro_norm", "categoria_projecao_2028"]],
+        on="_bairro_norm",
+        how="inner",
+    )
+    for column in output_columns:
+        if column not in merged.columns:
+            merged[column] = pd.NA
+    if {"nr_latitude", "nr_longitude"}.issubset(merged.columns):
+        merged["_has_coordinates"] = (
+            pd.to_numeric(merged["nr_latitude"], errors="coerce").notna()
+            & pd.to_numeric(merged["nr_longitude"], errors="coerce").notna()
+        )
+        merged = merged.sort_values("_has_coordinates", ascending=False)
+    return merged[output_columns].drop_duplicates(
+        ["cd_ibge_bairro", "categoria_projecao_2028"], keep="first"
+    )
+
+
+def _render_bh_projection_legend() -> None:
+    legend_items = [
+        ("Base Crítica (Fortaleza)", "Base Crítica (Fortaleza)"),
+        ("Vulnerável/Ameaçado", "Vulnerável"),
+        ("Oportunidade BH", "Oportunidade"),
+        ("Demais bairros", "Demais bairros"),
+    ]
+    items_html = "".join(
+        '<span style="display:inline-flex;align-items:center;gap:6px">'
+        f'<i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:{BH_PROJECTION_CATEGORY_COLORS[category]}"></i>'
+        f'{html.escape(label)}</span>'
+        for category, label in legend_items
+    )
+    st.markdown(
+        f'<div style="display:flex;flex-wrap:wrap;gap:12px;margin:0 0 8px;color:#dbeafe;font-size:.76rem">{items_html}</div>',
         unsafe_allow_html=True,
     )
 
@@ -4274,13 +4356,14 @@ _major_section_header(
 )
 selected_bh_neighborhood_df = votos_bairro_df
 selected_bh_municipality_df = votos_municipio_df
+bh_cards_year = "2026"
 bh_mesh_neighborhood_count = None
 detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
 with detail_map_col:
     with st.container(border=True):
         bh_map_year = st.radio(
             "Eleição exibida no mapa",
-            ["2020", "2024", "2026"],
+            ["2020", "2024", "2026", "Projeção 2028"],
             index=2,
             horizontal=True,
             key="bh_neighborhood_map_year",
@@ -4288,6 +4371,7 @@ with detail_map_col:
         try:
             # Belo Horizonte is fixed for this section (IBGE municipality code).
             if bh_map_year in {"2020", "2024"}:
+                bh_cards_year = bh_map_year
                 _render_bh_comparison_legend()
                 comparison_df = _read_selected_parquet("votos_bairro", scope="bh")
                 history_vote_column = f"qt_votos_candidato_bairro_{bh_map_year}"
@@ -4304,6 +4388,17 @@ with detail_map_col:
                 mesh_fig, mesh_count = municipality_mesh_map(
                     "3106200", comparison_df, comparison_year=bh_map_year
                 )
+            elif bh_map_year == "Projeção 2028":
+                projection_df = _read_selected_parquet(
+                    "bh_bairros_estrategicos", scope="bh"
+                )
+                projection_map_df = _bh_projection_map_frame(
+                    projection_df, votos_bairro_df
+                )
+                _render_bh_projection_legend()
+                mesh_fig, mesh_count = municipality_neighborhood_category_map(
+                    "3106200", projection_map_df
+                )
             else:
                 mesh_fig, mesh_count = municipality_mesh_map("3106200", votos_bairro_df)
             if mesh_fig is not None and (mesh_fig.layout.meta or {}).get("mesh_kind") == "bairro":
@@ -4311,6 +4406,8 @@ with detail_map_col:
             if mesh_fig is None:
                 if bh_map_year in {"2020", "2024"}:
                     st.info(f"Comparação de votos por bairro para {bh_map_year} indisponível nesta pasta.")
+                elif bh_map_year == "Projeção 2028":
+                    st.info("Projeção estratégica de 2028 indisponível para Belo Horizonte nesta pasta.")
                 else:
                     st.info("Mapa de votos por bairro indisponível para Belo Horizonte.")
             else:
@@ -4329,6 +4426,11 @@ with detail_map_col:
                         "calculada nos locais de votação correspondidos. Os cards laterais mostram os indicadores "
                         f"da eleição selecionada ({bh_map_year})."
                     )
+                elif bh_map_year == "Projeção 2028":
+                    st.caption(
+                        "Classificação estratégica dos bairros para 2028. Os demais bairros aparecem em tom neutro. "
+                        "Os cards laterais continuam mostrando os indicadores da votação de 2026."
+                    )
                 elif scale_type == "uniform":
                     st.caption(
                         "Belo Horizonte tem menos de 1.000 votos neste recorte e usa um único tom de azul, "
@@ -4346,7 +4448,7 @@ with detail_cards_col:
     _render_neighborhood_side_cards(
         selected_bh_neighborhood_df,
         "3106200",
-        year=bh_map_year,
+        year=bh_cards_year,
         municipality_votes_df=selected_bh_municipality_df,
         statewide_votes_df=votos_municipio_df,
         total_neighborhoods=bh_mesh_neighborhood_count,

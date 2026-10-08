@@ -329,6 +329,7 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "votos_mesorregiao": "territorio/stage01a_municipios.parquet",
         "votos_municipio": "territorio/stage01a_municipios.parquet",
         "votos_bairro": "territorio/stage01b_bairros.parquet",
+        "bh_bairros_estrategicos": "territorio/stage07_bairros_estrategicos.parquet",
         "votos_territoriais": "territorio/stage01a_municipios.parquet",
         "escolaridade": "demografico/stage02_escolaridade.parquet",
         "estado_civil": "demografico/stage02_estado_civil.parquet",

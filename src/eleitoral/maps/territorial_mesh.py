@@ -22,6 +22,12 @@ from eleitoral.maps.dna_geo_reference import (
 
 MIN_MUNICIPAL_COVERAGE = 0.95
 MIN_WEIGHTED_AREAS_FOR_MESH = 2
+BH_PROJECTION_CATEGORY_COLORS = {
+    "Base Crítica (Fortaleza)": "#2563eb",
+    "Vulnerável/Ameaçado": "#facc15",
+    "Oportunidade BH": "#22c55e",
+    "Demais bairros": "#52627a",
+}
 
 
 def mesoregion_options() -> list[str]:
@@ -644,5 +650,119 @@ def municipality_mesh_map(
             ),
             "municipality_vote_total": municipality_vote_total,
         },
+    )
+    return fig, len(mesh)
+
+
+def municipality_neighborhood_category_map(
+    municipality_code: str,
+    categories: pd.DataFrame | None,
+) -> tuple[go.Figure | None, int]:
+    """Render BH neighborhoods using strategic category colors."""
+    required = {
+        "cd_ibge_municipio",
+        "cd_ibge_bairro",
+        "nm_bairro",
+        "categoria_projecao_2028",
+    }
+    if categories is None or categories.empty or not required.issubset(categories.columns):
+        return None, 0
+
+    kind, mesh, code_column, label_column = municipality_mesh(municipality_code)
+    if kind != "bairro":
+        return None, 0
+    mesh = mesh.dropna(subset=[code_column, "geometry"]).copy()
+    mesh = mesh.loc[mesh["geometry"].map(lambda shape: not shape.is_empty)]
+    mesh["id"] = mesh[code_column].astype("string")
+    mesh = mesh.loc[mesh["id"].notna() & mesh["id"].ne("")].drop_duplicates("id")
+    if mesh.empty:
+        return None, 0
+
+    municipality_geometry = _municipality_geometry(municipality_code)
+    mesh["_mesh_name"] = ""
+    if label_column in mesh.columns and label_column != code_column:
+        mesh["_mesh_name"] = mesh[label_column].fillna("").astype(str).str.strip()
+
+    rows = categories.loc[
+        categories["cd_ibge_municipio"].astype("string").eq(str(municipality_code))
+    ].copy()
+    rows["_code"] = rows["cd_ibge_bairro"].astype("string")
+    rows["_name"] = rows["nm_bairro"].fillna("").astype(str).str.strip()
+    rows["_category"] = rows["categoria_projecao_2028"].fillna("Demais bairros").astype(str)
+    rows = _attach_coordinate_matches(rows, mesh)
+    rows = rows.loc[rows["_code"].notna() & rows["_code"].isin(mesh["id"])].copy()
+    if rows.empty:
+        return None, 0
+
+    category_priority = {
+        "Demais bairros": 0,
+        "Oportunidade BH": 1,
+        "Vulnerável/Ameaçado": 2,
+        "Base Crítica (Fortaleza)": 3,
+    }
+    rows["_priority"] = rows["_category"].map(category_priority).fillna(0)
+    category_by_code = (
+        rows.sort_values("_priority")
+        .drop_duplicates("_code", keep="last")
+        .set_index("_code")["_category"]
+    )
+    mesh["_category"] = mesh["id"].map(category_by_code).fillna("Demais bairros")
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"id": row.id},
+                "geometry": mapping(row.geometry.simplify(0.0001, preserve_topology=True)),
+            }
+            for row in mesh.itertuples(index=False)
+        ],
+    }
+    fig = go.Figure()
+    for category, color in BH_PROJECTION_CATEGORY_COLORS.items():
+        selected = mesh.loc[mesh["_category"].eq(category)]
+        if selected.empty:
+            continue
+        fig.add_trace(go.Choropleth(
+            geojson=geojson,
+            locations=selected["id"],
+            z=np.ones(len(selected)),
+            zmin=0,
+            zmax=1,
+            featureidkey="properties.id",
+            colorscale=[[0, color], [1, color]],
+            showscale=False,
+            marker_line_color="rgba(235,244,255,0.98)",
+            marker_line_width=1.3,
+            customdata=selected[["_mesh_name"]].assign(
+                category=selected["_category"]
+            ).to_numpy(),
+            hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+            showlegend=False,
+        ))
+
+    boundary_lon, boundary_lat = _boundary_coordinates(municipality_geometry)
+    if boundary_lon and boundary_lat:
+        fig.add_trace(go.Scattergeo(
+            lon=boundary_lon,
+            lat=boundary_lat,
+            mode="lines",
+            line={"color": "rgba(248,251,255,1)", "width": 3.2},
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+    fig.update_geos(
+        fitbounds="locations",
+        visible=False,
+        projection_type="mercator",
+        bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_layout(
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#eaf2ff"},
+        meta={"mesh_kind": kind, "display_mode": "category_projection_2028"},
     )
     return fig, len(mesh)

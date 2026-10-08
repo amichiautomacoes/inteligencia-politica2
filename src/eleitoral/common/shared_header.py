@@ -7,7 +7,6 @@ from textwrap import dedent
 
 import pandas as pd
 import streamlit as st
-import streamlit_antd_components as sac
 
 from hf_sync import (
     DEFAULT_VISUALIZATION_YEAR,
@@ -88,31 +87,50 @@ def apply_shared_visual_model() -> None:
             background-position: center;
             box-shadow: 0 22px 54px rgba(1, 8, 24, 0.58);
         }}
-        .st-key-raiox-hero [data-testid="stHorizontalBlock"] {{
-            min-height: 18rem;
-            align-items: stretch;
-        }}
-        .st-key-raiox-hero [data-testid="column"] {{
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }}
         .st-key-raiox-page-navigation {{
-            display: flex;
-            min-height: 18rem;
-            height: 100%;
-            align-items: center;
-            justify-content: center;
-            padding: 0.7rem;
+            width: min(100%, 39rem);
+            margin: 0 auto 2rem;
+            padding: 0.28rem;
             border: 1px solid rgba(147, 197, 253, 0.32);
-            border-radius: 22px;
+            border-radius: 999px;
             background: rgba(4, 18, 43, 0.72);
             box-shadow: inset 0 1px 0 rgba(219, 234, 254, 0.10), 0 12px 30px rgba(1, 8, 24, 0.30);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
         }}
-        .st-key-raiox-page-navigation [data-testid="stVerticalBlock"] {{
+        .st-key-raiox-page-navigation [data-testid="stHorizontalBlock"] {{
+            gap: 0.25rem;
+        }}
+        .st-key-raiox-page-navigation button {{
             width: 100%;
+            min-height: 2.75rem;
+            padding: 0.35rem 0.55rem;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: #b7c7e6;
+            font-size: 0.83rem;
+            font-weight: 850;
+            white-space: nowrap;
+            box-shadow: none;
+        }}
+        .st-key-raiox-page-navigation button p {{
+            font-size: inherit;
+            font-weight: inherit;
+            white-space: inherit;
+        }}
+        .st-key-raiox-page-navigation button:hover {{
+            border: 0;
+            color: #f8fbff;
+            background: rgba(96, 165, 250, 0.16);
+        }}
+        .st-key-raiox-page-navigation .st-key-raiox-nav-active button {{
+            color: #f8fbff;
+            background: linear-gradient(145deg, rgba(96, 165, 250, 0.42), rgba(37, 99, 235, 0.30));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 8px 18px rgba(37, 99, 235, 0.24);
+        }}
+        .st-key-raiox-page-navigation .st-key-raiox-nav-active button:hover {{
+            background: linear-gradient(145deg, rgba(96, 165, 250, 0.50), rgba(37, 99, 235, 0.38));
         }}
         .raiox-hero-content {{
             position: relative;
@@ -363,11 +381,8 @@ def apply_shared_visual_model() -> None:
                 min-height: auto;
                 padding: 1.45rem 1.1rem 1.4rem 1.1rem;
             }}
-            .st-key-raiox-hero [data-testid="stHorizontalBlock"] {{
-                min-height: 0;
-            }}
             .st-key-raiox-page-navigation {{
-                min-height: 15rem;
+                margin-bottom: 1.5rem;
             }}
             .raiox-hero-title,
             .raiox-hero-subtitle {{
@@ -396,8 +411,11 @@ def apply_shared_visual_model() -> None:
                 font-size: 1.05rem;
             }}
             .st-key-raiox-page-navigation {{
-                min-height: 13rem;
-                padding: 0.4rem;
+                width: 100%;
+                border-radius: 20px;
+            }}
+            .st-key-raiox-page-navigation button {{
+                white-space: normal;
             }}
             .mapa-major-section-title {{
                 font-size: 1.55rem;
@@ -538,37 +556,14 @@ _HEADER_PAGES = (
 )
 
 
-def _navigate_header_page(active_page: str) -> None:
-    selected_index = st.session_state.get("raiox_header_page_navigation")
-    if not isinstance(selected_index, int) or not 0 <= selected_index < len(_HEADER_PAGES):
-        return
-
-    target_page, _, target_path = _HEADER_PAGES[selected_index]
-    if target_page != active_page:
-        st.switch_page(target_path)
-
-
 def _render_page_switch(active_page: str) -> None:
-    active_index = next(
-        (index for index, (page, _, _) in enumerate(_HEADER_PAGES) if page == active_page),
-        0,
-    )
     with st.container(key="raiox-page-navigation"):
-        sac.buttons(
-            items=[label for _, label, _ in _HEADER_PAGES],
-            index=active_index,
-            size=15,
-            radius="lg",
-            variant="outline",
-            color="#2563eb",
-            direction="vertical",
-            gap=30,
-            use_container_width=True,
-            return_index=True,
-            on_change=_navigate_header_page,
-            args=(active_page,),
-            key="raiox_header_page_navigation",
-        )
+        columns = st.columns(3, gap=None)
+        for column, (page, label, path) in zip(columns, _HEADER_PAGES):
+            with column:
+                key = "raiox-nav-active" if page == active_page else f"raiox-nav-{page}"
+                if st.button(label, key=key, use_container_width=True) and page != active_page:
+                    st.switch_page(path)
 
 
 def render_page_header(active_page: str, total_votes: str | None = None) -> None:
@@ -599,27 +594,24 @@ def render_page_header(active_page: str, total_votes: str | None = None) -> None
         if total_votes is not None else ""
     )
     with st.container(key="raiox-hero"):
-        content_col, navigation_col = st.columns([3.5, 1], gap="large")
-        with content_col:
-            st.html(
-                dedent(f"""
-                <div class="raiox-hero-content">
-                    <div class="raiox-hero-title">{html.escape(title)}</div>
-                    <div class="raiox-hero-subtitle">{html.escape(subtitle)}</div>
-                    <div class="raiox-candidate-row">
-                        {photo_html}
-                        <div class="raiox-candidate-info">
-                            <div class="raiox-candidate-line">NOME: {html.escape(deputado["nome"])}</div>
-                            <div class="raiox-candidate-line">CARGO: {html.escape(deputado["cargo"])}</div>
-                            <div class="raiox-candidate-line">PARTIDO: {html.escape(partido)}</div>
-                            {votes_html}
-                        </div>
+        _render_page_switch(active_page)
+        st.html(
+            dedent(f"""
+            <div class="raiox-hero-content">
+                <div class="raiox-hero-title">{html.escape(title)}</div>
+                <div class="raiox-hero-subtitle">{html.escape(subtitle)}</div>
+                <div class="raiox-candidate-row">
+                    {photo_html}
+                    <div class="raiox-candidate-info">
+                        <div class="raiox-candidate-line">NOME: {html.escape(deputado["nome"])}</div>
+                        <div class="raiox-candidate-line">CARGO: {html.escape(deputado["cargo"])}</div>
+                        <div class="raiox-candidate-line">PARTIDO: {html.escape(partido)}</div>
+                        {votes_html}
                     </div>
                 </div>
-                """)
-            )
-        with navigation_col:
-            _render_page_switch(active_page)
+            </div>
+            """)
+        )
 
 
 def major_section_header(title: str, subtitle: str) -> None:

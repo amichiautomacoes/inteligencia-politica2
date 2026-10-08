@@ -134,7 +134,7 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 
 ### Card do eleitor ideal — DNA Eleitoral
 
-`pages/dna_eleitor.py` consolida o parquet `perfil/stage04_icp_geral_geo.parquet` para apresentar a persona predominante como badges por atributo. Gênero, faixa etária, escolaridade e estado civil aparecem em quatro sub-cards; cada percentual válido usa um `go.Indicator` exibido com `st.plotly_chart`. Os percentuais são dimensões independentes, não partes de uma distribuição de 100%. O card usa contêineres nativos com borda; seu CSS específico fica na própria página para não afetar o cabeçalho compartilhado.
+`pages/dna_eleitor.py` consolida o parquet `perfil/stage04_icp_geral_geo.parquet` para apresentar a persona predominante como badges por atributo. Gênero, faixa etária, escolaridade e estado civil aparecem em quatro sub-cards centralizados; cada percentual válido usa um gauge `go.Indicator(mode="gauge+number")` exibido com `st.plotly_chart`. Os percentuais são dimensões independentes, não partes de uma distribuição de 100%. O card usa contêineres nativos com borda e o mesmo fundo do painel de base eleitoral; seu CSS específico fica na própria página para não afetar o cabeçalho compartilhado.
 
 O app também reconhece CSV, JSON, JSONL, XLS/XLSX e imagens ao listar o bucket, mas as seções analíticas atuais leem os artefatos tabulares acima como Parquet. JPG, JPEG e PNG podem fornecer a foto do candidato.
 

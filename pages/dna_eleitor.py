@@ -170,10 +170,10 @@ def _icp_general_row(icp_df: pd.DataFrame) -> pd.DataFrame:
 
 def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
     kpis = [
-        ("🟢 Gênero", "genero_principal", "pct_genero_principal"),
-        ("🔵 Faixa etária", "idade_principal", "pct_idade_principal"),
-        ("🟣 Escolaridade", "escolaridade_principal", "pct_escolaridade_principal"),
-        ("🟡 Estado civil", "estado_civil_principal", "pct_estado_civil_principal"),
+        ("🟢 Gênero", "genero_principal", "pct_genero_principal", "#34d399"),
+        ("🔵 Faixa etária", "idade_principal", "pct_idade_principal", "#60a5fa"),
+        ("🟣 Escolaridade", "escolaridade_principal", "pct_escolaridade_principal", "#a78bfa"),
+        ("🟡 Estado civil", "estado_civil_principal", "pct_estado_civil_principal", "#fbbf24"),
     ]
     has_profile = icp_df is not None and not icp_df.empty
     if has_profile:
@@ -187,7 +187,7 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
         else:
             attributes = [
                 sentence_label(_first_value(icp_df, value_col))
-                for _, value_col, _ in kpis
+                for _, value_col, _, _ in kpis
             ]
             attributes = [value for value in attributes if _has_profile_label(value)]
     else:
@@ -216,7 +216,7 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
             return
 
         metric_columns = st.columns(4, gap="medium")
-        for index, (column, (label, value_col, pct_col)) in enumerate(zip(metric_columns, kpis)):
+        for index, (column, (label, value_col, pct_col, color)) in enumerate(zip(metric_columns, kpis)):
             value = sentence_label(_first_value(icp_df, value_col))
             pct = pd.to_numeric(pd.Series([_first_value(icp_df, pct_col, "")]), errors="coerce").iloc[0]
             with column:
@@ -228,18 +228,25 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
                     if not pd.isna(pct) and 0 <= float(pct) <= 100:
                         indicator = go.Figure(
                             go.Indicator(
-                                mode="number",
+                                mode="gauge+number",
                                 value=float(pct),
+                                domain={"x": [0.07, 0.93], "y": [0.05, 0.98]},
                                 number={
                                     "suffix": "%",
                                     "valueformat": ".1f",
-                                    "font": {"size": 25, "color": "#93c5fd"},
+                                    "font": {"size": 25, "color": "#f8fbff"},
+                                },
+                                gauge={
+                                    "axis": {"range": [0, 100], "visible": False},
+                                    "bar": {"color": color, "thickness": 0.48},
+                                    "bgcolor": "rgba(147, 197, 253, 0.14)",
+                                    "borderwidth": 0,
                                 },
                             )
                         )
                         indicator.update_layout(
-                            height=54,
-                            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+                            height=170,
+                            margin={"l": 0, "r": 0, "t": 4, "b": 0},
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(0,0,0,0)",
                             separators=",.",
@@ -247,35 +254,39 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
                         st.plotly_chart(
                             indicator,
                             width="stretch",
-                            height=54,
+                            height=170,
                             key=f"dna_icp_pct_{index}",
                             config={"displayModeBar": False, "staticPlot": True},
                         )
                     else:
-                        st.caption("Percentual indisponível")
+                        st.html('<div class="dna-icp-kpi-missing">Percentual indisponível</div>')
 
 
 def _apply_icp_card_styles() -> None:
     st.html("""
     <style>
     .st-key-dna_icp_general_card [data-testid="stVerticalBlockBorderWrapper"] {
-        border-color: var(--raiox-outline-border) !important;
-        border-radius: 18px;
-        background:
-            radial-gradient(circle at 8% 0%, rgba(96, 165, 250, 0.18) 0%, rgba(96, 165, 250, 0) 32%),
-            linear-gradient(145deg, rgba(11, 31, 77, 0.78) 0%, rgba(7, 24, 54, 0.64) 100%) !important;
-        box-shadow: var(--raiox-card-shadow);
+        border-color: rgba(96, 165, 250, 0.3) !important;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(11, 31, 77, 0.76), rgba(7, 24, 54, 0.68)) !important;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
     }
     .st-key-dna_icp_metric_0 [data-testid="stVerticalBlockBorderWrapper"],
     .st-key-dna_icp_metric_1 [data-testid="stVerticalBlockBorderWrapper"],
     .st-key-dna_icp_metric_2 [data-testid="stVerticalBlockBorderWrapper"],
     .st-key-dna_icp_metric_3 [data-testid="stVerticalBlockBorderWrapper"] {
+        min-height: 17rem;
         border-color: rgba(177, 211, 255, 0.2) !important;
         border-radius: 14px;
         background: rgba(4, 18, 43, 0.34) !important;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
     }
-    .dna-icp-heading .dna-subsection-description { margin-bottom: 1rem; }
+    .dna-icp-heading {
+        border-bottom: 1px solid rgba(147, 197, 253, 0.2);
+        padding-bottom: 1.25rem;
+        margin-bottom: 1.35rem;
+    }
+    .dna-icp-heading .dna-subsection-description { font-size: 1rem; margin-bottom: 0; }
     .dna-icp-persona-label {
         margin: 0.25rem 0 0.7rem;
         color: #b7c7e6;
@@ -310,16 +321,27 @@ def _apply_icp_card_styles() -> None:
         font-size: 0.98rem;
         font-weight: 750;
         letter-spacing: 0.02em;
+        text-align: center;
     }
     .dna-icp-kpi-value {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 3.1rem;
         margin-top: 0.55rem;
         color: #f8fbff;
         font-size: 1.12rem;
         font-weight: 750;
         line-height: 1.4;
         overflow-wrap: anywhere;
+        text-align: center;
     }
-    .st-key-dna_icp_general_card [data-testid="stPlotlyChart"] { margin-top: 0.45rem; }
+    .dna-icp-kpi-missing {
+        margin-top: 3rem;
+        color: #b7c7e6;
+        text-align: center;
+    }
+    .st-key-dna_icp_general_card [data-testid="stPlotlyChart"] { margin-top: 0.25rem; }
     @media (max-width: 900px) {
         .st-key-dna_icp_general_card [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
         .st-key-dna_icp_general_card [data-testid="stColumn"] {

@@ -29,7 +29,7 @@ from eleitoral.maps.territorial_mesh import (
     municipality_mesh_map,
     municipality_neighborhood_category_map,
 )
-from eleitoral.common.shared_header import render_page_header
+from eleitoral.common.shared_header import apply_shared_visual_model, render_page_header
 
 try:
     import streamlit_shadcn_ui as ui
@@ -63,6 +63,7 @@ def _background_css() -> str:
 
 
 def _apply_visual_model() -> None:
+    apply_shared_visual_model()
     st.markdown(
         f"""
         <style>
@@ -97,148 +98,6 @@ def _apply_visual_model() -> None:
             font-size: 0.95rem !important;
             margin-bottom: 1.1rem !important;
             line-height: 1.35 !important;
-        }}
-        .raiox-hero {{
-            position: relative;
-            overflow: hidden;
-            min-height: 22rem;
-            margin: 0.15rem 0 1.25rem 0;
-            padding: 2.05rem 2.35rem 2rem 2.35rem;
-            border: 1px solid rgba(147, 197, 253, 0.24);
-            border-radius: 0;
-            background:
-                linear-gradient(90deg, rgba(1, 10, 28, 0.96) 0%, rgba(3, 18, 45, 0.86) 46%, rgba(4, 20, 48, 0.60) 100%),
-                url("data:image/png;base64,{base64.b64encode(BACKGROUND_PATH.read_bytes()).decode("ascii") if BACKGROUND_PATH.exists() else ""}");
-            background-size: cover;
-            background-position: center;
-            box-shadow: 0 22px 54px rgba(1, 8, 24, 0.58);
-        }}
-        .raiox-hero-title {{
-            position: relative;
-            z-index: 1;
-            max-width: calc(100% - 25rem);
-            color: #f8fbff;
-            font-size: 3.2rem;
-            font-weight: 850;
-            line-height: 1;
-            letter-spacing: 0;
-            text-shadow: 0 0 18px rgba(147, 197, 253, 0.36);
-        }}
-        .raiox-hero-subtitle {{
-            position: relative;
-            z-index: 1;
-            margin-top: 1.1rem;
-            max-width: calc(100% - 25rem);
-            color: rgba(203, 213, 225, 0.82);
-            font-size: 1.04rem;
-            font-weight: 600;
-        }}
-        .raiox-candidate-row {{
-            position: relative;
-            z-index: 1;
-            display: grid;
-            grid-template-columns: 10.5rem minmax(0, 1fr);
-            gap: 1.35rem;
-            align-items: center;
-            margin-top: 1.5rem;
-            max-width: 58rem;
-        }}
-        .raiox-candidate-photo {{
-            width: 10.5rem;
-            aspect-ratio: 1 / 1.35;
-            border-radius: 10px;
-            object-fit: cover;
-            background: rgba(226, 232, 240, 0.92);
-            border: 1px solid rgba(255,255,255,0.42);
-            box-shadow: 0 16px 34px rgba(0,0,0,0.38);
-        }}
-        .raiox-candidate-info {{
-            display: grid;
-            gap: 1.35rem;
-        }}
-        .raiox-candidate-line {{
-            color: #f8fbff;
-            font-size: 1.72rem;
-            font-weight: 850;
-            line-height: 1.1;
-            text-transform: uppercase;
-            text-shadow: 0 0 16px rgba(147, 197, 253, 0.28);
-        }}
-        .raiox-page-switch {{
-            position: absolute;
-            z-index: 2;
-            top: 2.05rem;
-            right: 2.35rem;
-            display: inline-grid;
-            grid-template-columns: repeat(3, minmax(8.9rem, 1fr));
-            gap: 0.25rem;
-            padding: 0.28rem;
-            border: 1px solid rgba(147, 197, 253, 0.32);
-            border-radius: 999px;
-            background: rgba(4, 18, 43, 0.72);
-            box-shadow: inset 0 1px 0 rgba(219, 234, 254, 0.10), 0 12px 30px rgba(1, 8, 24, 0.30);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }}
-        .raiox-page-switch a {{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 2.35rem;
-            padding: 0 0.9rem;
-            border-radius: 999px;
-            color: #b7c7e6;
-            font-size: 0.83rem;
-            font-weight: 850;
-            text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: 0;
-            white-space: nowrap;
-        }}
-        .raiox-page-switch a.active {{
-            color: #f8fbff;
-            background: linear-gradient(145deg, rgba(96, 165, 250, 0.42), rgba(37, 99, 235, 0.30));
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 8px 18px rgba(37, 99, 235, 0.24);
-        }}
-        .raiox-page-switch a:not(.active):hover {{
-            color: #f8fbff;
-            background: rgba(96, 165, 250, 0.16);
-        }}
-        @media (max-width: 900px) {{
-            .raiox-page-switch {{
-                position: relative;
-                inset: auto;
-                margin-bottom: 1.1rem;
-                width: 100%;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }}
-            .raiox-hero-title,
-            .raiox-hero-subtitle {{
-                max-width: 100%;
-            }}
-        }}
-        @media (max-width: 760px) {{
-            .raiox-hero {{
-                padding: 1.45rem 1.1rem 1.4rem 1.1rem;
-                min-height: auto;
-            }}
-            .raiox-hero-title {{
-                font-size: 2.15rem;
-            }}
-            .raiox-candidate-row {{
-                grid-template-columns: 7.5rem minmax(0, 1fr);
-                gap: 0.95rem;
-            }}
-            .raiox-candidate-photo {{
-                width: 7.5rem;
-            }}
-            .raiox-candidate-line {{
-                font-size: 1.05rem;
-            }}
-            .raiox-page-switch {{
-                grid-template-columns: 1fr;
-                border-radius: 18px;
-            }}
         }}
         .mapa-major-section,
         .mapa-section-card {{

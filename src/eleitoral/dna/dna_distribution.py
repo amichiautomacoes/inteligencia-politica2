@@ -37,6 +37,14 @@ def _category_colors(labels: list[str], kind: str) -> list[str]:
     return [PALETTE[index % len(PALETTE)] for index in range(len(labels))]
 
 
+def _percent_label(share: float) -> str:
+    if 0 < share < 0.05:
+        return "<0,1%"
+    if 99.95 < share < 100:
+        return ">99,9%"
+    return f"{share:.1f}%".replace(".", ",")
+
+
 def _municipalities(votes: pd.DataFrame | None) -> list[tuple[str, str]]:
     if votes is None or votes.empty or "nm_municipio" not in votes:
         return []
@@ -106,7 +114,7 @@ def _legend_html(labels: list[str], shares: list[float], colors: list[str]) -> s
         rows.append(
             '<div class="dna-distribution-legend-row">'
             f'<span class="dna-distribution-legend-category"><span class="dna-distribution-swatch" style="background:{color}"></span>{html.escape(label)}</span>'
-            f'<strong>{share:.1f}%</strong>'.replace(".", ",")
+            f'<strong>{html.escape(_percent_label(share))}</strong>'
             + '</div>'
         )
     return (
@@ -120,23 +128,32 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
     votes = read_parquet("votos_municipio")
     municipalities = _municipalities(votes)
     st.html('''<style>
-        .dna-distribution-leader{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .8rem;border:1px solid rgba(96,165,250,.35);border-radius:999px;background:rgba(37,99,235,.16);color:#eaf2ff;font-size:.83rem;font-weight:700}
-        .dna-distribution-leader strong{color:#fff}
-        .dna-distribution-legend{display:grid;gap:5px;margin:1rem 0 .75rem}
+        .st-key-dna_distribution_card{margin:28px 0}
+        .st-key-dna_distribution_card [data-testid="stVerticalBlockBorderWrapper"]{padding:30px!important;border-color:rgba(96,165,250,.3)!important;border-radius:20px;background:linear-gradient(135deg,rgba(11,31,77,.76),rgba(7,24,54,.68))!important;box-shadow:0 12px 30px rgba(0,0,0,.14)}
+        .dna-distribution-heading{padding-bottom:1.1rem;margin-bottom:1.2rem;border-bottom:1px solid rgba(147,197,253,.18)}
+        .dna-distribution-heading h3{margin:0 0 .35rem;color:#f8fbff;font-size:1.55rem;font-weight:800;line-height:1.2}
+        .dna-distribution-heading p{margin:0;color:#b7c7e6;font-size:.92rem;line-height:1.45}
+        .dna-distribution-leader{display:inline-flex;align-items:center;flex-wrap:wrap;gap:.42rem;padding:.5rem .78rem;border:1px solid rgba(96,165,250,.3);border-radius:999px;background:rgba(37,99,235,.14);color:#b7c7e6;font-size:.82rem;font-weight:700}
+        .dna-distribution-leader-dot{width:8px;height:8px;flex:none;border-radius:50%}
+        .dna-distribution-leader strong{color:#f8fbff}
+        .dna-distribution-filter-title{margin:.1rem 0 .9rem;color:#d5e3fb;font-size:.91rem;font-weight:750}
+        .st-key-dna_distribution_card [data-testid="stSelectbox"] [data-baseweb="select"]>div{border:1px solid rgba(147,197,253,.23);border-radius:10px;background:rgba(10,29,64,.7)}
+        .dna-distribution-note{margin:.1rem 0 .35rem;color:#b7c7e6;font-size:.81rem;line-height:1.5}
+        .dna-distribution-legend{display:grid;gap:6px;margin:1.25rem 0 .5rem}
         .dna-distribution-legend-head,.dna-distribution-legend-row{display:grid;grid-template-columns:minmax(0,1fr) 4rem;align-items:center;gap:8px}
         .dna-distribution-legend-head{color:#9fb2d4;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;padding:0 10px 3px}
-        .dna-distribution-legend-row{padding:9px 10px;border:1px solid rgba(147,197,253,.14);border-radius:9px;background:rgba(10,29,64,.42);font-size:.8rem;color:#eaf2ff}
+        .dna-distribution-legend-row{padding:10px 11px;border:1px solid rgba(147,197,253,.16);border-radius:9px;background:rgba(10,29,64,.48);font-size:.81rem;color:#eaf2ff}
+        .dna-distribution-legend-head + .dna-distribution-legend-row{border-color:rgba(96,165,250,.34);background:rgba(37,99,235,.12)}
         .dna-distribution-legend-category{display:flex;align-items:center;gap:8px;min-width:0}
         .dna-distribution-swatch{width:11px;height:11px;border-radius:3px;flex:none}
         .dna-distribution-legend-row strong{text-align:right;color:#fff;font-variant-numeric:tabular-nums}
-        @media(max-width:560px){.dna-distribution-legend-head,.dna-distribution-legend-row{grid-template-columns:minmax(0,1fr) 3.5rem;gap:4px}.dna-distribution-legend-head{font-size:.58rem}.dna-distribution-legend-row{font-size:.72rem;padding:8px 6px}}
+        @media(max-width:560px){.st-key-dna_distribution_card [data-testid="stVerticalBlockBorderWrapper"]{padding:18px!important}.dna-distribution-legend-head,.dna-distribution-legend-row{grid-template-columns:minmax(0,1fr) 3.5rem;gap:4px}.dna-distribution-legend-head{font-size:.58rem}.dna-distribution-legend-row{font-size:.72rem;padding:8px 6px}}
     </style>''')
-    with st.container(border=True):
-        st.markdown("#### Distribuição do eleitorado")
-        st.caption("Participação estimada de cada categoria demográfica na votação do recorte selecionado.")
+    with st.container(border=True, key="dna_distribution_card"):
+        st.html('<div class="dna-distribution-heading"><h3>Distribuição do eleitorado</h3><p>Participação estimada de cada categoria demográfica na votação do recorte selecionado.</p></div>')
         chart_col, filter_col = st.columns([2.3, 1], gap="large")
         with filter_col:
-            st.caption("Refine a distribuição")
+            st.html('<div class="dna-distribution-filter-title">Refine a distribuição</div>')
             municipality_options = ["Todos os municípios"] + [name for _, name in municipalities]
             selected_name = st.selectbox("MUNICÍPIO", municipality_options, key="dna_distribution_municipality")
             dimension = st.selectbox("PERFIL DEMOGRÁFICO", list(DIMENSIONS), key="dna_distribution_dimension")
@@ -159,27 +176,28 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
             values = distribution["percentual"].tolist()
             shares = [value / sum(values) * 100 for value in values]
             colors = _category_colors(labels, kind)
-            leader = f"🏆 {dimension} dominante: <strong>{html.escape(labels[0])} ({shares[0]:.1f}%)</strong>".replace(".", ",")
+            leader_share = _percent_label(shares[0])
+            leader = f'<span class="dna-distribution-leader-dot" style="background:{colors[0]}"></span>{html.escape(dimension)} dominante: <strong>{html.escape(labels[0])} ({leader_share})</strong>'
             st.html(f'<div class="dna-distribution-leader">{leader}</div>')
             center = f"{total_votes:,.0f}".replace(",", ".") if total_votes is not None else "—"
-            hover = "<b>%{label}</b><br>%{value:.1f}% da distribuição<extra></extra>"
+            hover = "<b>%{label}</b><br>%{customdata} da distribuição<extra></extra>"
             fig = go.Figure(go.Pie(
-                labels=labels, values=shares, hole=0.66, sort=False,
-                marker={"colors": colors, "line": {"color": "rgba(255,255,255,.25)", "width": 1}},
-                hovertemplate=hover,
-                text=[f"{share:.1f}%".replace(".", ",") for share in shares],
+                labels=labels, values=shares, hole=0.68, sort=False,
+                marker={"colors": colors, "line": {"color": "rgba(7,24,54,.75)", "width": 1.5}},
+                hovertemplate=hover, customdata=[_percent_label(share) for share in shares],
+                text=[_percent_label(share) if share >= 1 else "" for share in shares],
                 textinfo="text", textposition="outside", automargin=True,
                 textfont={"color": "#f8fbff", "size": 14}, showlegend=False,
             ))
             fig.update_layout(
-                height=430, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font={"color": "#eaf2ff"}, margin={"l": 45, "r": 45, "t": 24, "b": 24},
+                height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font={"color": "#eaf2ff"}, margin={"l": 42, "r": 42, "t": 18, "b": 18},
                 showlegend=False,
                 annotations=[{"x": 0.5, "y": 0.5,
-                              "text": f"<span style='font-size:29px;color:#ffffff'><b>{html.escape(center)}</b></span><br><span style='font-size:12px;color:#b7c7e6'>votos no recorte</span>",
+                              "text": f"<span style='font-size:27px;color:#ffffff'><b>{html.escape(center)}</b></span><br><span style='font-size:12px;color:#b7c7e6'>votos no recorte</span>",
                               "showarrow": False, "font": {"size": 16, "color": "#ffffff"}}],
             )
             st.plotly_chart(fig, width="stretch", key="dna_distribution_donut", config={"displayModeBar": False})
-            st.caption("Os percentuais são estimativas de dimensões separadas; as categorias exibidas não representam cruzamentos entre perfis.")
+            st.html('<p class="dna-distribution-note">Os percentuais são estimativas de dimensões separadas; as categorias exibidas não representam cruzamentos entre perfis.</p>')
         with filter_col:
             st.html(_legend_html(labels, shares, colors))

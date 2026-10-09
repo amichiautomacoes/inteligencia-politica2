@@ -33,7 +33,7 @@ O hero usa título grande e pesado, subtítulo menor e nome/cargo/partido em mai
 
 O hero distribui o conteúdo em duas faixas: à esquerda ficam o título da página, um subtítulo curto e uma linha com foto e dados do candidato; à direita fica a navegação vertical. A foto é vertical, com cantos levemente arredondados, borda clara e sombra; quando não há imagem remota, o espaço permanece como um bloco neutro. Os dados aparecem como `NOME:`, `CARGO:` e `PARTIDO:` em caixa alta. O partido é lido do campo `sg_partido` da base territorial do candidato. `TOTAL DE VOTOS:` aparece logo abaixo do partido nas duas páginas, com a mesma tipografia das demais linhas, sem card próprio; o valor é calculado a partir do parquet territorial selecionado. O ano integra o título do Raio X.
 
-À direita do hero há dois botões empilhados diretamente sobre a capa, sem painel interno: **Raio X Eleitoral** e **DNA Eleitoral**. Cada botão ocupa toda a largura da coluna, com borda azul clara, cantos de 14 px, texto branco em negrito, gradiente e sombra. A página ativa recebe azul mais intenso; a outra mantém fundo azul escuro. Ao passar o mouse, o botão fica mais claro e sobe discretamente; o foco por teclado recebe contorno visível. A navegação permanece dentro do app; a pasta selecionada na barra lateral é preservada na sessão.
+À direita do hero há dois botões empilhados diretamente sobre a capa, sem painel interno: **Raio X Eleitoral** e **DNA do Eleitor**. O conjunto fica centralizado verticalmente na coluna do cabeçalho. Cada botão ocupa toda a largura da coluna, com altura mínima de 5 rem, fonte responsiva de 1,05 a 1,3 rem, borda azul clara, cantos de 14 px, texto branco em negrito, gradiente e sombra. A página ativa recebe azul mais intenso; a outra mantém fundo azul escuro. Ao passar o mouse, o botão fica mais claro e sobe discretamente; o foco por teclado recebe contorno visível. A navegação permanece dentro do app; a pasta selecionada na barra lateral é preservada na sessão.
 
 | Página | Título do hero | Subtítulo |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ Para 2026, a geometria usa bairros oficiais quando seus polígonos cobrem pelo m
 
 Para 2020 e 2024, a legenda do card mostra **verde** para aumento, **azul** para estabilidade e **vermelho** para queda na participação do candidato até 2026; **cinza** identifica bairros sem comparação disponível. O hover informa os votos da eleição escolhida, os votos de 2026 e a diferença de participação em pontos percentuais. O cálculo agrega as linhas de locais correspondidos por bairro antes de comparar as participações. Os códigos das unidades geométricas não aparecem na visualização.
 
-No filtro **Projeção 2028**, as quatro pílulas mantêm os rótulos **Base Crítica (Fortaleza)**, **Vulnerável**, **Oportunidade** e **Demais bairros**. Uma explicação logo abaixo informa o corte de base forte (mediana dos bairros com votos do candidato, com valor calculado) e o espaço demográfico (média simples ICP − população negativa, exigindo gênero, idade e escolaridade válidos). Base forte sem defasagem média fica azul; base forte com espaço fica amarela; menor votação com espaço fica verde; demais situações e comparação incompleta ficam cinza. O hover mostra votos de referência e diferença média em pontos percentuais. A nota abaixo do mapa esclarece que as dimensões são independentes e que a classificação não mede perda histórica nem prevê votos em 2028.
+No filtro **Projeção 2028**, as quatro pílulas mantêm os rótulos **Base Crítica (Fortaleza)**, **Vulnerável**, **Oportunidade** e **Demais bairros**, sem o parágrafo de critérios abaixo da legenda. Base forte sem defasagem média fica azul; base forte com espaço fica amarela; menor votação com espaço fica verde; demais situações e comparação incompleta ficam cinza. O hover mostra votos de referência e diferença média em pontos percentuais. A nota abaixo do mapa esclarece que as dimensões são independentes e que a classificação não mede perda histórica nem prevê votos em 2028.
 
 ### 2.3 Força da política local
 
@@ -149,6 +149,10 @@ O card principal é um `st.container(border=True)` com borda, fundo em gradiente
 Na base do card, **quatro sub-cards com borda**, em `st.columns`, apresentam Gênero, Faixa etária, Escolaridade e Estado civil. Cada sub-card também usa `st.container(border=True)`. Títulos e categorias dominantes ficam centralizados. Cada percentual válido aparece em um gauge semicircular de 0 a 100, feito com `go.Indicator(mode="gauge+number")` dentro de `st.plotly_chart`; a cor do arco acompanha a dimensão. Os percentuais das quatro dimensões são independentes; não formam fatias de uma soma de 100%. Se o percentual não é válido ou não existe, o card não inventa o número. Os estilos desses badges e sub-cards são locais à página DNA; o hero e a navegação seguem o CSS compartilhado.
 
 #### 3.1.2 Eleitor de BH x Eleitor do Interior
+
+Em cada card, as categorias predominantes aparecem logo abaixo do título e antes do gráfico, em badges centralizados com rótulo da dimensão em negrito. As badges usam fonte compacta, quebra de linha e fundo/borda tonalizados pela mesma cor da barra correspondente: verde para gênero, azul para idade, roxo para escolaridade e amarelo para estado civil. Os valores continuam dinâmicos conforme o candidato e o recorte.
+
+Os cards não exibem rodapés de metodologia ou fonte. Os critérios de cálculo permanecem documentados no README; avisos de indisponibilidade continuam visíveis quando necessários.
 
 Logo após o card do eleitor ideal e antes de Distribuição do Perfil do Eleitorado, uma nova faixa usa o mesmo padrão visual das faixas principais: título **Eleitor de BH x Eleitor do Interior** e subtítulo `Será que você tem o mesmo perfil de eleitor na capital e no interior?`.
 

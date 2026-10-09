@@ -334,6 +334,12 @@ def _render_capital_interior_comparison(icp_df: pd.DataFrame | None) -> None:
                 if not rows:
                     st.info("Percentuais demográficos indisponíveis para este recorte.")
                     continue
+                badges = "".join(
+                    f'<span class="dna-comparison-badge" style="--badge-color:{color}">'
+                    f'<b>{html.escape(label)}:</b> {html.escape(category)}</span>'
+                    for label, category, _, color in rows
+                )
+                st.html(f'<div class="dna-icp-badges dna-comparison-badges">{badges}</div>')
                 fig = go.Figure(go.Bar(
                     y=[row[0] for row in rows], x=[row[2] for row in rows], orientation="h",
                     marker_color=[row[3] for row in rows],
@@ -350,19 +356,8 @@ def _render_capital_interior_comparison(icp_df: pd.DataFrame | None) -> None:
                     yaxis={"autorange": "reversed", "fixedrange": True}, showlegend=False,
                 )
                 st.plotly_chart(fig, width="stretch", key=f"dna_{scope}_profile_bars", config={"displayModeBar": False})
-                for label, category, _, _ in rows:
-                    st.html(f'<div class="dna-distribution-note"><b>{html.escape(label)}:</b> {html.escape(category)}</div>')
                 if len(rows) < len(dimensions):
                     st.caption("Dimensões sem percentual válido não são exibidas.")
-                st.caption(
-                    "Categoria predominante por dimensão: maior soma de votos dos territórios onde ela lidera. "
-                    "Barra: média do percentual dessa categoria nesses territórios, ponderada pelos votos. "
-                    "Dimensões independentes; não representam um perfil individual conjunto."
-                )
-                if scope == "interior":
-                    st.caption("Fonte: perfil de 2026, excluindo Belo Horizonte.")
-                else:
-                    st.caption("Fonte: ICP por bairro de Belo Horizonte; apenas perfis calculados com votos.")
 
 
 def _apply_icp_card_styles() -> None:
@@ -433,6 +428,23 @@ def _apply_icp_card_styles() -> None:
     .dna-icp-badge-1 { background: rgba(59, 130, 246, 0.17); border-color: rgba(96, 165, 250, 0.36); }
     .dna-icp-badge-2 { background: rgba(139, 92, 246, 0.17); border-color: rgba(167, 139, 250, 0.36); }
     .dna-icp-badge-3 { background: rgba(245, 158, 11, 0.16); border-color: rgba(251, 191, 36, 0.35); }
+    .dna-comparison-badges { margin: 0 0 .8rem; }
+    .dna-comparison-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: .3rem;
+        padding: .45rem .75rem;
+        border: 1px solid color-mix(in srgb, var(--badge-color) 45%, transparent);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--badge-color) 17%, transparent);
+        color: #f8fbff;
+        font-size: clamp(.8rem, 1vw, .95rem);
+        line-height: 1.4;
+        text-align: center;
+        box-shadow: 0 3px 10px rgba(0,0,0,.12);
+    }
     .st-key-dna_icp_general_card .dna-icp-summary { text-align: center; }
     .dna-icp-kpi-label {
         color: #b7c7e6;

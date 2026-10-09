@@ -96,11 +96,15 @@ def apply_shared_visual_model() -> None:
             flex-direction: column;
             justify-content: center;
         }}
+        .st-key-raiox-hero [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"] {{
+            flex: 1;
+            justify-content: center;
+        }}
         .st-key-raiox-page-navigation {{
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 0.85rem;
+            gap: 1rem;
             width: 100%;
             min-height: 0;
             padding: 0;
@@ -114,13 +118,13 @@ def apply_shared_visual_model() -> None:
         }}
         .st-key-raiox-page-navigation button {{
             width: 100%;
-            min-height: 3.8rem;
-            padding: 0.8rem 1.1rem;
+            min-height: 5rem;
+            padding: 1.1rem 1.4rem;
             border: 1px solid rgba(147,197,253,.48);
             border-radius: 14px;
             background: linear-gradient(145deg,rgba(26,55,99,.9),rgba(10,29,64,.9));
             color: #f8fbff;
-            font-size: 0.83rem;
+            font-size: clamp(1.05rem,1.4vw,1.3rem);
             font-weight: 850;
             white-space: nowrap;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.1),0 6px 16px rgba(1,8,24,.3);
@@ -599,7 +603,7 @@ def candidate_photo_data_url() -> str:
 
 _HEADER_PAGES = (
     ("raio_x", "RAIO X ELEITORAL", "pages/raio_x_do_voto.py"),
-    ("dna", "DNA ELEITORAL", "pages/dna_eleitor.py"),
+    ("dna", "DNA do Eleitor", "pages/dna_eleitor.py"),
 )
 
 

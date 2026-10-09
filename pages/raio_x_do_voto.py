@@ -2045,7 +2045,7 @@ def _render_bh_comparison_legend() -> None:
     )
 
 
-def _render_bh_projection_legend(vote_threshold: float | None = None) -> None:
+def _render_bh_projection_legend() -> None:
     legend_items = [
         ("Base Crítica (Fortaleza)", "Base Crítica (Fortaleza)", "#bfdbfe", "rgba(37, 99, 235, 0.18)"),
         ("Vulnerável/Ameaçado", "Vulnerável", "#fef08a", "rgba(250, 204, 21, 0.18)"),
@@ -2063,18 +2063,6 @@ def _render_bh_projection_legend(vote_threshold: float | None = None) -> None:
     )
     st.html(
         f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px">{badges_html}</div>'
-    )
-    threshold_label = (
-        f"{vote_threshold:.1f}".replace(".", ",")
-        if vote_threshold is not None and pd.notna(vote_threshold) else "indisponível"
-    )
-    st.caption(
-        f"Base forte: votos iguais ou superiores à mediana dos bairros com voto ({threshold_label}). "
-        "Azul: base forte com perfil na média ou acima da população. "
-        "Amarelo (Vulnerável): base forte com espaço demográfico a trabalhar. "
-        "Verde: votação abaixo da mediana com espaço demográfico. "
-        "Cinza: demais situações ou comparação incompleta. "
-        "Espaço demográfico significa média ICP − população negativa, com dados válidos de gênero, idade e escolaridade."
     )
 
 
@@ -4190,7 +4178,7 @@ with detail_map_col:
                 projection_map_df = _bh_projection_map_frame(
                     projection_df, _read_selected_parquet("votos_bairro", scope="bh")
                 )
-                _render_bh_projection_legend(projection_map_df.attrs.get("strong_vote_threshold"))
+                _render_bh_projection_legend()
                 mesh_fig, mesh_count = municipality_neighborhood_category_map(
                     "3106200", projection_map_df
                 )

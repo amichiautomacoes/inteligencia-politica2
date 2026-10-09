@@ -38,7 +38,7 @@ pages = [
     ),
     st.Page(
         "pages/dna_eleitor.py",
-        title="DNA Eleitor",
+        title="DNA do Eleitor",
         url_path="dna-eleitoral",
     ),
 ]

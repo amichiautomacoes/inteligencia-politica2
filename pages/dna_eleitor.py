@@ -13,7 +13,7 @@ import streamlit as st
 from hf_sync import file_by_kind, load_env, load_parquet
 from eleitoral.dna.cluster_cards import cluster_cards_html
 from eleitoral.common.dna_copy import sentence_label
-from eleitoral.dna.dna_expansion import render_vote_expansion
+from eleitoral.dna.dna_expansion import render_vote_expansion, render_municipal_expansion
 from eleitoral.dna.dna_distribution import render_electorate_distribution
 from eleitoral.maps.dna_geo_reference import (
     load_area_ponderada_bairro_crosswalk, load_geo_layer, load_geo_reference,
@@ -875,10 +875,6 @@ DNA_SECTIONS = [
         "Distribuição do Perfil do Eleitorado",
         "Distribuição demográfica estimada dos votos, com recorte por município e perfil.",
     ),
-    (
-        "Matriz de Potencial Demográfico",
-        "Comparativo entre o perfil do eleitor do candidato e a população local. Identificação de sobre-representação e frentes de expansão.",
-    ),
 ]
 
 
@@ -887,20 +883,6 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
     if index == 0:
         icp_general_df = _read_selected_parquet("icp_geral")
         _render_icp_geral_card(icp_general_df)
-    elif index == 2:
-        census_general = _read_selected_parquet("censo_icp_geral")
-        census_clusters = _read_selected_parquet("censo_icp_clusters")
-        profiles = profile_options(census_general, census_clusters)
-        population = population_by_area(
-            _read_selected_parquet("censo_genero"), _read_selected_parquet("censo_idade")
-        )
-        if not profiles or population.empty:
-            st.info("Dados do ICP ou do Censo indisponíveis para o candidato selecionado.")
-            continue
-        section_header("Potencial Demográfico Estadual")
-        _render_state_demographic_potential(population, profiles)
-        section_header("Potencial demográfico municipal")
-        _render_demographic_potential(population, profiles)
     else:
         render_electorate_distribution(_read_selected_parquet)
         _render_cluster_profiles(_read_selected_parquet("icp_clusters"))
@@ -909,3 +891,6 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
             "Mapeamento em nível de bairro e área ponderada. Localização dos clusters táticos e visualização de manchas de potencial de crescimento.",
         )
         render_vote_expansion()
+
+section_header("Potencial demográfico municipal")
+render_municipal_expansion()

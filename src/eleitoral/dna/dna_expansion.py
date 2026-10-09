@@ -177,6 +177,7 @@ def _expansion_city_frame(
     selected_potential: pd.DataFrame,
     selected_profile: str,
     census_values: pd.DataFrame,
+    *, by_area: bool = False,
 ) -> pd.DataFrame:
     profiles, direct = _potential_profiles(selected_potential, selected_profile)
     if profiles.empty or census_values.empty:
@@ -211,7 +212,8 @@ def _expansion_city_frame(
     area_dimension["gap_medio"] = np.where(
         area_dimension["peso_pop"].gt(0), area_dimension["gap_ponderado"] / area_dimension["peso_pop"], np.nan
     )
-    municipal_dimension = area_dimension.groupby(["codigo_ibge", "dimensao"], as_index=False).agg(
+    territory_key = "area" if by_area else "codigo_ibge"
+    municipal_dimension = area_dimension.groupby([territory_key, "dimensao"], as_index=False).agg(
         oportunidade=("oportunidade", "sum"),
         gap_ponderado=("gap_ponderado", "sum"),
         peso_pop=("peso_pop", "sum"),
@@ -221,7 +223,7 @@ def _expansion_city_frame(
         municipal_dimension["gap_ponderado"] / municipal_dimension["peso_pop"],
         np.nan,
     )
-    municipalities = municipal_dimension.groupby("codigo_ibge", as_index=False).agg(
+    municipalities = municipal_dimension.groupby(territory_key, as_index=False).agg(
         oportunidade_demografica=("oportunidade", "mean"),
         diferenca_media_absoluta=("gap_medio", "mean"),
         dimensoes_com_dados=("dimensao", "nunique"),
@@ -234,10 +236,10 @@ def _expansion_city_frame(
         base["codigo_ibge"] = _municipality_codes(base["area"])
         base["qt_votos_territorio"] = pd.to_numeric(base["qt_votos_territorio"], errors="coerce").fillna(0)
         base = base.drop_duplicates("area")
-        votes = base.groupby("codigo_ibge", as_index=False)["qt_votos_territorio"].sum().rename(
+        votes = base.groupby(territory_key, as_index=False)["qt_votos_territorio"].sum().rename(
             columns={"qt_votos_territorio": "votos_base"}
         )
-        municipalities = votes.merge(municipalities, on="codigo_ibge", how="outer")
+        municipalities = votes.merge(municipalities, on=territory_key, how="outer")
     else:
         municipalities["votos_base"] = 0.0
     municipalities["votos_base"] = municipalities["votos_base"].fillna(0.0)
@@ -373,3 +375,83 @@ def render_vote_expansion() -> None:
         "amarelo indica oportunidade positiva com similaridade acima do quartil inferior. Potencial demográfico orienta busca territorial e não é previsão de votos."
     )
 
+
+
+def render_municipal_expansion() -> None:
+    """Display expansion at its source resolution: Census weighted areas."""
+    import html
+    from eleitoral.maps.dna_geo_reference import load_geo_layer, load_area_ponderada_bairro_crosswalk
+    from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options
+    from eleitoral.dna.demographic_alignment import weighted_area_geojson, area_neighborhoods
+
+    general = _read("potencial_geral")
+    clusters = _read("potencial_clusters")
+    labels = ["ELEITOR IDEAL"]
+    if clusters is not None and "cluster_strategy_label" in clusters:
+        labels.extend(sorted({str(v).strip() for v in clusters["cluster_strategy_label"].dropna() if str(v).strip()}))
+    map_col, cards_col = st.columns([0.70, 0.30], gap="large")
+    frame = pd.DataFrame()
+    descriptions = {
+        "VERDE": ("Oportunidade alta", "Potencial demogr\u00e1fico alto e boa ader\u00eancia ao perfil."),
+        "AZUL": ("Proteger a base", "\u00c1reas com mais votos atuais; proteger essas bases."),
+        "AMARELO": ("Oportunidade com menor ader\u00eancia", "H\u00e1 popula\u00e7\u00e3o em oportunidade, com menor ader\u00eancia ao perfil."),
+        "CINZA": ("Baixa similaridade ou dados incompletos", "Baixa similaridade, sem sinal de expans\u00e3o ou sem dados completos."),
+    }
+    with map_col:
+        with st.container(border=True, key="dna_potential_map_card"):
+            profile = st.selectbox("Perfil para expans\u00e3o", labels, key="dna_municipal_expansion_profile")
+            meso = st.selectbox("Mesorregi\u00e3o", ["Todas", *mesoregion_options()], key="dna_potential_mesorregiao")
+            choices = municipality_options(meso)
+            if not choices:
+                st.info("Nenhum munic\u00edpio dispon\u00edvel para a mesorregi\u00e3o selecionada.")
+                return
+            code = st.selectbox("Munic\u00edpio", [c for c, _ in choices], format_func=dict(choices).get,
+                                key=f"dna_potential_municipio_{meso}")
+            census = _census_area_profiles(_read("censo_genero"), _read("censo_idade"), _read("censo_escolaridade"))
+            results = _expansion_city_frame(
+                general if general is not None else pd.DataFrame(),
+                (general if profile == "ELEITOR IDEAL" else clusters), profile, census, by_area=True,
+            )
+            areas = load_geo_layer("area_ponderada")
+            areas = areas.loc[areas["code_muni"].astype("string").eq(code)].copy()
+            areas["area"] = areas["code_weighting"].astype("string").str.zfill(10)
+            areas["code_weighting"] = areas["area"]
+            areas = areas.drop_duplicates("area")
+            if areas.empty:
+                st.info("Malha de \u00e1reas ponderadas indispon\u00edvel para este munic\u00edpio.")
+                return
+            neighborhoods = area_neighborhoods(load_area_ponderada_bairro_crosswalk(), code)
+            selected = st.selectbox("\u00c1rea ponderada", ["", *sorted(areas["area"])],
+                format_func=lambda v: "Todas as \u00e1reas ponderadas" if not v else f"{v} \u00b7 {neighborhoods.get(v, 'sem bairro vinculado')}",
+                key=f"dna_potential_area_{code}")
+            frame = areas[["area"]].copy()
+            if results.empty:
+                st.info("Dados de Censo ou potencial indispon\u00edveis; as \u00e1reas permanecem neutras.")
+                frame["classe_expansao"] = "CINZA"
+                for col in ["votos_base", "oportunidade_demografica", "similaridade"]:
+                    frame[col] = np.nan
+            else:
+                frame = frame.merge(results, on="area", how="left", validate="one_to_one")
+                frame["classe_expansao"] = frame["classe_expansao"].fillna("CINZA")
+            if selected:
+                frame = frame.loc[frame["area"].eq(selected)].copy()
+                areas = areas.loc[areas["area"].eq(selected)]
+            frame["nome"] = "\u00c1rea ponderada " + frame["area"]
+            frame["bairros"] = frame["area"].map(neighborhoods).fillna("Sem bairro TSE vinculado")
+            frame["classe_label"] = frame["classe_expansao"].map({k: v[0] for k, v in descriptions.items()})
+            for col in ["votos_base", "oportunidade_demografica", "similaridade"]:
+                frame[col + "_label"] = frame[col].map(lambda v: "Indispon\u00edvel" if pd.isna(v) else f"{v:,.1f}".replace(",", "_").replace(".", ",").replace("_", "."))
+            fig = categorical_choropleth(frame, weighted_area_geojson(areas), location="area", category="classe_expansao",
+                categories=list(CLASS_COLORS), colors=list(CLASS_COLORS.values()), hover_name="nome",
+                custom_data=["classe_label", "votos_base_label", "oportunidade_demografica_label", "similaridade_label", "bairros"])
+            fig.update_layout(coloraxis_showscale=False)
+            fig.update_traces(hovertemplate="<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos da \u00e1rea: %{customdata[1]}<br>Oportunidade: %{customdata[2]}<br>Similaridade: %{customdata[3]}<br>Bairros TSE de refer\u00eancia: %{customdata[4]}<extra></extra>")
+            st.plotly_chart(fig, width="stretch", height=640, key="dna_municipal_expansion_map")
+            st.caption("M\u00e9tricas por \u00e1rea ponderada, vinculadas diretamente por c\u00f3digo IBGE. Bairros TSE s\u00e3o refer\u00eancias por ponto, sem rateio dos valores. As faixas usam todas as \u00e1reas dispon\u00edveis para o perfil: quartil superior dos votos para prote\u00e7\u00e3o; quartil superior da oportunidade e similaridade acima da mediana para verde. Amarelo exige oportunidade positiva e similaridade acima do quartil inferior. Potencial n\u00e3o \u00e9 previs\u00e3o de votos.")
+    with cards_col:
+        for category, (title, description) in descriptions.items():
+            count = int(frame["classe_expansao"].eq(category).sum())
+            with st.container(border=True):
+                st.html(f'<div style="color:{CLASS_COLORS[category]};font-weight:800">{html.escape(title)}</div>')
+                st.metric("\u00c1reas ponderadas", count)
+                st.caption(description)

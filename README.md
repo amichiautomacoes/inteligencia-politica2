@@ -9,14 +9,14 @@ Este README é a referência técnica do projeto. A aparência, a hierarquia de 
 | Rota | Arquivo | Responsabilidade |
 | --- | --- | --- |
 | `/raio-x-eleitoral` | `pages/raio_x_do_voto.py` | Votação estadual e intramunicipal, concentração, atuação parlamentar e custo do voto |
-| `/dna-eleitoral` | `pages/dna_eleitor.py` | Card do eleitor ideal, distribuição demográfica, clusters de ICP e expansão territorial para 2030 e estrutura inicial da matriz de potencial |
+| `/dna-eleitoral` | `pages/dna_eleitor.py` | Card do eleitor ideal, distribuição demográfica, clusters de ICP e expansão territorial para 2030 e potencial demográfico municipal |
 
 `app.py` registra as duas rotas com `st.navigation`, descobre as pastas de candidatos na raiz configurada do Hugging Face e mantém a seleção em `st.session_state`. A troca de página preserva o candidato selecionado.
 
 Dois blocos seguem parcialmente implementados:
 
 - **Força da política local**, no Raio X, cruza o capital político local do stage 7a com o market share municipal, colore os quatro quadrantes estratégicos e resume cada classe em um card lateral interativo.
-- **Matriz de Potencial Demográfico**, no DNA, exibe dois mapas em cor neutra: Minas Gerais pela malha municipal e o município selecionado pela malha intramunicipal. Cada mapa tem quatro cards laterais vazios. Os filtros dos dois blocos são independentes. A rotina analítica de compatibilidade existente em `pages/dna_eleitor.py` não é chamada pela rota atual.
+- **Potencial demográfico municipal**, no DNA, usa as mesmas fontes da expansão estadual, agregadas por área ponderada e ligadas diretamente à malha IBGE por código. Quatro cards laterais apresentam as categorias e suas contagens. Bairros TSE entram como referência pelo crosswalk, sem rateio de votos ou população.
 
 ## Arquitetura
 

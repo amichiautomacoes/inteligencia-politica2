@@ -148,7 +148,7 @@ O terceiro card, **Comparativo com a média**, mostra `(custo por voto da catego
 
 ## 3. Página 2 — DNA Eleitoral
 
-Depois do hero comum, a página apresenta **quatro faixas principais** nesta ordem: Identidade da Base Eleitoral, Distribuição do Perfil do Eleitorado, Expansão & Oportunidades para 2030 e Matriz de Potencial Demográfico. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO e a seção completa de expansão; os mapas estadual e municipal de potencial fecham a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
+Depois do hero comum, a página apresenta **três faixas principais** nesta ordem: Identidade da Base Eleitoral, Distribuição do Perfil do Eleitorado, Expansão & Oportunidades para 2030. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO e a seção completa de expansão; o bloco Potencial demográfico municipal fecha a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
 
 ### 3.1 Identidade da Base Eleitoral
 
@@ -192,15 +192,15 @@ Antes do mapa há uma **legenda de quatro cards**. Cada um combina amostra de co
 
 O mapa municipal é um **coroplético Plotly** de largura total e cerca de **640 px** de altura. Cada município recebe uma das quatro classes e a barra categórica do próprio Plotly permanece visível. O hover informa nome, classe, votos, oportunidade e similaridade. A nota inferior explicita que os limites de votos, similaridade e potencial são relativos ao perfil selecionado e que potencial demográfico **não é previsão de votos**. Se não houver dados completos de Censo/potencial ou a malha municipal falhar, a seção mostra uma informação textual no lugar do mapa.
 
-### 3.4 Matriz de Potencial Demográfico
+### 3.4 Potencial demográfico municipal
 
-Esta seção está em preparação para receber as métricas de potencial. A faixa principal mantém o subtítulo `Comparativo entre o perfil do eleitor do candidato e a população local. Identificação de sobre-representação e frentes de expansão.`.
+O bloco usa os mesmos Parquets de potencial geral, clusters e Censo (gênero, idade e escolaridade) da expansão estadual, mantendo os resultados por **área ponderada**. A junção com a malha oficial usa diretamente `cd_area_ponderada` e `code_weighting`, sem rateio entre bairros ou setores.
 
-Logo após a faixa principal, o subcard **Potencial Demográfico Estadual** mostra a malha oficial dos 853 municípios de Minas Gerais em duas colunas: cerca de 70% para o mapa e 30% para quatro cards laterais vazios. Os seletores de **Mesorregião** e **Município** ficam no card do mapa. Todos os municípios continuam visíveis: selecionar uma mesorregião a destaca em azul claro e selecionar um município destaca seu polígono em azul mais forte. O hover mostra apenas o nome do município e da mesorregião. O destaque corresponde ao recorte geográfico, sem representar uma métrica de potencial; não há escala analítica nem legenda de potencial.
+O mapa ocupa 70% da largura; os quatro cards laterais ocupam 30% e apresentam as categorias da legenda: oportunidade alta (verde), proteger a base (azul), oportunidade com menor aderência (amarelo) e baixa similaridade/dados incompletos (cinza). Cada card mostra a quantidade de áreas da categoria no recorte exibido e sua explicação.
 
-Em seguida, o subcard **Potencial demográfico municipal** mantém a mesma estrutura em duas colunas, com mapa à esquerda e quatro cards laterais vazios. Seus seletores de **Mesorregião** e **Município** têm estado independente dos filtros estaduais e controlam a malha intramunicipal. A formação territorial reutiliza exatamente a lógica do mapa detalhado do Raio X: bairros oficiais quando cobrem pelo menos 95% do município, áreas ponderadas quando existem duas ou mais unidades e setores censitários somente quando há uma única área ponderada.
+Os filtros de perfil, mesorregião, município e área ponderada são independentes da expansão estadual. Selecionar uma área restringe o mapa e as contagens dos cards. O tooltip informa código da área, categoria, votos, oportunidade, similaridade e bairros TSE de referência pelo crosswalk. Dados ausentes aparecem como indisponíveis, com polígonos neutros.
 
-Por enquanto, os polígonos do mapa municipal aparecem no mesmo azul muito claro (`#e8f1ff`), com divisórias azuladas e contorno municipal branco mais espesso, apenas para apresentar a geometria. Não há informação analítica, intensidade de cor, legenda nem tooltip de dados. Os quatro cards de cada bloco permanecem vazios e reservados para as próximas métricas. Se uma malha não puder ser carregada, o card correspondente mostra uma mensagem de indisponibilidade.
+As faixas são calculadas sobre todas as áreas disponíveis para o perfil selecionado, antes dos filtros territoriais. Aplicam os mesmos critérios relativos da expansão estadual, agora na unidade de área ponderada. Os votos repetidos entre dimensões são usados uma vez por área. A nota esclarece a unidade dos resultados, o vínculo dos bairros por ponto e que potencial não é previsão de votos.
 
 ## 4. Interação, estados e continuidade visual
 
@@ -220,8 +220,7 @@ Por enquanto, os polígonos do mapa municipal aparecem no mesmo azul muito claro
 | Clique em município da força política local | Abre o mapa isolado, os indicadores e a composição política municipal | Janela modal; fecha sem alterar o filtro dos cards |
 | Tipo de despesa no treemap | KPIs de custo e destaque no treemap | Botão restaura gasto total |
 | Município e dimensão da rosca DNA | Rosca e total do recorte | Restrito à seção de distribuição |
-| Mesorregião e município do bloco estadual da Matriz DNA | Destaque geográfico na malha dos municípios de MG | Restrito ao bloco estadual |
-| Mesorregião e município do bloco municipal da Matriz DNA | Malha intramunicipal neutra | Restrito ao bloco municipal |
+| Mesorregião e município do Potencial demográfico municipal | Mapa categórico por área ponderada | Restrito ao bloco municipal |
 | Perfil para expansão | Classes e métricas do mapa de Expansão 2030 | Restrito à seção de expansão do DNA |
 
 ### 4.2 Estado sem dados
@@ -238,7 +237,7 @@ Os pares de mapa e cards laterais da página 1, o treemap com os três cards de 
 
 1. Preservar a diferença entre **intensidade** (gradiente azul contínuo) e **classe** (cores da atuação parlamentar e da expansão).
 2. Manter a leitura em camadas: hero, faixa principal, cabeçalho interno quando necessário e conteúdo analítico.
-3. Não apresentar os cards vazios da Matriz de Potencial como se já contivessem conclusões; na força política local, manter as recomendações vinculadas aos quatro quadrantes.
+3. Manter os cards de potencial municipal vinculados às categorias e ao recorte exibido; na força política local, manter as recomendações vinculadas aos quatro quadrantes.
 4. Mostrar voto observado, estimativa demográfica, custo de referência, gasto rateado e potencial em seus papéis corretos, com unidades e notas visíveis.
 5. Fazer seleção e estado vazio permanecerem compreensíveis sem depender só de cor.
 6. Atualizar este briefing quando mudar texto, card, escala, interação, ordem de seção ou granularidade de mapa.

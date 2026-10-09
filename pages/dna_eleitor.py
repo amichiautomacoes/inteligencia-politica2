@@ -269,10 +269,108 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
                         st.html('<div class="dna-icp-kpi-missing">Percentual indisponível</div>')
 
 
+def _comparison_sources(icp_df: pd.DataFrame | None) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
+    capital = None
+    annual_path = next((path for path in selected_files()
+                        if path.replace("\\", "/").endswith("/2026/perfil/stage04_icp_geral_geo.parquet")), None)
+    if annual_path:
+        root = annual_path.replace("\\", "/").removesuffix("/2026/perfil/stage04_icp_geral_geo.parquet")
+        for folder in ("bh_vereador", "bh_2026"):
+            try:
+                capital = load_parquet(f"{root}/{folder}/perfil/icp_geral_por_bairro.parquet", load_env().get("HF_TOKEN"))
+                break
+            except FileNotFoundError:
+                continue
+            except Exception:
+                st.warning("Não foi possível carregar o perfil dos bairros de Belo Horizonte.")
+                break
+    if capital is not None:
+        capital = capital.copy()
+        if "situacao_icp" in capital:
+            capital = capital.loc[capital["situacao_icp"].eq("calculado")].copy()
+        capital = capital.rename(columns={"qt_votos_candidato_bairro": "votos_candidato"})
+    interior = icp_df
+    if interior is not None:
+        interior = _territorial_rows(interior)
+        is_capital = pd.Series(False, index=interior.index)
+        if "cd_municipio" in interior:
+            is_capital |= interior["cd_municipio"].astype(str).isin(["41238", "3106200"])
+        if "nm_municipio" in interior:
+            is_capital |= interior["nm_municipio"].astype(str).str.strip().str.casefold().eq("belo horizonte")
+        interior = interior.loc[~is_capital].copy()
+    return capital, interior
+
+
+def _render_capital_interior_comparison(icp_df: pd.DataFrame | None) -> None:
+    capital, interior = _comparison_sources(icp_df)
+    dimensions = [
+        ("Gênero", "genero_principal", "#34d399"),
+        ("Idade", "idade_principal", "#60a5fa"),
+        ("Escolaridade", "escolaridade_principal", "#a78bfa"),
+        ("Estado civil", "estado_civil_principal", "#fbbf24"),
+    ]
+    for column, (scope, title, source) in zip(st.columns(2, gap="medium"), [
+        ("capital", "Eleitor da capital", capital),
+        ("interior", "Eleitor do Interior", interior),
+    ]):
+        with column:
+            with st.container(border=True, key=f"dna_{scope}_profile_card"):
+                st.html(f'<div class="dna-icp-heading"><h3 class="dna-subsection-title">{title}</h3></div>')
+                if source is None or source.empty:
+                    st.info("Perfil indisponível para este recorte.")
+                    continue
+                source = source.copy()
+                if "votos_candidato" not in source:
+                    st.info("Votos de referência indisponíveis para consolidar o perfil.")
+                    continue
+                source["votos_candidato"] = pd.to_numeric(source["votos_candidato"], errors="coerce").fillna(0).clip(lower=0)
+                source = source.loc[source["votos_candidato"].gt(0)]
+                rows = []
+                for label, field, color in dimensions:
+                    category, _ = _weighted_dominant(source, field)
+                    percentage = _demographic_percent(source, field, category)
+                    if _has_profile_label(category) and pd.notna(percentage):
+                        rows.append((label, sentence_label(category.replace("_", " ")), percentage, color))
+                if not rows:
+                    st.info("Percentuais demográficos indisponíveis para este recorte.")
+                    continue
+                fig = go.Figure(go.Bar(
+                    y=[row[0] for row in rows], x=[row[2] for row in rows], orientation="h",
+                    marker_color=[row[3] for row in rows],
+                    customdata=[row[1] for row in rows],
+                    text=[f'{row[2]:.1f}%'.replace(".", ",") for row in rows],
+                    textposition="outside", cliponaxis=False,
+                    hovertemplate="<b>%{y}: %{customdata}</b><br>%{x:.1f}%<extra></extra>",
+                ))
+                fig.update_layout(
+                    height=320, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    margin={"l": 0, "r": 48, "t": 12, "b": 20},
+                    font={"color": "#eaf2ff", "size": 14}, separators=",.", bargap=.4,
+                    xaxis={"range": [0, 100], "ticksuffix": "%", "gridcolor": "rgba(147,197,253,.12)", "fixedrange": True},
+                    yaxis={"autorange": "reversed", "fixedrange": True}, showlegend=False,
+                )
+                st.plotly_chart(fig, width="stretch", key=f"dna_{scope}_profile_bars", config={"displayModeBar": False})
+                for label, category, _, _ in rows:
+                    st.html(f'<div class="dna-distribution-note"><b>{html.escape(label)}:</b> {html.escape(category)}</div>')
+                if len(rows) < len(dimensions):
+                    st.caption("Dimensões sem percentual válido não são exibidas.")
+                st.caption(
+                    "Categoria predominante por dimensão: maior soma de votos dos territórios onde ela lidera. "
+                    "Barra: média do percentual dessa categoria nesses territórios, ponderada pelos votos. "
+                    "Dimensões independentes; não representam um perfil individual conjunto."
+                )
+                if scope == "interior":
+                    st.caption("Fonte: perfil de 2026, excluindo Belo Horizonte.")
+                else:
+                    st.caption("Fonte: ICP por bairro de Belo Horizonte; apenas perfis calculados com votos.")
+
+
 def _apply_icp_card_styles() -> None:
     st.html("""
     <style>
-    .st-key-dna_icp_general_card {
+    .st-key-dna_icp_general_card,
+    .st-key-dna_capital_profile_card,
+    .st-key-dna_interior_profile_card {
         margin: 28px 0;
         padding: 30px !important;
         border: 1px solid rgba(96, 165, 250, 0.3) !important;
@@ -886,6 +984,11 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
     if index == 0:
         icp_general_df = _read_selected_parquet("icp_geral")
         _render_icp_geral_card(icp_general_df)
+        major_section_header(
+            "Eleitor de BH x Eleitor do Interior",
+            "Será que você tem o mesmo perfil de eleitor na capital e no interior?",
+        )
+        _render_capital_interior_comparison(icp_general_df)
     else:
         render_electorate_distribution(_read_selected_parquet)
         major_section_header(
@@ -899,5 +1002,8 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
         )
         render_vote_expansion()
 
-section_header("Potencial demográfico municipal")
+major_section_header(
+    "Potencial demográfico municipal",
+    "Explore as oportunidades demográficas e a aderência ao perfil do eleitor em cada município.",
+)
 render_municipal_expansion()

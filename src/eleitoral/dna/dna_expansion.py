@@ -278,24 +278,24 @@ def _expansion_city_frame(
 
 def _expansion_legend() -> None:
     items = [
-        ("VERDE", "Potencial demográfico alto e boa aderência ao perfil."),
-        ("AZUL", "Municípios com mais votos atuais; proteger essas bases."),
-        ("AMARELO", "Há população em oportunidade, com menor aderência ao perfil."),
-        ("CINZA", "Baixa similaridade, sem sinal de expansão ou sem dados completos."),
+        ("VERDE", "Oportunidade de expansão", "Potencial demográfico alto e boa aderência ao perfil."),
+        ("AZUL", "Proteger a base", "Municípios com mais votos atuais; proteger essas bases."),
+        ("AMARELO", "Potencial a desenvolver", "Há população em oportunidade, com menor aderência ao perfil."),
+        ("CINZA", "Baixa similaridade", "Baixa similaridade, sem sinal de expansão ou sem dados completos."),
     ]
     cards = "".join(
-        f'<div class="dna-expansion-legend-item"><span style="background:{CLASS_COLORS[key]}"></span><div><b>{key}</b><small>{description}</small></div></div>'
-        for key, description in items
+        f'<div class="dna-expansion-legend-item" style="--class-color:{CLASS_COLORS[key]}"><div class="dna-expansion-class-badge"><span></span>{key}</div><h3>{title}</h3><p>{description}</p></div>'
+        for key, title, description in items
     )
     st.html(f"""
     <style>
-    .dna-expansion-legend {{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:8px 0 12px}}
-    .dna-expansion-legend-item {{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(96,165,250,.22);border-radius:12px;background:linear-gradient(145deg,rgba(11,31,77,.74),rgba(7,24,54,.68));padding:12px;color:#eaf2ff}}
-    .dna-expansion-legend-item span {{width:13px;height:13px;flex:0 0 13px;border-radius:50%;margin-top:3px}}
-    .dna-expansion-legend-item b {{display:block;font-size:.8rem;letter-spacing:.04em}}
-    .dna-expansion-legend-item small {{display:block;margin-top:3px;color:#b7c7e6;font-size:.72rem;line-height:1.35}}
-    @media(max-width:900px){{.dna-expansion-legend{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}
-    @media(max-width:560px){{.dna-expansion-legend{{grid-template-columns:1fr}}}}
+    .dna-expansion-legend {{display:grid;grid-template-columns:1fr;gap:16px}}
+    .dna-expansion-legend-item {{border:1px solid color-mix(in srgb,var(--class-color) 45%,transparent);border-radius:16px;background:radial-gradient(ellipse at top left,color-mix(in srgb,var(--class-color) 25%,transparent),transparent 85%),linear-gradient(145deg,rgba(11,31,77,.9),rgba(7,24,54,.85));padding:22px 24px;color:#eaf2ff;box-shadow:0 10px 24px rgba(0,0,0,.16);min-height:156px;box-sizing:border-box}}
+    .dna-expansion-class-badge {{display:inline-flex;gap:8px;align-items:center;border:1px solid color-mix(in srgb,var(--class-color) 40%,transparent);border-radius:999px;padding:5px 10px;font-size:.68rem;font-weight:800;letter-spacing:.08em;background:color-mix(in srgb,var(--class-color) 12%,transparent)}}
+    .dna-expansion-class-badge span {{width:9px;height:9px;border-radius:50%;background:var(--class-color)}}
+    .dna-expansion-legend-item h3 {{margin:12px 0 7px;padding:0;font-size:clamp(1.15rem,1.5vw,1.45rem);font-weight:850;line-height:1.2;color:#f8fbff}}
+    .dna-expansion-legend-item p {{margin:0;color:#cbd8ed;font-size:.84rem;line-height:1.5}}
+    @media(max-width:640px){{.dna-expansion-legend-item{{min-height:0;padding:18px}}}}
     </style><div class="dna-expansion-legend">{cards}</div>
     """)
 
@@ -347,7 +347,15 @@ def render_vote_expansion() -> None:
             value for value in potential_clusters["cluster_strategy_label"].dropna().astype(str).str.strip().unique()
             if value
         ))
-    _, control = st.columns([0.64, 0.36], vertical_alignment="bottom")
+    st.html('''<style>
+    .st-key-dna_expansion_map_card{padding:24px!important;border:1px solid rgba(96,165,250,.3)!important;border-radius:20px!important;background:linear-gradient(135deg,rgba(11,31,77,.76),rgba(7,24,54,.68))!important;box-shadow:0 12px 30px rgba(0,0,0,.14)}
+    @media(max-width:640px){.st-key-dna_expansion_map_card{padding:16px!important}}
+    </style>''')
+    map_col, cards_col = st.columns([0.70, 0.30], gap="large")
+    with map_col:
+        map_card = st.container(border=True, key="dna_expansion_map_card")
+    with map_card:
+        _, control = st.columns([0.55, 0.45], vertical_alignment="bottom")
     with control:
         selected_profile = st.selectbox("Perfil para expansão", labels, key="dna_expansion_profile")
     selected_potential = potential_general if selected_profile == "ELEITOR IDEAL" else potential_clusters
@@ -360,20 +368,23 @@ def render_vote_expansion() -> None:
         selected_profile,
         census_values,
     )
-    if city_data.empty:
-        st.info("Ainda não há dados completos de Censo e potencial demográfico para montar este mapa.")
-        return
-    _expansion_legend()
-    fig = _expansion_map(city_data)
-    if fig is None:
-        st.info("A malha municipal de Minas Gerais não está disponível.")
-        return
-    st.plotly_chart(fig, width="stretch", height=640, key="dna_vote_expansion_map")
-    st.caption(
-        "O potencial combina a população acima da participação do ICP (`diferenca_pontos_percentuais` negativa) nas dimensões de gênero, idade e escolaridade. "
-        "As faixas são relativas ao ICP selecionado: azul destaca o quartil superior de votos atuais; verde exige potencial demográfico no quartil superior e similaridade acima da mediana; "
-        "amarelo indica oportunidade positiva com similaridade acima do quartil inferior. Potencial demográfico orienta busca territorial e não é previsão de votos."
-    )
+    with cards_col:
+        _expansion_legend()
+    with map_card:
+        if city_data.empty:
+            st.info("Ainda não há dados completos de Censo e potencial demográfico para montar este mapa.")
+            return
+        fig = _expansion_map(city_data)
+        if fig is None:
+            st.info("A malha municipal de Minas Gerais não está disponível.")
+            return
+        fig.update_layout(height=560, coloraxis_showscale=False, margin={"l": 0, "r": 0, "t": 8, "b": 0})
+        st.plotly_chart(fig, width="stretch", height=560, key="dna_vote_expansion_map")
+        st.caption(
+            "O potencial combina a população acima da participação do ICP (`diferenca_pontos_percentuais` negativa) nas dimensões de gênero, idade e escolaridade. "
+            "As faixas são relativas ao ICP selecionado: azul destaca o quartil superior de votos atuais; verde exige potencial demográfico no quartil superior e similaridade acima da mediana; "
+            "amarelo indica oportunidade positiva com similaridade acima do quartil inferior. Potencial demográfico orienta busca territorial e não é previsão de votos."
+        )
 
 
 
@@ -389,7 +400,29 @@ def render_municipal_expansion() -> None:
     labels = ["ELEITOR IDEAL"]
     if clusters is not None and "cluster_strategy_label" in clusters:
         labels.extend(sorted({str(v).strip() for v in clusters["cluster_strategy_label"].dropna() if str(v).strip()}))
-    map_col, cards_col = st.columns([0.70, 0.30], gap="large")
+    st.html('''<style>
+    .st-key-dna_municipal_expansion_layout [class*="st-key-dna_municipal_class_"]{
+        padding:.9rem 1rem!important;border:1px solid rgba(177,211,255,.34)!important;
+        border-radius:16px!important;
+        background:linear-gradient(145deg,rgba(11,31,77,.76) 0%,rgba(7,24,54,.68) 100%)!important;
+        box-shadow:0 12px 30px rgba(1,8,24,.22)!important;box-sizing:border-box;
+    }
+    .dna-municipal-class-title{
+        display:inline-flex;align-items:center;max-width:100%;box-sizing:border-box;
+        padding:.4rem .75rem;border-radius:999px;color:#fff;font-weight:800;
+        font-size:.92rem;line-height:1.35;box-shadow:inset 0 1px 0 rgba(255,255,255,.15);
+    }
+    @media(min-width:900px){
+        .st-key-dna_municipal_expansion_layout > [data-testid="stHorizontalBlock"],
+        .st-key-dna_municipal_expansion_layout > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]{align-items:stretch}
+        .st-key-dna_municipal_expansion_layout [data-testid="stColumn"] > [data-testid="stVerticalBlock"]{height:100%}
+        .st-key-dna_municipal_expansion_layout [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"]{gap:1rem}
+        .st-key-dna_municipal_expansion_layout [class*="st-key-dna_municipal_class_"]{flex:1;min-height:0}
+        .st-key-dna_municipal_expansion_layout .st-key-dna_potential_map_card{height:100%}
+    }
+    </style>''')
+    with st.container(key="dna_municipal_expansion_layout"):
+        map_col, cards_col = st.columns([0.70, 0.30], gap="large")
     frame = pd.DataFrame()
     descriptions = {
         "VERDE": ("Oportunidade alta", "Potencial demogr\u00e1fico alto e boa ader\u00eancia ao perfil."),
@@ -399,7 +432,6 @@ def render_municipal_expansion() -> None:
     }
     with map_col:
         with st.container(border=True, key="dna_potential_map_card"):
-            profile = st.selectbox("Perfil para expans\u00e3o", labels, key="dna_municipal_expansion_profile")
             meso = st.selectbox("Mesorregi\u00e3o", ["Todas", *mesoregion_options()], key="dna_potential_mesorregiao")
             choices = municipality_options(meso)
             if not choices:
@@ -407,6 +439,7 @@ def render_municipal_expansion() -> None:
                 return
             code = st.selectbox("Munic\u00edpio", [c for c, _ in choices], format_func=dict(choices).get,
                                 key=f"dna_potential_municipio_{meso}")
+            profile = st.selectbox("Perfil para expans\u00e3o", labels, key="dna_municipal_expansion_profile")
             census = _census_area_profiles(_read("censo_genero"), _read("censo_idade"), _read("censo_escolaridade"))
             results = _expansion_city_frame(
                 general if general is not None else pd.DataFrame(),
@@ -421,9 +454,6 @@ def render_municipal_expansion() -> None:
                 st.info("Malha de \u00e1reas ponderadas indispon\u00edvel para este munic\u00edpio.")
                 return
             neighborhoods = area_neighborhoods(load_area_ponderada_bairro_crosswalk(), code)
-            selected = st.selectbox("\u00c1rea ponderada", ["", *sorted(areas["area"])],
-                format_func=lambda v: "Todas as \u00e1reas ponderadas" if not v else f"{v} \u00b7 {neighborhoods.get(v, 'sem bairro vinculado')}",
-                key=f"dna_potential_area_{code}")
             frame = areas[["area"]].copy()
             if results.empty:
                 st.info("Dados de Censo ou potencial indispon\u00edveis; as \u00e1reas permanecem neutras.")
@@ -433,9 +463,6 @@ def render_municipal_expansion() -> None:
             else:
                 frame = frame.merge(results, on="area", how="left", validate="one_to_one")
                 frame["classe_expansao"] = frame["classe_expansao"].fillna("CINZA")
-            if selected:
-                frame = frame.loc[frame["area"].eq(selected)].copy()
-                areas = areas.loc[areas["area"].eq(selected)]
             frame["nome"] = "\u00c1rea ponderada " + frame["area"]
             frame["bairros"] = frame["area"].map(neighborhoods).fillna("Sem bairro TSE vinculado")
             frame["classe_label"] = frame["classe_expansao"].map({k: v[0] for k, v in descriptions.items()})
@@ -451,7 +478,7 @@ def render_municipal_expansion() -> None:
     with cards_col:
         for category, (title, description) in descriptions.items():
             count = int(frame["classe_expansao"].eq(category).sum())
-            with st.container(border=True):
-                st.html(f'<div style="color:{CLASS_COLORS[category]};font-weight:800">{html.escape(title)}</div>')
+            with st.container(border=True, key=f"dna_municipal_class_{category.lower()}"):
+                st.html(f'<div class="dna-municipal-class-title" style="background:{CLASS_COLORS[category]}">{html.escape(title)}</div>')
                 st.metric("\u00c1reas ponderadas", count)
                 st.caption(description)

@@ -193,7 +193,7 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
             )
         code = selected_code
         name = municipality_labels.get(code, "")
-        chart_col, filter_col = st.columns([2.3, 1], gap="large")
+        legend_col, chart_col, filter_col = st.columns([3, 4, 3], gap="medium", vertical_alignment="center")
         distributions = {}
         selections = {}
 
@@ -237,10 +237,11 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
             values = distribution["percentual"].tolist()
             shares = [value / sum(values) * 100 for value in values]
             colors = _category_colors(labels, kind)
-            st.html(
-                f'<div class="dna-distribution-dimension-badge dna-distribution-dimension-{kind}">{html.escape(dimension)}</div>'
-                + _legend_html(labels, shares, colors)
-            )
+            with legend_col:
+                st.html(
+                    f'<div class="dna-distribution-dimension-badge dna-distribution-dimension-{kind}">{html.escape(dimension)}</div>'
+                    + _legend_html(labels, shares, colors)
+                )
             selected_category = selections[dimension]
             center = f"{total_votes:,.0f}".replace(",", ".") if total_votes is not None else "—"
             hover = "<b>%{label}</b><br>%{customdata} da distribuição<extra></extra>"
@@ -262,4 +263,4 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
                               "showarrow": False, "font": {"size": 16, "color": "#ffffff"}}],
             )
             st.plotly_chart(fig, width="stretch", key="dna_distribution_donut", config={"displayModeBar": False})
-            st.html('<p class="dna-distribution-note">Os percentuais são estimativas de dimensões separadas; as categorias exibidas não representam cruzamentos entre perfis.</p>')
+        st.html('<p class="dna-distribution-note">Os percentuais são estimativas de dimensões separadas; as categorias exibidas não representam cruzamentos entre perfis.</p>')

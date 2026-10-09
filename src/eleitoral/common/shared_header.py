@@ -102,31 +102,30 @@ def apply_shared_visual_model() -> None:
             justify-content: center;
             gap: 0.85rem;
             width: 100%;
-            min-height: 18rem;
-            height: 100%;
-            padding: 0.75rem;
-            border: 1px solid rgba(147, 197, 253, 0.32);
-            border-radius: 22px;
-            background: rgba(4, 18, 43, 0.72);
-            box-shadow: inset 0 1px 0 rgba(219, 234, 254, 0.10), 0 12px 30px rgba(1, 8, 24, 0.30);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
         }}
         .st-key-raiox-page-navigation [data-testid="stElementContainer"] {{
             width: 100%;
         }}
         .st-key-raiox-page-navigation button {{
             width: 100%;
-            min-height: 3.25rem;
-            padding: 0.55rem 0.8rem;
-            border: 0;
-            border-radius: 999px;
-            background: transparent;
-            color: #b7c7e6;
+            min-height: 3.8rem;
+            padding: 0.8rem 1.1rem;
+            border: 1px solid rgba(147,197,253,.48);
+            border-radius: 14px;
+            background: linear-gradient(145deg,rgba(26,55,99,.9),rgba(10,29,64,.9));
+            color: #f8fbff;
             font-size: 0.83rem;
             font-weight: 850;
             white-space: nowrap;
-            box-shadow: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.1),0 6px 16px rgba(1,8,24,.3);
+            cursor: pointer;
+            transition: background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
         }}
         .st-key-raiox-page-navigation button p {{
             font-size: inherit;
@@ -134,17 +133,25 @@ def apply_shared_visual_model() -> None:
             white-space: inherit;
         }}
         .st-key-raiox-page-navigation button:hover {{
-            border: 0;
+            border-color: #93c5fd;
             color: #f8fbff;
-            background: rgba(96, 165, 250, 0.16);
+            background: linear-gradient(145deg,rgba(44,83,143,.95),rgba(21,52,105,.95));
+            box-shadow: 0 8px 22px rgba(37,99,235,.28);
+            transform: translateY(-2px);
         }}
+        .st-key-raiox-page-navigation button:focus-visible {{
+            outline: 3px solid #bfdbfe;
+            outline-offset: 3px;
+        }}
+        .st-key-raiox-page-navigation button:active {{transform:translateY(0)}}
         .st-key-raiox-page-navigation .st-key-raiox-nav-active button {{
             color: #f8fbff;
-            background: linear-gradient(145deg, rgba(96, 165, 250, 0.42), rgba(37, 99, 235, 0.30));
+            border-color: #60a5fa;
+            background: linear-gradient(145deg,#2563eb,#1744a5);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 8px 18px rgba(37, 99, 235, 0.24);
         }}
         .st-key-raiox-page-navigation .st-key-raiox-nav-active button:hover {{
-            background: linear-gradient(145deg, rgba(96, 165, 250, 0.50), rgba(37, 99, 235, 0.38));
+            background: linear-gradient(145deg,#3b82f6,#1d4ed8);
         }}
         .raiox-hero-content {{
             position: relative;
@@ -420,7 +427,7 @@ def apply_shared_visual_model() -> None:
                 padding: 1.45rem 1.1rem 1.4rem 1.1rem;
             }}
             .st-key-raiox-page-navigation {{
-                min-height: 12rem;
+                min-height: 0;
             }}
             .st-key-raiox-hero [data-testid="stHorizontalBlock"] {{
                 min-height: 0;

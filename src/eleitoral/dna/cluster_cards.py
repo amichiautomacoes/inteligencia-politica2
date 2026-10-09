@@ -10,8 +10,8 @@ from eleitoral.common.dna_copy import sentence_label
 
 CLASS_STYLES = {
     "BASE ELEITORAL": ("🎯 Base Principal", "base"),
-    "ELEITOR CONSOLIDADO": ("🛡️ Consolidado", "consolidated"),
-    "ELEITOR EMERGENTE": ("🚀 Emergente / Expansão", "emerging"),
+    "ELEITOR CONSOLIDADO": ("🛡️ Eleitor Consolidado", "consolidated"),
+    "ELEITOR EMERGENTE": ("🚀 Eleitor Emergente", "emerging"),
 }
 DEMOGRAPHIC_ICONS = {
     "Gênero": "👤",
@@ -26,7 +26,6 @@ def cluster_cards_html(profiles: list[dict]) -> str:
     percent = lambda value: f"{value:.1f}%".replace(".", ",")
     classes = list(CLASS_STYLES)
     classes += sorted({p["classification"] for p in profiles} - set(classes))
-    summary = []
     segments = []
     cards = []
     total_share = 0.0
@@ -36,15 +35,13 @@ def cluster_cards_html(profiles: list[dict]) -> str:
         share = sum(max(0.0, float(p["share"])) for p in members)
         label, tone = CLASS_STYLES.get(classification, (sentence_label(classification), "other"))
         total_share += share
-        summary.append(
-            f'<div class="dna-base-composition-label"><span class="dna-base-swatch dna-base-{tone}"></span>'
-            f'<span>{esc(sentence_label(classification))}</span>'
-            f'<strong>{percent(share) if members else "—"}</strong></div>'
-        )
         if share > 0:
             segments.append(
                 f'<span class="dna-base-segment dna-base-{tone}" style="width:{min(share, 100):.4f}%" '
-                f'title="{esc(sentence_label(classification))}: {percent(share)}"></span>'
+                f'title="{esc(sentence_label(classification))}: {percent(share)}" '
+                f'aria-label="{esc(sentence_label(classification))}: {percent(share)}">'
+                f'<span class="dna-base-segment-name">{esc(sentence_label(classification))}</span>'
+                f'<strong>{percent(share)}</strong></span>'
             )
 
         for profile in sorted(members, key=lambda p: p["share"], reverse=True):
@@ -75,7 +72,7 @@ def cluster_cards_html(profiles: list[dict]) -> str:
             cards.append(f'''<details class="dna-base-profile">
                 <summary class="dna-base-profile-summary">
                     <span class="dna-base-profile-heading">
-                        <span class="dna-base-profile-meta"><span class="dna-base-badge dna-base-{tone}">{esc(label)}</span><span class="dna-base-classification">ICP {esc(profile["id"])}</span></span>
+                        <span class="dna-base-profile-meta"><span class="dna-base-badge dna-base-{tone}">{esc(label)}</span></span>
                         {chips_html}
                     </span>
                     <span class="dna-base-profile-result"><strong>{percent(profile["share"])}</strong><small>da votação do candidato · {votes} votos</small></span>
@@ -92,16 +89,14 @@ def cluster_cards_html(profiles: list[dict]) -> str:
     if remainder > 0.001:
         segments.append(
             f'<span class="dna-base-segment dna-base-remainder" style="width:{remainder:.4f}%" '
-            f'title="Não classificado: {percent(remainder)}"></span>'
-        )
-        summary.append(
-            f'<div class="dna-base-composition-label"><span class="dna-base-swatch dna-base-remainder"></span>'
-            f'<span>Não classificado</span><strong>{percent(remainder)}</strong></div>'
+            f'title="Não classificado: {percent(remainder)}">'
+            f'<span class="dna-base-segment-name">Não classificado</span>'
+            f'<strong>{percent(remainder)}</strong></span>'
         )
     composition = (
         '<div class="dna-base-composition" role="img" aria-label="Composição da votação por classificação">'
         f'<div class="dna-base-composition-track">{"".join(segments)}</div>'
-        f'<div class="dna-base-composition-legend">{"".join(summary)}</div></div>'
+        '</div>'
     )
     content = (
         f'{composition}<div class="dna-base-list">{"".join(cards)}</div>'
@@ -109,22 +104,19 @@ def cluster_cards_html(profiles: list[dict]) -> str:
     )
     return f'''<style>
     .dna-base-section {{margin:28px 0;padding:30px;border:1px solid rgba(96,165,250,.3);border-radius:20px;background:linear-gradient(135deg,rgba(11,31,77,.76),rgba(7,24,54,.68));color:#eaf2ff;box-shadow:0 12px 30px rgba(0,0,0,.14)}}
-    .dna-base-heading {{border-bottom:1px solid rgba(147,197,253,.2);padding-bottom:20px}}
-    .dna-base-section h3 {{font-size:clamp(1.55rem,2.4vw,2rem);line-height:1.15;margin:0 0 10px;color:#f8fbff;letter-spacing:.025em;font-weight:800}}
-    .dna-base-intro {{color:#b7c7e6;font-size:1rem;line-height:1.5;margin:0;max-width:70ch}}
     .dna-base-note {{color:#b7c7e6;font-size:.86rem;line-height:1.5}}
     .dna-base-composition {{margin:22px 0 26px}}
-    .dna-base-composition-track {{display:flex;width:100%;height:22px;border-radius:999px;overflow:hidden;background:rgba(147,197,253,.13)}}
-    .dna-base-segment {{display:block;height:100%;flex-shrink:0}}
+    .dna-base-composition-track {{display:flex;width:100%;height:72px;border-radius:16px;overflow:hidden;background:rgba(147,197,253,.13)}}
+    .dna-base-segment {{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;height:100%;flex-shrink:0;min-width:0;overflow:hidden;box-sizing:border-box;padding:8px 6px;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}}
+    .dna-base-segment + .dna-base-segment {{border-left:1px solid rgba(255,255,255,.22)}}
+    .dna-base-segment-name {{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(.7rem,1.1vw,.98rem);font-weight:750;line-height:1.2}}
+    .dna-base-segment strong {{font-size:clamp(.85rem,1.4vw,1.25rem);font-weight:850;line-height:1.2;font-variant-numeric:tabular-nums}}
+    .dna-base-segment.dna-base-consolidated,.dna-base-segment.dna-base-emerging {{color:#05233b}}
     .dna-base-base {{background:#2563eb}}
     .dna-base-consolidated {{background:#38bdf8}}
     .dna-base-emerging {{background:#10b981}}
     .dna-base-other {{background:#8b5cf6}}
     .dna-base-remainder {{background:rgba(147,197,253,.13)}}
-    .dna-base-composition-legend {{display:flex;flex-wrap:wrap;gap:12px 22px;margin-top:12px}}
-    .dna-base-composition-label {{display:inline-flex;align-items:center;gap:7px;color:#b7c7e6;font-size:.83rem}}
-    .dna-base-composition-label strong {{color:#fff;font-size:.9rem;font-variant-numeric:tabular-nums}}
-    .dna-base-swatch {{width:10px;height:10px;border-radius:3px;flex:none}}
     .dna-base-list {{display:grid;gap:12px}}
     .dna-base-profile {{min-width:0;border:1px solid rgba(96,165,250,.23);border-radius:14px;background:rgba(15,42,80,.5);overflow-wrap:anywhere}}
     .dna-base-profile[open] {{border-color:rgba(147,197,253,.5);background:rgba(15,42,80,.7)}}
@@ -134,8 +126,7 @@ def cluster_cards_html(profiles: list[dict]) -> str:
     .dna-base-profile-summary:hover {{background:rgba(96,165,250,.08)}}
     .dna-base-profile-heading {{display:flex;flex:1;min-width:0;flex-direction:column;gap:10px}}
     .dna-base-profile-meta {{display:flex;align-items:center;flex-wrap:wrap;gap:9px}}
-    .dna-base-classification {{font-size:.75rem;font-weight:700;letter-spacing:.05em;color:#b7c7e6}}
-    .dna-base-badge {{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;font-size:.73rem;font-weight:750;border:1px solid transparent}}
+    .dna-base-badge {{display:inline-flex;align-items:center;max-width:100%;box-sizing:border-box;border-radius:18px;padding:10px 18px;font-size:1.95rem;line-height:1.2;font-weight:800;border:1px solid transparent}}
     .dna-base-badge.dna-base-base {{color:#dbeafe;background:rgba(37,99,235,.24);border-color:rgba(96,165,250,.4)}}
     .dna-base-badge.dna-base-consolidated {{color:#cffafe;background:rgba(56,189,248,.18);border-color:rgba(103,232,249,.35)}}
     .dna-base-badge.dna-base-emerging {{color:#d1fae5;background:rgba(16,185,129,.18);border-color:rgba(52,211,153,.38)}}
@@ -157,4 +148,4 @@ def cluster_cards_html(profiles: list[dict]) -> str:
     .dna-base-reason p {{margin:8px 0 0;color:#b7c7e6}}
     @media(max-width:700px) {{.dna-base-profile-summary {{align-items:flex-start;flex-wrap:wrap;gap:12px}}.dna-base-profile-result {{align-items:flex-start;white-space:normal}}.dna-base-chevron {{margin-left:auto}}}}
     @media(max-width:600px) {{.dna-base-section {{padding:18px}}.dna-base-demographics {{grid-template-columns:1fr}}.dna-base-profile-summary {{padding:16px}}.dna-base-profile-content {{padding:18px 16px}}}}
-    </style><section class="dna-base-section" aria-label="Base eleitoral do candidato"><div class="dna-base-heading"><h3>BASE ELEITORAL DO CANDIDATO</h3><p class="dna-base-intro">Quais perfis sustentam a candidatura e qual o peso de cada um na votação?</p></div>{content}</section>'''
+    </style><section class="dna-base-section" aria-label="Base eleitoral do candidato">{content}</section>'''

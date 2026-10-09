@@ -213,9 +213,8 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
             dedent(f"""
             <div class="dna-icp-heading">
                 <h3 class="dna-subsection-title">Eleitor ideal do candidato</h3>
-                <p class="dna-subsection-description">Síntese do perfil demográfico predominante na base eleitoral do candidato.</p>
             </div>
-            {f'<div class="dna-icp-persona"><div class="dna-icp-persona-label">👤 PERFIL PREDOMINANTE</div><div class="dna-icp-badges">{badge_html}</div></div>' if badge_html else ''}
+            {f'<div class="dna-icp-persona"><div class="dna-icp-badges">{badge_html}</div></div>' if badge_html else ''}
             {summary_html}
             """)
         )
@@ -292,21 +291,24 @@ def _apply_icp_card_styles() -> None:
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
     }
     .dna-icp-heading {
-        border-bottom: 1px solid rgba(147, 197, 253, 0.2);
-        padding-bottom: 1.25rem;
-        margin-bottom: 1.35rem;
-    }
-    .dna-icp-heading .dna-subsection-description { font-size: 1rem; margin-bottom: 0; }
-    .dna-icp-persona {
-        margin: 0.5rem 0 1.5rem;
         text-align: center;
+        padding: 0.6rem 0 0;
+        margin-bottom: 1.4rem;
     }
-    .dna-icp-persona-label {
-        margin: 0 0 1rem;
+    .dna-icp-heading .dna-subsection-title {
+        margin: 0;
+        padding: 0;
         color: #f8fbff;
-        font-size: 1.18rem;
+        font-size: clamp(1.65rem, 2.4vw, 2.35rem);
         font-weight: 850;
-        letter-spacing: 0.08em;
+        line-height: 1.2;
+        letter-spacing: -0.025em;
+        text-wrap: balance;
+        text-shadow: 0 2px 18px rgba(96, 165, 250, 0.16);
+    }
+    .dna-icp-persona {
+        margin: 0 0 1.8rem;
+        text-align: center;
     }
     .dna-icp-badges {
         display: flex;
@@ -319,14 +321,15 @@ def _apply_icp_card_styles() -> None:
     .dna-icp-badge {
         display: inline-flex;
         align-items: center;
-        min-height: 2.55rem;
-        padding: 0.48rem 1rem;
+        min-height: 3.2rem;
+        padding: 0.7rem 1.4rem;
         border: 1px solid rgba(147, 197, 253, 0.28);
         border-radius: 999px;
         color: #f8fbff;
-        font-size: 1.06rem;
+        font-size: clamp(1.15rem, 1.5vw, 1.35rem);
         font-weight: 750;
         line-height: 1.25;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.12);
     }
     .dna-icp-badge-0 { background: rgba(16, 185, 129, 0.16); border-color: rgba(52, 211, 153, 0.34); }
     .dna-icp-badge-1 { background: rgba(59, 130, 246, 0.17); border-color: rgba(96, 165, 250, 0.36); }
@@ -885,6 +888,10 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
         _render_icp_geral_card(icp_general_df)
     else:
         render_electorate_distribution(_read_selected_parquet)
+        major_section_header(
+            "BASE ELEITORAL DO CANDIDATO",
+            "Quais perfis sustentam a candidatura e qual o peso de cada um na votação?",
+        )
         _render_cluster_profiles(_read_selected_parquet("icp_clusters"))
         major_section_header(
             "Expansão & Oportunidades para 2030",

@@ -10,6 +10,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options
+
 
 DIMENSIONS = {
     "Gênero": ("genero", "pct_genero_"),
@@ -129,13 +131,11 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
     municipalities = _municipalities(votes)
     st.html('''<style>
         .st-key-dna_distribution_card{margin:28px 0;padding:30px!important;border:1px solid rgba(96,165,250,.3)!important;border-radius:20px!important;background:linear-gradient(135deg,rgba(11,31,77,.76),rgba(7,24,54,.68))!important;box-shadow:0 12px 30px rgba(0,0,0,.14)!important}
-        .dna-distribution-heading{padding-bottom:1.1rem;margin-bottom:1.2rem;border-bottom:1px solid rgba(147,197,253,.18)}
-        .dna-distribution-heading h3{margin:0 0 .35rem;color:#f8fbff;font-size:1.55rem;font-weight:800;line-height:1.2}
-        .dna-distribution-heading p{margin:0;color:#b7c7e6;font-size:.92rem;line-height:1.45}
-        .dna-distribution-leader{display:inline-flex;align-items:center;flex-wrap:wrap;gap:.42rem;padding:.5rem .78rem;border:1px solid rgba(96,165,250,.3);border-radius:999px;background:rgba(37,99,235,.14);color:#b7c7e6;font-size:.82rem;font-weight:700}
-        .dna-distribution-leader-dot{width:8px;height:8px;flex:none;border-radius:50%}
-        .dna-distribution-leader strong{color:#f8fbff}
-        .dna-distribution-filter-title{margin:.1rem 0 .9rem;color:#d5e3fb;font-size:.91rem;font-weight:750}
+        .dna-distribution-dimension-badge{display:inline-flex;align-items:center;padding:.45rem .9rem;margin:.65rem 0 .45rem;border-radius:999px;font-size:.95rem;font-weight:800;line-height:1.3;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 10px rgba(0,0,0,.12)}
+        .dna-distribution-dimension-genero{background:#15803d;color:#fff;border:1px solid #34d399}
+        .dna-distribution-dimension-idade{background:#1d4ed8;color:#fff;border:1px solid #60a5fa}
+        .dna-distribution-dimension-escolaridade{background:#7e22ce;color:#fff;border:1px solid #c084fc}
+        .dna-distribution-dimension-estado_civil{background:#fbbf24;color:#291c03;border:1px solid #fde68a}
         .st-key-dna_distribution_card [data-testid="stSelectbox"] [data-baseweb="select"]>div{border:1px solid rgba(147,197,253,.23);border-radius:10px;background:rgba(10,29,64,.7)}
         .dna-distribution-note{margin:.1rem 0 .35rem;color:#b7c7e6;font-size:.81rem;line-height:1.5}
         .dna-distribution-legend{display:grid;gap:6px;margin:1.25rem 0 .5rem}
@@ -149,39 +149,104 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
         @media(max-width:560px){.st-key-dna_distribution_card{padding:18px!important}.dna-distribution-legend-head,.dna-distribution-legend-row{grid-template-columns:minmax(0,1fr) 3.5rem;gap:4px}.dna-distribution-legend-head{font-size:.58rem}.dna-distribution-legend-row{font-size:.72rem;padding:8px 6px}}
     </style>''')
     with st.container(border=True, key="dna_distribution_card"):
-        st.html('<div class="dna-distribution-heading"><h3>Distribuição do eleitorado</h3><p>Participação estimada de cada categoria demográfica na votação do recorte selecionado.</p></div>')
+        try:
+            regions = mesoregion_options()
+        except Exception:
+            st.info("Referência de mesorregiões indisponível no momento.")
+            return
+        region_col, municipality_col = st.columns(2, gap="medium")
+        with region_col:
+            region = st.selectbox(
+                "MESORREGIÃO", ["Todas", *regions], key="dna_distribution_mesoregion",
+            )
+        scoped_votes = votes
+        allowed_names = None
+        allowed_codes = set()
+        if region != "Todas":
+            try:
+                regional_municipalities = municipality_options(region)
+            except Exception:
+                st.info("Referência municipal indisponível para esta mesorregião.")
+                return
+            allowed_names = {_name(name) for _, name in regional_municipalities}
+            allowed_codes = {_code(code) for code, _ in regional_municipalities}
+            municipalities = [(code, name) for code, name in municipalities if _name(name) in allowed_names or code in allowed_codes]
+            allowed_codes.update(code for code, _ in municipalities if code)
+
+        def regional_scope(frame: pd.DataFrame | None) -> pd.DataFrame | None:
+            if frame is None or allowed_names is None:
+                return frame
+            mask = pd.Series(False, index=frame.index)
+            if "nm_municipio" in frame:
+                mask |= frame["nm_municipio"].map(_name).isin(allowed_names)
+            if "cd_municipio" in frame:
+                mask |= frame["cd_municipio"].map(_code).isin(allowed_codes)
+            return frame.loc[mask].copy()
+
+        scoped_votes = regional_scope(votes)
+        with municipality_col:
+            municipality_labels = dict(municipalities)
+            selected_code = st.selectbox(
+                "MUNICÍPIO", ["", *municipality_labels],
+                format_func=lambda code: "Todos os municípios" if not code else municipality_labels[code],
+                key=f"dna_distribution_municipality_{region}",
+            )
+        code = selected_code
+        name = municipality_labels.get(code, "")
         chart_col, filter_col = st.columns([2.3, 1], gap="large")
+        distributions = {}
+        selections = {}
+
+        def activate_dimension(label: str) -> None:
+            st.session_state["dna_distribution_active_dimension"] = label
+
         with filter_col:
-            st.html('<div class="dna-distribution-filter-title">Refine a distribuição</div>')
-            municipality_options = ["Todos os municípios"] + [name for _, name in municipalities]
-            selected_name = st.selectbox("MUNICÍPIO", municipality_options, key="dna_distribution_municipality")
-            dimension = st.selectbox("PERFIL DEMOGRÁFICO", list(DIMENSIONS), key="dna_distribution_dimension")
-        code = ""
-        name = ""
-        if selected_name != "Todos os municípios":
-            code, name = next(((code, name) for code, name in municipalities if name == selected_name), ("", ""))
-        kind, prefix = DIMENSIONS[dimension]
-        source = read_parquet(kind)
+            for label, (kind, prefix) in DIMENSIONS.items():
+                source = regional_scope(read_parquet(kind))
+                distribution = (
+                    _distribution(_filter_municipality(source, code, name), prefix)
+                    if source is not None and not source.empty else pd.DataFrame()
+                )
+                distributions[label] = distribution
+                categories = distribution["categoria"].tolist() if not distribution.empty else []
+                widget_key = f"dna_distribution_category_{kind}"
+                options = ["Todas as categorias", *categories]
+                if st.session_state.get(widget_key) not in options:
+                    st.session_state[widget_key] = options[0]
+                badge_label = "Estado Civil" if kind == "estado_civil" else label
+                st.html(
+                    f'<div class="dna-distribution-dimension-badge dna-distribution-dimension-{kind}">{html.escape(badge_label)}</div>'
+                )
+                selections[label] = st.selectbox(
+                    label, options, key=widget_key, label_visibility="collapsed",
+                    disabled=not categories, on_change=activate_dimension, args=(label,),
+                )
+                if not categories:
+                    st.caption("Sem dados para este recorte.")
+        dimension = st.session_state.get("dna_distribution_active_dimension", next(iter(DIMENSIONS)))
+        if dimension not in DIMENSIONS:
+            dimension = next(iter(DIMENSIONS))
+        kind, _ = DIMENSIONS[dimension]
+        distribution = distributions[dimension]
         with chart_col:
-            if source is None or source.empty:
-                st.info(f"Dados de {dimension.lower()} indisponíveis para este candidato.")
-                return
-            distribution = _distribution(_filter_municipality(source, code, name), prefix)
             if distribution.empty:
-                st.info("Não há distribuição demográfica disponível para este recorte.")
+                st.info(f"Dados de {dimension.lower()} indisponíveis para este recorte.")
                 return
-            total_votes = _votes_in_scope(votes, code, name)
+            total_votes = _votes_in_scope(scoped_votes, code, name)
             labels = distribution["categoria"].tolist()
             values = distribution["percentual"].tolist()
             shares = [value / sum(values) * 100 for value in values]
             colors = _category_colors(labels, kind)
-            leader_share = _percent_label(shares[0])
-            leader = f'<span class="dna-distribution-leader-dot" style="background:{colors[0]}"></span>{html.escape(dimension)} dominante: <strong>{html.escape(labels[0])} ({leader_share})</strong>'
-            st.html(f'<div class="dna-distribution-leader">{leader}</div>')
+            st.html(
+                f'<div class="dna-distribution-dimension-badge dna-distribution-dimension-{kind}">{html.escape(dimension)}</div>'
+                + _legend_html(labels, shares, colors)
+            )
+            selected_category = selections[dimension]
             center = f"{total_votes:,.0f}".replace(",", ".") if total_votes is not None else "—"
             hover = "<b>%{label}</b><br>%{customdata} da distribuição<extra></extra>"
             fig = go.Figure(go.Pie(
                 labels=labels, values=shares, hole=0.68, sort=False,
+                pull=[0.08 if label == selected_category else 0 for label in labels],
                 marker={"colors": colors, "line": {"color": "rgba(7,24,54,.75)", "width": 1.5}},
                 hovertemplate=hover, customdata=[_percent_label(share) for share in shares],
                 text=[_percent_label(share) if share >= 1 else "" for share in shares],
@@ -198,5 +263,3 @@ def render_electorate_distribution(read_parquet: Callable[[str], pd.DataFrame | 
             )
             st.plotly_chart(fig, width="stretch", key="dna_distribution_donut", config={"displayModeBar": False})
             st.html('<p class="dna-distribution-note">Os percentuais são estimativas de dimensões separadas; as categorias exibidas não representam cruzamentos entre perfis.</p>')
-        with filter_col:
-            st.html(_legend_html(labels, shares, colors))

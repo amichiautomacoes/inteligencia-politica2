@@ -654,6 +654,8 @@ def _apply_visual_model() -> None:
         .raiox-concentration-city-list {{
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: repeat(var(--city-rows-3), auto);
+            grid-auto-flow: column;
             gap: 0.55rem 0.8rem;
             padding: 0.25rem 0 0.5rem;
             color: #eaf2ff;
@@ -751,6 +753,7 @@ def _apply_visual_model() -> None:
             }}
             .raiox-concentration-city-list {{
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-rows: repeat(var(--city-rows-2), auto);
             }}
             .mapa-major-section-title {{
                 font-size: 1.55rem;
@@ -759,6 +762,8 @@ def _apply_visual_model() -> None:
         @media (max-width: 600px) {{
             .raiox-concentration-city-list {{
                 grid-template-columns: 1fr;
+                grid-template-rows: none;
+                grid-auto-flow: row;
             }}
         }}
         </style>
@@ -2540,16 +2545,6 @@ def _render_accumulated_concentration_section(df: pd.DataFrame | None) -> None:
         selected_rank = st.session_state.pop("pagina1_concentration_selected_rank", None)
         if selected_rank in (1, 5, 15, 20):
             _concentration_breakdown_dialog(concentration_df, selected_rank)
-        st.caption(
-            f"Curva acumulada até 100% da votação em {_format_number(len(concentration_df))} municípios."
-        )
-        curve_revision = st.session_state.get("pagina1_concentration_curve_revision", 0)
-        st.plotly_chart(
-            _accumulated_concentration_chart(concentration_df),
-            width="stretch",
-            key=f"pagina1_concentration_curve_{curve_revision}",
-            config={"displayModeBar": False},
-        )
         st.markdown(
             '<p class="raiox-concentration-reading">'
             f'<strong>{html.escape(str(top1["nm_municipio"]).title())}</strong> lidera com '
@@ -2560,6 +2555,7 @@ def _render_accumulated_concentration_section(df: pd.DataFrame | None) -> None:
         )
         for rank in (5, 15, 20):
             with st.expander(f"Ver municípios do Top {rank}"):
+                city_count = min(rank, len(concentration_df))
                 city_items = "".join(
                     '<div class="raiox-concentration-city-item">'
                     f'<span class="raiox-concentration-city-rank">{int(city_row["rank_municipio"]):02d}</span>'
@@ -2569,9 +2565,19 @@ def _render_accumulated_concentration_section(df: pd.DataFrame | None) -> None:
                     for _, city_row in concentration_df.head(rank).iterrows()
                 )
                 st.markdown(
-                    f'<div class="raiox-concentration-city-list">{city_items}</div>',
+                    f'<div class="raiox-concentration-city-list" style="--city-rows-3: {(city_count + 2) // 3}; --city-rows-2: {(city_count + 1) // 2}">{city_items}</div>',
                     unsafe_allow_html=True,
                 )
+        st.caption(
+            f"Curva acumulada até 100% da votação em {_format_number(len(concentration_df))} municípios."
+        )
+        curve_revision = st.session_state.get("pagina1_concentration_curve_revision", 0)
+        st.plotly_chart(
+            _accumulated_concentration_chart(concentration_df),
+            width="stretch",
+            key=f"pagina1_concentration_curve_{curve_revision}",
+            config={"displayModeBar": False},
+        )
 
 
 def _municipal_votes_frame(df: pd.DataFrame | None) -> pd.DataFrame | None:
@@ -4301,8 +4307,6 @@ with local_cards_col:
     )
 
 _render_accumulated_concentration_section(votos_municipio_df)
-emendas_legislativa_df = _read_selected_parquet("emendas_legislativa")
-_render_parliamentary_action_section(votos_municipio_df, emendas_legislativa_df)
 gastos_por_tipo_df = _read_selected_parquet("gastos_por_tipo")
 _render_cost_efficiency_section(votos_municipio_df, gastos_por_tipo_df)
 

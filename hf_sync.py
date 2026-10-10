@@ -123,6 +123,7 @@ def sync_deputados(force: bool = False) -> dict[str, Any]:
     remote_base = hf_visualizacao_path(env)
     token = env.get("HF_TOKEN")
     if force:
+        hf_filesystem(token).invalidate_cache()
         remote_data_files.clear()
         load_tables.clear()
         load_parquet.clear()
@@ -344,7 +345,11 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "capital_local": "forca_local/stage07a_capital_local_municipios.parquet",
         "afinidade_eleitos": "forca_local/stage07b_afinidade_eleitos.parquet",
         "icp_geral": "perfil/stage04_icp_geral_geo.parquet",
-        "icp_clusters": "perfil/stage04_icp_clusters_geo.parquet",
+        "icp_clusters": ("perfil/stage03_icp_clusters_geo.parquet", "perfil/stage04_icp_clusters_geo.parquet"),
+        "diagnostico_geral": "potencial_demografico/stage09b_diagnostico_geral_municipio.parquet",
+        "diagnostico_clusters": "potencial_demografico/stage09b_diagnostico_clusters_municipio.parquet",
+        "diagnostico_geral_setor": "potencial_demografico/stage09b_diagnostico_geral_setor.parquet",
+        "diagnostico_clusters_setor": "potencial_demografico/stage09b_diagnostico_clusters_setor.parquet",
         "censo_escolaridade": "IBGE/censo/escolaridade_apond.parquet",
         "censo_genero": "IBGE/censo/genero_apond.parquet",
         "censo_idade": "IBGE/censo/idade_apond.parquet",

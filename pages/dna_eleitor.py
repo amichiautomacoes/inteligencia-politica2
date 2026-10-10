@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import html
 import re
@@ -13,8 +13,9 @@ import streamlit as st
 from hf_sync import file_by_kind, load_env, load_parquet
 from eleitoral.dna.cluster_cards import cluster_cards_html
 from eleitoral.common.dna_copy import sentence_label
-from eleitoral.dna.dna_expansion import render_vote_expansion, render_municipal_expansion
-from eleitoral.dna.dna_distribution import render_electorate_distribution
+from eleitoral.dna.dna_expansion import render_vote_expansion
+from eleitoral.dna.sector_expansion import render_municipal_expansion
+from eleitoral.dna.dna_distribution import render_electorate_distribution, _distribution
 from eleitoral.maps.dna_geo_reference import (
     load_area_ponderada_bairro_crosswalk, load_geo_layer, load_geo_reference,
 )
@@ -113,6 +114,8 @@ def _territorial_rows(df: pd.DataFrame) -> pd.DataFrame:
 
 def _demographic_percent(df: pd.DataFrame, column: str, category: str) -> float:
     pct_column = f"pct_{column}"
+    if pct_column not in df and f"{pct_column}_global" in df:
+        pct_column = f"{pct_column}_global"
     if pct_column not in df or column not in df:
         return float("nan")
     # These percentages describe the category, not the profile's electoral share.
@@ -298,6 +301,21 @@ def _comparison_sources(icp_df: pd.DataFrame | None) -> tuple[pd.DataFrame | Non
         if "nm_municipio" in interior:
             is_capital |= interior["nm_municipio"].astype(str).str.strip().str.casefold().eq("belo horizonte")
         interior = interior.loc[~is_capital].copy()
+    if interior is not None and "metodo_icp_geo" in interior and interior["metodo_icp_geo"].eq("perfil_geral_global_replicado_no_territorio_do_stage01b").any():
+        # The new stage04 repeats the statewide persona; stage02 retains local distributions.
+        record = {"votos_candidato": 1.0}
+        for dimension in ("genero", "idade", "escolaridade", "estado_civil"):
+            frame = _read_selected_parquet(dimension)
+            if frame is None:
+                continue
+            frame = _territorial_rows(frame)
+            frame = frame.loc[~frame["cd_municipio"].astype(str).isin(["41238", "3106200"])]
+            distribution = _distribution(frame, f"pct_{dimension}_")
+            if not distribution.empty:
+                top = distribution.iloc[0]
+                record[f"{dimension}_principal"] = top["categoria"]
+                record[f"pct_{dimension}_principal"] = top["percentual"]
+        interior = pd.DataFrame([record])
     return capital, interior
 
 
@@ -500,7 +518,7 @@ def _cluster_profiles(clusters_df: pd.DataFrame | None) -> list[dict]:
     totals = pd.to_numeric(df.get("total_votos_candidato", pd.Series(dtype=float)), errors="coerce").dropna()
     total = float(totals.iloc[0]) if not totals.empty else float(df["votos_candidato"].sum())
     fallback = df["votos_candidato"] / total * 100 if total > 0 else pd.Series(0.0, index=df.index)
-    df["share"] = pd.to_numeric(df["pct_market_share"], errors="coerce").fillna(fallback) if "pct_market_share" in df else fallback
+    df["share"] = fallback
     profiles = []
     for profile, group in df.groupby("perfil_eleitor", sort=True):
         demographics = []
@@ -1010,7 +1028,7 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
         _render_cluster_profiles(_read_selected_parquet("icp_clusters"))
         major_section_header(
             "Expansão & Oportunidades para 2030",
-            "Mapeamento em nível de bairro e área ponderada. Localização dos clusters táticos e visualização de manchas de potencial de crescimento.",
+            "Mapeamento municipal de oportunidades demográficas e da base eleitoral para orientar a expansão territorial.",
         )
         render_vote_expansion()
 

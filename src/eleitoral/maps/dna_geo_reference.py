@@ -68,6 +68,17 @@ def load_tse_neighborhood_sector_crosswalk() -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def load_sector_ibge_crosswalk() -> pd.DataFrame:
+    """Exact sector keys and IBGE neighborhood attributes from the crosswalk."""
+    env = load_env()
+    path = geography_reference_path(env, "crosswalk_setor_bairro.parquet")
+    with hf_filesystem(env.get("HF_TOKEN")).open(path, "rb") as source:
+        return pd.read_parquet(source, columns=[
+            "id_unidade", "ibge_codigo_bairro_do_ponto", "ibge_bairro_do_ponto",
+        ])
+
+
+@st.cache_data(show_spinner=False)
 def load_area_ponderada_bairro_crosswalk() -> pd.DataFrame:
     """Map TSE reference neighborhoods to their weighted Census area."""
     env = load_env()

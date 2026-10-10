@@ -276,13 +276,20 @@ def _expansion_city_frame(
     return municipalities
 
 
-def _expansion_legend() -> None:
+def _expansion_legend(*, diagnostic: bool = False) -> None:
     items = [
         ("VERDE", "Oportunidade de expansão", "Potencial demográfico alto e boa aderência ao perfil."),
         ("AZUL", "Proteger a base", "Municípios com mais votos atuais; proteger essas bases."),
         ("AMARELO", "Potencial a desenvolver", "Há população em oportunidade, com menor aderência ao perfil."),
         ("CINZA", "Baixa similaridade", "Baixa similaridade, sem sinal de expansão ou sem dados completos."),
     ]
+    if diagnostic:
+        items = [
+            ("VERDE", "Oportunidade de expansão", "População estimada do ICP no quartil superior e participação acima da mediana nos setores associados."),
+            ("AZUL", "Proteger a base", "Quartil superior de votos nos setores associados com dados completos."),
+            ("AMARELO", "Potencial a desenvolver", "População estimada do ICP positiva, abaixo dos critérios da oportunidade alta."),
+            ("CINZA", "Sem potencial ou dados incompletos", "Sem população estimada positiva ou cobertura incompleta dos setores associados."),
+        ]
     cards = "".join(
         f'<div class="dna-expansion-legend-item" style="--class-color:{CLASS_COLORS[key]}"><div class="dna-expansion-class-badge"><span></span>{key}</div><h3>{title}</h3><p>{description}</p></div>'
         for key, title, description in items
@@ -318,7 +325,7 @@ def _expansion_map(city_data: pd.DataFrame) -> object | None:
     frame = frame.merge(city_data[display_cols], on="codigo_ibge", how="left")
     frame["classe_expansao"] = frame["classe_expansao"].fillna("CINZA")
     frame["votos_base"] = pd.to_numeric(frame["votos_base"], errors="coerce").fillna(0.0)
-    frame["oportunidade_demografica"] = pd.to_numeric(frame["oportunidade_demografica"], errors="coerce").fillna(0.0)
+    frame["oportunidade_demografica"] = pd.to_numeric(frame["oportunidade_demografica"], errors="coerce")
     frame["municipio"] = frame["nome"].fillna("Município")
     frame["classe_label"] = frame["classe_expansao"].map({
         "VERDE": "Pode buscar muitos votos",
@@ -338,9 +345,50 @@ def _expansion_map(city_data: pd.DataFrame) -> object | None:
     return fig
 
 
+def _diagnostic_city_frame(data: pd.DataFrame, clusters: pd.DataFrame | None = None, label: str = "ELEITOR IDEAL") -> pd.DataFrame:
+    """Read stage09b without treating partial sector coverage as municipal totals."""
+    if data is None or data.empty:
+        return pd.DataFrame()
+    data = data.copy()
+    if label != "ELEITOR IDEAL":
+        if clusters is None or "cluster_strategy_label" not in clusters:
+            return pd.DataFrame()
+        identifiers = pd.to_numeric(clusters.loc[clusters["cluster_strategy_label"].eq(label), "perfil_eleitor"], errors="coerce").dropna().unique()
+        data = data.loc[data["perfil_eleitor"].isin(identifiers)]
+    if data.empty:
+        return pd.DataFrame()
+    data["codigo_ibge"] = data["cd_ibge_municipio_setor"].astype("string")
+    # Missing estimates remain missing, even when known partial counts exist.
+    data["complete"] = data["cobertura_dados_completa"].fillna(False)
+    frame = data.groupby("codigo_ibge", as_index=False).agg(
+        votos_base=("votos_obtidos_2026", lambda x: x.sum(min_count=len(x))),
+        oportunidade_demografica=("populacao_estimada_icp", lambda x: x.sum(min_count=len(x))),
+        reference=("populacao_total_referencia", "first"),
+        complete=("complete", "all"),
+    )
+    frame["similaridade"] = frame["oportunidade_demografica"] / frame["reference"] * 100
+    frame["diferenca_media_absoluta"] = np.nan
+    frame["dimensoes_com_dados"] = frame["complete"].astype(int)
+    frame["classe_expansao"] = "CINZA"
+    valid = frame.loc[frame["complete"] & frame["similaridade"].between(0, 100) & frame["reference"].gt(0)]
+    if not valid.empty:
+        votes = valid.loc[valid["votos_base"].gt(0), "votos_base"].quantile(.75)
+        potential = valid.loc[valid["oportunidade_demografica"].gt(0), "oportunidade_demografica"].quantile(.75)
+        adherence = valid["similaridade"].median()
+        colors = pd.Series("CINZA", index=valid.index)
+        colors.loc[valid["oportunidade_demografica"].gt(0)] = "AMARELO"
+        colors.loc[valid["oportunidade_demografica"].ge(potential) & valid["similaridade"].ge(adherence) & valid["oportunidade_demografica"].gt(0)] = "VERDE"
+        colors.loc[valid["votos_base"].gt(0) & valid["votos_base"].ge(votes)] = "AZUL"
+        frame.loc[valid.index, "classe_expansao"] = colors
+    return frame
+
+
 def render_vote_expansion() -> None:
+    diagnostic_general = _read("diagnostico_geral")
+    diagnostic_clusters = _read("diagnostico_clusters")
+    diagnostic_mode = diagnostic_general is not None
     potential_general = _read("potencial_geral")
-    potential_clusters = _read("potencial_clusters")
+    potential_clusters = _read("icp_clusters") if diagnostic_mode else _read("potencial_clusters")
     labels = ["ELEITOR IDEAL"]
     if potential_clusters is not None and "cluster_strategy_label" in potential_clusters:
         labels.extend(sorted(
@@ -359,17 +407,22 @@ def render_vote_expansion() -> None:
     with control:
         selected_profile = st.selectbox("Perfil para expansão", labels, key="dna_expansion_profile")
     selected_potential = potential_general if selected_profile == "ELEITOR IDEAL" else potential_clusters
-    census_values = _census_area_profiles(
-        _read("censo_genero"), _read("censo_idade"), _read("censo_escolaridade")
-    )
-    city_data = _expansion_city_frame(
-        potential_general if potential_general is not None else pd.DataFrame(),
-        selected_potential if selected_potential is not None else pd.DataFrame(),
-        selected_profile,
-        census_values,
-    )
+    if diagnostic_mode:
+        city_data = _diagnostic_city_frame(
+            diagnostic_general if selected_profile == "ELEITOR IDEAL" else diagnostic_clusters,
+            potential_clusters, selected_profile,
+        )
+    else:
+        census_values = _census_area_profiles(
+            _read("censo_genero"), _read("censo_idade"), _read("censo_escolaridade")
+        )
+        city_data = _expansion_city_frame(
+            potential_general if potential_general is not None else pd.DataFrame(),
+            selected_potential if selected_potential is not None else pd.DataFrame(),
+            selected_profile, census_values,
+        )
     with cards_col:
-        _expansion_legend()
+        _expansion_legend(diagnostic=diagnostic_mode)
     with map_card:
         if city_data.empty:
             st.info("Ainda não há dados completos de Censo e potencial demográfico para montar este mapa.")
@@ -379,106 +432,17 @@ def render_vote_expansion() -> None:
             st.info("A malha municipal de Minas Gerais não está disponível.")
             return
         fig.update_layout(height=560, coloraxis_showscale=False, margin={"l": 0, "r": 0, "t": 8, "b": 0})
+        if diagnostic_mode:
+            fig.update_traces(hovertemplate=(
+                "<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos nos setores associados: %{customdata[1]:,.0f}"
+                "<br>População estimada do ICP: %{customdata[2]:,.0f}<br>Parcela do ICP na população de referência: %{customdata[3]:.1f}%<extra></extra>"
+            ))
+            st.plotly_chart(fig, width="stretch", height=560, key="dna_vote_expansion_map")
+            st.caption("Stage 09b: diagnóstico dos setores associados, sem representar totais municipais. Azul: quartil superior de votos; verde: quartil superior de população estimada do ICP e participação acima da mediana; amarelo: população estimada positiva; cinza: sem potencial ou dados incompletos. Clusters usam votos probabilísticos. Potencial não é previsão de votos.")
+            return
         st.plotly_chart(fig, width="stretch", height=560, key="dna_vote_expansion_map")
         st.caption(
             "O potencial combina a população acima da participação do ICP (`diferenca_pontos_percentuais` negativa) nas dimensões de gênero, idade e escolaridade. "
             "As faixas são relativas ao ICP selecionado: azul destaca o quartil superior de votos atuais; verde exige potencial demográfico no quartil superior e similaridade acima da mediana; "
             "amarelo indica oportunidade positiva com similaridade acima do quartil inferior. Potencial demográfico orienta busca territorial e não é previsão de votos."
         )
-
-
-
-def render_municipal_expansion() -> None:
-    """Display expansion at its source resolution: Census weighted areas."""
-    import html
-    from eleitoral.maps.dna_geo_reference import load_geo_layer, load_area_ponderada_bairro_crosswalk
-    from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options
-    from eleitoral.dna.demographic_alignment import weighted_area_geojson, area_neighborhoods
-
-    general = _read("potencial_geral")
-    clusters = _read("potencial_clusters")
-    labels = ["ELEITOR IDEAL"]
-    if clusters is not None and "cluster_strategy_label" in clusters:
-        labels.extend(sorted({str(v).strip() for v in clusters["cluster_strategy_label"].dropna() if str(v).strip()}))
-    st.html('''<style>
-    .st-key-dna_municipal_expansion_layout [class*="st-key-dna_municipal_class_"]{
-        padding:.9rem 1rem!important;border:1px solid rgba(177,211,255,.34)!important;
-        border-radius:16px!important;
-        background:linear-gradient(145deg,rgba(11,31,77,.76) 0%,rgba(7,24,54,.68) 100%)!important;
-        box-shadow:0 12px 30px rgba(1,8,24,.22)!important;box-sizing:border-box;
-    }
-    .dna-municipal-class-title{
-        display:inline-flex;align-items:center;max-width:100%;box-sizing:border-box;
-        padding:.4rem .75rem;border-radius:999px;color:#fff;font-weight:800;
-        font-size:.92rem;line-height:1.35;box-shadow:inset 0 1px 0 rgba(255,255,255,.15);
-    }
-    @media(min-width:900px){
-        .st-key-dna_municipal_expansion_layout > [data-testid="stHorizontalBlock"],
-        .st-key-dna_municipal_expansion_layout > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"]{align-items:stretch}
-        .st-key-dna_municipal_expansion_layout [data-testid="stColumn"] > [data-testid="stVerticalBlock"]{height:100%}
-        .st-key-dna_municipal_expansion_layout [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"]{gap:1rem}
-        .st-key-dna_municipal_expansion_layout [class*="st-key-dna_municipal_class_"]{flex:1;min-height:0}
-        .st-key-dna_municipal_expansion_layout .st-key-dna_potential_map_card{height:100%}
-    }
-    </style>''')
-    with st.container(key="dna_municipal_expansion_layout"):
-        map_col, cards_col = st.columns([0.70, 0.30], gap="large")
-    frame = pd.DataFrame()
-    descriptions = {
-        "VERDE": ("Oportunidade alta", "Potencial demogr\u00e1fico alto e boa ader\u00eancia ao perfil."),
-        "AZUL": ("Proteger a base", "\u00c1reas com mais votos atuais; proteger essas bases."),
-        "AMARELO": ("Oportunidade com menor ader\u00eancia", "H\u00e1 popula\u00e7\u00e3o em oportunidade, com menor ader\u00eancia ao perfil."),
-        "CINZA": ("Baixa similaridade ou dados incompletos", "Baixa similaridade, sem sinal de expans\u00e3o ou sem dados completos."),
-    }
-    with map_col:
-        with st.container(border=True, key="dna_potential_map_card"):
-            meso = st.selectbox("Mesorregi\u00e3o", ["Todas", *mesoregion_options()], key="dna_potential_mesorregiao")
-            choices = municipality_options(meso)
-            if not choices:
-                st.info("Nenhum munic\u00edpio dispon\u00edvel para a mesorregi\u00e3o selecionada.")
-                return
-            code = st.selectbox("Munic\u00edpio", [c for c, _ in choices], format_func=dict(choices).get,
-                                key=f"dna_potential_municipio_{meso}")
-            profile = st.selectbox("Perfil para expans\u00e3o", labels, key="dna_municipal_expansion_profile")
-            census = _census_area_profiles(_read("censo_genero"), _read("censo_idade"), _read("censo_escolaridade"))
-            results = _expansion_city_frame(
-                general if general is not None else pd.DataFrame(),
-                (general if profile == "ELEITOR IDEAL" else clusters), profile, census, by_area=True,
-            )
-            areas = load_geo_layer("area_ponderada")
-            areas = areas.loc[areas["code_muni"].astype("string").eq(code)].copy()
-            areas["area"] = areas["code_weighting"].astype("string").str.zfill(10)
-            areas["code_weighting"] = areas["area"]
-            areas = areas.drop_duplicates("area")
-            if areas.empty:
-                st.info("Malha de \u00e1reas ponderadas indispon\u00edvel para este munic\u00edpio.")
-                return
-            neighborhoods = area_neighborhoods(load_area_ponderada_bairro_crosswalk(), code)
-            frame = areas[["area"]].copy()
-            if results.empty:
-                st.info("Dados de Censo ou potencial indispon\u00edveis; as \u00e1reas permanecem neutras.")
-                frame["classe_expansao"] = "CINZA"
-                for col in ["votos_base", "oportunidade_demografica", "similaridade"]:
-                    frame[col] = np.nan
-            else:
-                frame = frame.merge(results, on="area", how="left", validate="one_to_one")
-                frame["classe_expansao"] = frame["classe_expansao"].fillna("CINZA")
-            frame["nome"] = "\u00c1rea ponderada " + frame["area"]
-            frame["bairros"] = frame["area"].map(neighborhoods).fillna("Sem bairro TSE vinculado")
-            frame["classe_label"] = frame["classe_expansao"].map({k: v[0] for k, v in descriptions.items()})
-            for col in ["votos_base", "oportunidade_demografica", "similaridade"]:
-                frame[col + "_label"] = frame[col].map(lambda v: "Indispon\u00edvel" if pd.isna(v) else f"{v:,.1f}".replace(",", "_").replace(".", ",").replace("_", "."))
-            fig = categorical_choropleth(frame, weighted_area_geojson(areas), location="area", category="classe_expansao",
-                categories=list(CLASS_COLORS), colors=list(CLASS_COLORS.values()), hover_name="nome",
-                custom_data=["classe_label", "votos_base_label", "oportunidade_demografica_label", "similaridade_label", "bairros"])
-            fig.update_layout(coloraxis_showscale=False)
-            fig.update_traces(hovertemplate="<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos da \u00e1rea: %{customdata[1]}<br>Oportunidade: %{customdata[2]}<br>Similaridade: %{customdata[3]}<br>Bairros TSE de refer\u00eancia: %{customdata[4]}<extra></extra>")
-            st.plotly_chart(fig, width="stretch", height=640, key="dna_municipal_expansion_map")
-            st.caption("M\u00e9tricas por \u00e1rea ponderada, vinculadas diretamente por c\u00f3digo IBGE. Bairros TSE s\u00e3o refer\u00eancias por ponto, sem rateio dos valores. As faixas usam todas as \u00e1reas dispon\u00edveis para o perfil: quartil superior dos votos para prote\u00e7\u00e3o; quartil superior da oportunidade e similaridade acima da mediana para verde. Amarelo exige oportunidade positiva e similaridade acima do quartil inferior. Potencial n\u00e3o \u00e9 previs\u00e3o de votos.")
-    with cards_col:
-        for category, (title, description) in descriptions.items():
-            count = int(frame["classe_expansao"].eq(category).sum())
-            with st.container(border=True, key=f"dna_municipal_class_{category.lower()}"):
-                st.html(f'<div class="dna-municipal-class-title" style="background:{CLASS_COLORS[category]}">{html.escape(title)}</div>')
-                st.metric("\u00c1reas ponderadas", count)
-                st.caption(description)

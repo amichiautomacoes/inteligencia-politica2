@@ -27,6 +27,7 @@ from eleitoral.deputados.emendas import render_emendas
 from eleitoral.deputados.neighborhood_elections import select_election, render_election_mode
 from eleitoral.common.neighborhood_voting import render_neighborhood_voting
 from eleitoral.common.financial_cards import financial_cards_html
+from eleitoral.common.resource_sources import render_resource_flow
 from eleitoral.common.contracted_paid import contracted_paid_cards_html, render_contracted_paid_chart, render_execution_filters
 from eleitoral.common.financial_charts import render_financial_charts
 from eleitoral.common.revenue_structure import render_revenue_charts, render_revenue_kpis, render_revenue_filters
@@ -3123,6 +3124,14 @@ def _render_cost_efficiency_section() -> None:
     render_contracted_paid_chart(
         execution_summary if execution_breakdown == "global" else execution_filtered,
         None if execution_breakdown == "global" else execution_breakdown,
+    )
+    _section_header(
+        "DA ORIGEM AO DESTINO: O CAMINHO DOS RECURSOS",
+        "Cruze as fontes de financiamento (FEFC, Fundo Partidário e Doações) com os pagamentos efetuados por categoria e fornecedor para entender para onde foi cada real da campanha.",
+    )
+    render_resource_flow(
+        _read_selected_parquet("receita_despesa_fontes"),
+        _read_selected_parquet("destinacao_fontes"),
     )
 
 

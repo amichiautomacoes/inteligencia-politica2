@@ -345,6 +345,8 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "resumo_financeiro": "gastos/stage05a_resumo_financeiro.parquet",
         "concentracao_doadores": "gastos/stage05b_concentracao_doadores.parquet",
         "execucao_resumo": "gastos/stage05d_execucao_resumo.parquet",
+        "receita_despesa_fontes": "gastos/stage05e_receita_despesa_fontes.parquet",
+        "destinacao_fontes": "gastos/stage05e_destinacao_fontes.parquet",
         "emendas_legislativa": (
             "emendas/emendas_legislativa.parquet",
             "emendas/emendas_municipais.parquet",

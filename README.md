@@ -422,9 +422,13 @@ A abertura de Votação por Bairros dentro dos municípios usa major_section_hea
 
 ### Alinhamento do Balanço Macro
 
+O Balanço Macro & Liquidez de Caixa apresenta somente três cards expansíveis: Arrecadação (Receitas), Compromissos (Despesas) e Liquidez & Saúde do Caixa. Volume de Lançamentos foi removido. Os três dividem igualmente toda a largura do cabeçalho da subseção, com espaçamento de 16 px; abaixo de 900 px, ficam empilhados. Esta regra substitui as referências anteriores a quatro cards.
+
 O card Composição das Receitas e sua rosca usam altura extensível para acompanhar o conjunto DRE Simplificada e Comprometimento Orçamentário na coluna direita. As bordas superiores e inferiores ficam alinhadas, eliminando a sobra externa abaixo do card esquerdo. O layout mantém duas colunas de mesma largura e o empilhamento responsivo do Streamlit.
 
 ### Subseção 4 — Contratado × Pago
+
+Atualização vigente: Indicadores de Alerta / Distorções foi removido. Restam três cards em colunas iguais, ocupando toda a largura da seção: Total Contratado vs. Total Pago, Taxa de Execução Geral e Saldo em Aberto. O primeiro usa `details/summary`, começa fechado e revela os dois totais ao expandir. A grade empilha abaixo de 900 px. Esta regra substitui a composição anterior de quatro cards.
 
 Após a Estrutura da Receita, o cabeçalho interno **Contratado × Pago** usa o subtítulo **A importância da análise de passivos, prazos e distorções entre contratos e pagamentos.** Quatro cards executivos aparecem lado a lado: Total Contratado vs. Total Pago, Taxa de Execução Geral, Saldo em Aberto e Indicadores de Alerta / Distorções. O último é expansível e começa fechado, mostrando ao abrir excesso pago conhecido, contratado sem pagamento e defasagem média conhecida em dias. O layout segue os cards azuis e badges verdes, passando para duas colunas abaixo de 1100 px e uma abaixo de 600 px.
 
@@ -455,6 +459,10 @@ Os 50% direitos da última subseção apresentam o card **Para onde vai?**, com 
 A tabela ordena `valor_pago` em ordem decrescente e mostra fonte, `grupo_descricao`, `nr_cpf_cnpj_fornecedor`, natureza da despesa quando disponível, valor pago em reais e `pct_total_pago`. CPF/CNPJ permanece texto, preservando zeros iniciais; valores ausentes não viram zero. Os percentuais mantêm o total pago da campanha como referência, sem renormalização após filtrar fonte. Filtros têm estado por candidato e atuam apenas na tabela. Ausência de fonte ou recorte recebe mensagem específica, sem impedir o gráfico esquerdo. Esta composição substitui a reserva anterior da metade direita para um gráfico futuro.
 
 ### Filtros da Estrutura da Receita
+
+A tabela Ranking do recorte não exibe CPF/CNPJ. O documento permanece na base de dados, mas é excluído da tabela renderizada.
+
+O card Índice de Concentração da Receita foi removido da renderização. O gráfico de doadores e o Ranking do recorte ficam lado a lado em duas colunas iguais, alinhadas pelo topo e ocupando a largura da seção. Quando somente um deles tem dados, ocupa a largura disponível sem coluna vazia. Os filtros e KPIs permanecem. Esta regra substitui as referências anteriores à rosca de concentração.
 
 Acima dos cards, três selectboxes controlam toda a subseção: **Tipo de Doador** (Imediato ou Originário), **Top 10 vs. Todos** e **Cobertura & Status da Atribuição** (todas as situações ou um status disponível). O padrão é Imediato / Top 10 / Todas as situações. O recorte se aplica aos KPIs, barras, concentração e tabela; Todos expande também as barras. `eh_top10` controla o recorte, com fallback para ranks 1 a 10 quando a coluna não existe. Ranks não são recalculados ao filtrar status. Esta regra substitui a restrição anterior a doadores imediatos.
 

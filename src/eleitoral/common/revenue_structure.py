@@ -183,11 +183,12 @@ def donor_audit_table(frame: pd.DataFrame | None, *, donor_type: str | None = "i
 
 def render_revenue_charts(frame: pd.DataFrame | None, *, top_only: bool = True) -> None:
     fig = top_donors_figure(frame, donor_type=None, top_only=top_only)
-    concentration = donor_concentration_figure(frame, donor_type=None)
     table = donor_audit_table(frame, donor_type=None)
-    if fig is None and concentration is None and table.empty:
+    if fig is None and table.empty:
         return
-    ranking_col, details_col = st.columns([0.5, 0.5], gap="large")
+    columns = st.columns(int(fig is not None) + int(not table.empty), gap="large", vertical_alignment="top")
+    ranking_col = columns[0]
+    details_col = columns[-1]
     with ranking_col:
         if fig is not None:
             with st.container(border=True, key="pagina1_top_donors"):
@@ -195,20 +196,14 @@ def render_revenue_charts(frame: pd.DataFrame | None, *, top_only: bool = True) 
                 st.caption("Principais financiadores da campanha por valor atribuído.")
                 st.plotly_chart(fig, width="stretch", key="pagina1_top_donors_chart", config={"displayModeBar": False})
     with details_col:
-        if concentration is not None:
-            with st.container(border=True, key="pagina1_donor_concentration"):
-                st.markdown("### Índice de Concentração da Receita")
-                st.caption("Participação dos 10 maiores doadores no orçamento da campanha.")
-                st.plotly_chart(concentration, width="stretch", key="pagina1_donor_concentration_chart", config={"displayModeBar": False})
         if not table.empty:
             with st.container(border=True, key="pagina1_donor_audit"):
                 st.markdown("### Ranking do recorte")
                 st.caption("Detalhamento dos doadores selecionados para conferência individualizada.")
                 with st.expander("Ver detalhamento dos doadores", expanded=False):
-                    st.dataframe(table, hide_index=True, width="stretch", column_config={
+                    st.dataframe(table.drop(columns=["nr_cpf_cnpj_doador"], errors="ignore"), hide_index=True, width="stretch", column_config={
                         "rank_doador": st.column_config.NumberColumn("Posição", format="%d"),
                         "nm_doador": st.column_config.TextColumn("Doador", width="large"),
-                        "nr_cpf_cnpj_doador": st.column_config.TextColumn("CPF / CNPJ"),
                         "valor_atribuido": st.column_config.TextColumn("Valor atribuído (R$)"),
                         "pct_receita_total": st.column_config.ProgressColumn("% da receita total", min_value=0, max_value=100, format="%.2f%%"),
                         "qt_receitas_vinculadas": st.column_config.NumberColumn("Receitas vinculadas", format="%d"),

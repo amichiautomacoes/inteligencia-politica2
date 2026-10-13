@@ -189,19 +189,15 @@ def contracted_paid_cards_html(frame: pd.DataFrame | None, breakdown: str = "glo
         balance_label = "Saldo Líquido"
         balance_description = "Saldo líquido informado na conciliação; excessos de pagamento podem compensar passivos."
     outstanding = indicator(balance_label, balance, balance_description)
-    alerts = indicator("Pagamentos acima do contratado", values["excesso_pago_conhecido"], "Excesso pago conhecido na conciliação.")
-    alerts += indicator("Contratado sem pagamento", values["contratado_sem_pagamento"], "Compromissos com quitação zero.")
-    alerts += indicator("Defasagem média conhecida", values["defasagem_media_conhecida_dias"], "Intervalo entre contratação e pagamento; valor negativo indica antecipação.", days=True)
-    cards = "".join(
+    cards = ('<details class="execution-card execution-expandable"><summary>'
+             '<h3>Total Contratado vs. Total Pago</h3><span class="execution-chevron" aria-hidden="true">⌄</span>'
+             f'</summary><div class="execution-expanded-content">{volume}</div></details>')
+    cards += "".join(
         f'<article class="execution-card"><h3>{title}</h3>{body}</article>'
-        for title, body in (("Total Contratado vs. Total Pago", volume),
-                            ("Taxa de Execução Geral", execution), ("Saldo em Aberto", outstanding))
+        for title, body in (("Taxa de Execução Geral", execution), ("Saldo em Aberto", outstanding))
     )
-    cards += ('<details class="execution-card execution-alerts"><summary>'
-              '<h3>Indicadores de Alerta / Distorções</h3><span class="execution-chevron" aria-hidden="true">⌄</span>'
-              f'</summary><div class="execution-alert-content">{alerts}</div></details>')
     return '''<style>
-    .execution-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;align-items:start;margin:18px 0 28px}
+    .execution-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start;width:100%;margin:18px 0 28px}
     .execution-card{min-width:0;box-sizing:border-box;min-height:190px;padding:22px;border:1px solid rgba(96,165,250,.3);border-radius:14px;background:linear-gradient(145deg,rgba(11,31,77,.76),rgba(7,24,54,.68));box-shadow:0 12px 30px rgba(0,0,0,.14);color:#eaf2ff}
     .execution-card h3{display:inline-block;margin:0 0 18px;padding:8px 12px;border-radius:10px;background:#15803d;color:white;font-size:1.05rem;font-weight:800;line-height:1.4}
     .execution-indicator h4{margin:0 0 10px;color:#eaf2ff;font-size:1rem}
@@ -212,12 +208,13 @@ def contracted_paid_cards_html(frame: pd.DataFrame | None, breakdown: str = "glo
     .execution-neutral{background:rgba(147,197,253,.12);color:#bfdbfe}
     .execution-positive{background:rgba(22,163,74,.18);color:#86efac}
     .execution-warning{background:rgba(234,179,8,.18);color:#fde68a}
-    .execution-alerts summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;list-style:none}
-    .execution-alerts summary::-webkit-details-marker{display:none}
-    .execution-alerts summary:focus-visible{outline:2px solid #93c5fd;outline-offset:5px}
+    .execution-expandable summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:144px;cursor:pointer;list-style:none}
+    .execution-expandable summary h3{margin-bottom:0}
+    .execution-expandable summary::-webkit-details-marker{display:none}
+    .execution-expandable summary:focus-visible{outline:2px solid #93c5fd;outline-offset:5px}
     .execution-chevron{font-size:1.5rem;color:#93c5fd;transition:transform .2s}
-    .execution-alerts[open] .execution-chevron{transform:rotate(180deg)}
-    .execution-alert-content{margin-top:18px;padding-top:20px;border-top:1px solid rgba(147,197,253,.2)}
-    @media(max-width:1100px){.execution-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .execution-expandable[open] .execution-chevron{transform:rotate(180deg)}
+    .execution-expanded-content{margin-top:18px;padding-top:20px;border-top:1px solid rgba(147,197,253,.2)}
+    @media(max-width:900px){.execution-grid{grid-template-columns:1fr}}
     @media(max-width:600px){.execution-grid{grid-template-columns:1fr}}
     </style><div class="execution-grid" role="group" aria-label="Contratado versus pago">''' + cards + '</div>'

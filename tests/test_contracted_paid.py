@@ -72,5 +72,5 @@ class ContractedPaidTests(unittest.TestCase):
         self.assertIsNone(values["excesso_pago_conhecido"])
         markup = contracted_paid_cards_html(frame)
         self.assertIn("Saldo Líquido", markup)
-        self.assertIn("-2,0 dias", markup)
-        self.assertIn('<details class="execution-card execution-alerts">', markup)
+        self.assertNotIn("Indicadores de Alerta", markup)
+        self.assertIn('<details class="execution-card execution-expandable"><summary><h3>Total Contratado vs. Total Pago</h3>', markup)

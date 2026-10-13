@@ -60,13 +60,11 @@ def financial_cards_html(frame: pd.DataFrame | None = None) -> str:
         + _indicator("Despesas Pagas", values["despesa_paga"], "Total executado e quitado."),
         _indicator("Saldo Líquido / Resultado", values["resultado"], "Receita financeira − despesas pagas.", status=True)
         + _indicator("Saldo a Pagar", values["saldo_a_pagar"], "Despesas contratadas − despesas pagas. Passivo pendente a ser quitado até o fim da prestação."),
-        "",
     )
     titles = (
         "Arrecadação (Receitas)",
         "Compromissos (Despesas)",
         "Liquidez & Saúde do Caixa",
-        "Volume de Lançamentos",
     )
     cards = "".join(
         '<details class="financial-overview-card">'
@@ -77,7 +75,7 @@ def financial_cards_html(frame: pd.DataFrame | None = None) -> str:
         for title, content in zip(titles, contents)
     )
     return """<style>
-    .financial-overview-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;align-items:start;margin:18px 0 28px}
+    .financial-overview-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start;width:100%;margin:18px 0 28px}
     .financial-overview-card {min-width:0;overflow:hidden;border:1px solid rgba(96,165,250,.3);border-radius:14px;background:linear-gradient(145deg,rgba(11,31,77,.76),rgba(7,24,54,.68));color:#eaf2ff;box-shadow:0 12px 30px rgba(0,0,0,.14)}
     .financial-overview-card[open] {border-color:rgba(147,197,253,.5)}
     .financial-overview-card summary {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:132px;box-sizing:border-box;padding:20px 18px;cursor:pointer;list-style:none}
@@ -96,6 +94,6 @@ def financial_cards_html(frame: pd.DataFrame | None = None) -> str:
     .financial-status-positive {background:rgba(22,163,74,.18);color:#86efac}
     .financial-status-negative {background:rgba(220,38,38,.18);color:#fca5a5}
     .financial-status-neutral {background:rgba(147,197,253,.12);color:#bfdbfe}
-    @media(max-width:1100px) {.financial-overview-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:900px) {.financial-overview-grid {grid-template-columns:1fr}}
     @media(max-width:600px) {.financial-overview-grid {grid-template-columns:1fr}.financial-overview-card summary {min-height:110px}}
     </style><div class="financial-overview-grid" role="group" aria-label="Balanço macro e liquidez de caixa">""" + cards + "</div>"

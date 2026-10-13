@@ -27,8 +27,9 @@ from eleitoral.deputados.emendas import render_emendas
 from eleitoral.deputados.neighborhood_elections import select_election, render_election_mode
 from eleitoral.common.neighborhood_voting import render_neighborhood_voting
 from eleitoral.common.financial_cards import financial_cards_html
+from eleitoral.common.contracted_paid import contracted_paid_cards_html, render_contracted_paid_chart, render_execution_filters
 from eleitoral.common.financial_charts import render_financial_charts
-from eleitoral.common.revenue_structure import render_revenue_charts, render_revenue_kpis
+from eleitoral.common.revenue_structure import render_revenue_charts, render_revenue_kpis, render_revenue_filters
 from eleitoral.common.raio_x_cards import _format_number, _format_percent, _normalized_text, _map_side_card
 from eleitoral.common.shared_header import apply_shared_visual_model, render_page_header
 
@@ -3109,8 +3110,20 @@ def _render_cost_efficiency_section() -> None:
         "Origem e concentração dos recursos da campanha",
     )
     donor_summary = _read_selected_parquet("concentracao_doadores")
-    render_revenue_kpis(donor_summary)
-    render_revenue_charts(donor_summary)
+    donor_summary, top_only = render_revenue_filters(donor_summary)
+    render_revenue_kpis(donor_summary, donor_type=None)
+    render_revenue_charts(donor_summary, top_only=top_only)
+    _section_header(
+        "Contratado × Pago",
+        "A importância da análise de passivos, prazos e distorções entre contratos e pagamentos.",
+    )
+    execution_summary = _read_selected_parquet("execucao_resumo")
+    execution_filtered, execution_breakdown = render_execution_filters(execution_summary)
+    st.html(contracted_paid_cards_html(execution_filtered, execution_breakdown))
+    render_contracted_paid_chart(
+        execution_summary if execution_breakdown == "global" else execution_filtered,
+        None if execution_breakdown == "global" else execution_breakdown,
+    )
 
 
 _apply_visual_model()

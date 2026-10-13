@@ -396,3 +396,28 @@ O primeiro card lateral da votação por bairros segue o padrão do histórico d
 Na seção Votação por Bairros dentro dos municípios, o mapa de intensidade usa somente o total de votos municipal para escolher a escala: linear até 1.000 (inclusive) e logarítmica acima de 1.000. Não há cor uniforme para municípios pequenos nem fator de cobertura por quantidade de bairros, áreas ou setores. O máximo de votos associado usa toda a faixa de intensidade. Os históricos comparativos e a Projeção 2030 mantêm suas cores categóricas, pois representam classes e não intensidade.
 
 A abertura de Votação por Bairros dentro dos municípios usa major_section_header(), compartilhando a faixa principal das demais seções do Raio X.
+
+
+### Alinhamento do Balanço Macro
+
+O card Composição das Receitas e sua rosca usam altura extensível para acompanhar o conjunto DRE Simplificada e Comprometimento Orçamentário na coluna direita. As bordas superiores e inferiores ficam alinhadas, eliminando a sobra externa abaixo do card esquerdo. O layout mantém duas colunas de mesma largura e o empilhamento responsivo do Streamlit.
+
+### Subseção 4 — Contratado × Pago
+
+Após a Estrutura da Receita, o cabeçalho interno **Contratado × Pago** usa o subtítulo **A importância da análise de passivos, prazos e distorções entre contratos e pagamentos.** Quatro cards executivos aparecem lado a lado: Total Contratado vs. Total Pago, Taxa de Execução Geral, Saldo em Aberto e Indicadores de Alerta / Distorções. O último é expansível e começa fechado, mostrando ao abrir excesso pago conhecido, contratado sem pagamento e defasagem média conhecida em dias. O layout segue os cards azuis e badges verdes, passando para duas colunas abaixo de 1100 px e uma abaixo de 600 px.
+
+O alias `execucao_resumo` lê `gastos/stage05d_execucao_resumo.parquet` da base anual selecionada. Usa exclusivamente a linha `recorte=global`, sem somar categorias e fornecedores. Campos monetários usam Decimal. O saldo prioriza `saldo_em_aberto`; o fallback `saldo_liquido` recebe identificação e explicação próprias. A taxa vem de `taxa_execucao_pct`, sem média de percentuais dos recortes nem limite em 100%. A badge indica execução não iniciada (0%), parcial (entre 0 e 100%), integral (100%) ou pagamento acima do contratado (>100%); não infere atraso por calendário. Ausências, valores inválidos e resumo global ambíguo aparecem como Indisponível. Zero válido e defasagem negativa são preservados. A subseção é compartilhada entre cargos e independente dos filtros de doadores.
+
+### Filtros de Contratado × Pago
+
+Antes dos KPIs, **Recorte da análise** alterna Global / Geral da Campanha, Por Categoria de Despesa e Por Fornecedor. Global é o padrão e usa a linha global nos KPIs, mantendo o comparativo por categorias ou Top 10 Fornecedores no gráfico. Categoria e Fornecedor exibem um segundo selectbox para escolher o grupo; os quatro cards e o gráfico passam a usar exclusivamente esse grupo, sem somar outros recortes nem fazer médias de taxas e prazos. Os rótulos priorizam `categoria` e `nm_fornecedor` quando presentes, com fallback para `grupo_descricao` do resumo atual. A chave de seleção é `grupo_chave`, preservando fornecedores homônimos como grupos distintos. Seleções têm estado por candidato e tipo de recorte. Ausência de grupos gera mensagem e indicadores indisponíveis. Esta regra substitui a restrição anterior dos KPIs ao resumo global.
+
+### Gráfico comparativo de Contratado × Pago
+
+Abaixo dos quatro cards, um card de largura integral apresenta barras horizontais agrupadas: Contratado em azul e Pago em ciano, com valores em reais nas pontas. O seletor **Comparar por** alterna Categoria e Top 10 Fornecedores, usando exclusivamente o respectivo `recorte` do stage 05d. A ordem usa o maior valor entre contratado e pago; fornecedores ficam limitados aos dez primeiros, sem promover posições posteriores quando um registro tem dados inválidos. Nomes quebram em linhas e a altura acompanha os grupos. O hover informa valores e diferença, distinguindo saldo ainda não pago de pagamento acima do contratado. Zero válido aparece como zero; dados incompletos não viram zero e recebem nota de cobertura. Grupos duplicados tornam a comparação indisponível. A nota explica que diferenças de volume não comprovam atraso, retenção ou adiantamento sem datas e prazos contratuais. O seletor tem estado por candidato e não altera os KPIs globais.
+
+### Filtros da Estrutura da Receita
+
+Acima dos cards, três selectboxes controlam toda a subseção: **Tipo de Doador** (Imediato ou Originário), **Top 10 vs. Todos** e **Cobertura & Status da Atribuição** (todas as situações ou um status disponível). O padrão é Imediato / Top 10 / Todas as situações. O recorte se aplica aos KPIs, barras, concentração e tabela; Todos expande também as barras. `eh_top10` controla o recorte, com fallback para ranks 1 a 10 quando a coluna não existe. Ranks não são recalculados ao filtrar status. Esta regra substitui a restrição anterior a doadores imediatos.
+
+A badge apresenta `cobertura_atribuicao_pct`, `situacao_atribuicao` e `qt_vinculos_pendentes`. Cobertura e pendências repetidas usam valores únicos válidos, sem soma; ausências ou divergências ficam indisponíveis. Status diferente de completa ou pendências positivas geram aviso. Percentuais mantêm a receita total como referência; a concentração representa os registros Top 10 presentes no recorte. A tabela se chama Ranking do recorte. Seleções são independentes por candidato e status por tipo de doador. Recorte vazio recebe mensagem explícita.

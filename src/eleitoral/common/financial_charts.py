@@ -47,7 +47,7 @@ def revenue_composition_figure(frame: pd.DataFrame | None) -> go.Figure | None:
 
 
 def render_revenue_composition(frame: pd.DataFrame | None) -> None:
-    with st.container(border=True, key="pagina1_revenue_composition"):
+    with st.container(border=True, key="pagina1_revenue_composition", height="stretch"):
         st.markdown("### Composição das Receitas")
         st.caption("Entrada financeira e doações de bens e serviços na arrecadação da campanha.")
         fig = revenue_composition_figure(frame)
@@ -57,7 +57,7 @@ def render_revenue_composition(frame: pd.DataFrame | None) -> None:
             st.info("Sem receitas registradas para compor o gráfico." if both_zero else
                     "Composição das receitas indisponível: são necessários valores completos e não negativos de receita financeira e estimável.")
             return
-        st.plotly_chart(fig, width="stretch", key="pagina1_revenue_donut", config={"displayModeBar": False})
+        st.plotly_chart(fig, width="stretch", height="stretch", key="pagina1_revenue_donut", config={"displayModeBar": False})
         values = financial_values(frame)
         amounts = [values["receita_financeira"], values["receita_estimavel"]]
         total = sum(amounts)

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pandas as pd
 
-from src.eleitoral.common.revenue_structure import donor_audit_table, donor_concentration_figure, donor_kpis, top_donors_figure
+from src.eleitoral.common.revenue_structure import filter_donors, donor_audit_table, donor_concentration_figure, donor_kpis, top_donors_figure
 
 
 class DonorKpiTests(unittest.TestCase):
@@ -64,3 +64,23 @@ class DonorKpiTests(unittest.TestCase):
         values = donor_kpis(frame)
         self.assertEqual(values["top10"], 70)
         self.assertIsNone(values["coverage"])
+
+
+class DonorFilterTests(unittest.TestCase):
+    def test_original_type_top_flag_and_status_share_one_scope(self):
+        frame = pd.DataFrame([
+            dict(tipo_doador="imediato", rank_doador=1, eh_top10=True, situacao_atribuicao="completa"),
+            dict(tipo_doador="originario", rank_doador=1, eh_top10=True, situacao_atribuicao="parcial", nm_doador="Fundo", valor_atribuido=20),
+            dict(tipo_doador="originario", rank_doador=11, eh_top10=False, situacao_atribuicao="completa", nm_doador="Outro", valor_atribuido=10),
+        ])
+        selected = filter_donors(frame, "originario", True, "parcial")
+        self.assertEqual(selected["nm_doador"].tolist(), ["Fundo"])
+        self.assertEqual(donor_kpis(selected, donor_type=None)["name"], "Fundo")
+        self.assertEqual(len(donor_audit_table(selected, donor_type=None)), 1)
+        all_original = filter_donors(frame, "originario", False, "Todas as situações")
+        self.assertEqual(list(top_donors_figure(all_original, donor_type=None, top_only=False).data[0].x), [20, 10])
+
+    def test_missing_top_flag_falls_back_to_rank_without_promoting(self):
+        frame = pd.DataFrame([dict(rank_doador=2), dict(rank_doador=11)])
+        self.assertEqual(filter_donors(frame, "imediato", True, "Todas as situações")["rank_doador"].tolist(), [2])
+        self.assertTrue(filter_donors(frame, "originario", False, "Todas as situações").empty)

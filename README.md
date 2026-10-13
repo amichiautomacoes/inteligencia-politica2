@@ -226,7 +226,17 @@ O mapa tem 640 px; os quatro cards contam **Bairros** em BH e **Áreas** nos dem
 
 ### EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
 
-Após as visualizações do balanço macro, a subseção 2 **Estrutura da receita (de onde veio o dinheiro)** apresenta seu card de cabeçalho interno, compartilhado entre vereadores e deputados. O conteúdo analítico será definido em etapa posterior.
+Layout atual da subseção 1: a composição das receitas ocupa a coluna esquerda (50%); a coluna direita (50%) reúne os cards de funil e comprometimento orçamentário empilhados. O gauge deixa de ocupar uma linha independente centralizada.
+
+Na metade direita do ranking de doadores, dois cards empilhados mostram a concentração e o ranking completo. A rosca usa a participação do Top 10; quando a cobertura é conhecida, separa os demais doadores identificados da receita sem atribuição. O ranking completo usa `st.dataframe` somente para leitura dentro de expander, com posição, nome, CPF/CNPJ como texto, valor em reais, percentual com barra de progresso e quantidade de receitas vinculadas. Ambos usam doadores imediatos; visualizações sem dados são omitidas.
+
+Após os KPIs da receita, o ranking **Top 10 Doadores** usa barras horizontais `go.Bar` com `nm_doador` e `valor_atribuido` dos ranks 1 a 10 de doadores imediatos. Ocupa os 50% esquerdos da linha. Registros sem nome/valor válido são omitidos, sem promover ranks posteriores ao décimo; sem dados válidos, o gráfico fica oculto.
+
+Os KPIs de doadores usam somente `tipo_doador=imediato` quando a coluna existe, evitando misturar o ranking originário com o imediato. Cada KPI sem dados é omitido; sem indicadores disponíveis, a linha de cards não é desenhada. Essa regra substitui a exibição de Indisponível nos KPIs da estrutura da receita.
+
+A subseção Estrutura da Receita usa `gastos/stage05b_concentracao_doadores.parquet` (alias `concentracao_doadores`) do candidato selecionado. Quatro KPIs mostram nome/valor do rank 1, soma de `pct_receita_total` dos ranks 1 a 10, valor único de `cobertura_atribuicao_pct` e quantidade de registros do ranking unificado. Com menos de dez doadores, soma os existentes. Cobertura repetida não é somada; campos ausentes ou inconsistentes ficam indisponíveis. A leitura e os cards são compartilhados entre cargos.
+
+Após as visualizações do balanço macro, a subseção 2 **ESTRUTURA DA RECEITA**, com subtítulo **Origem e concentração dos recursos da campanha**, apresenta seu card de cabeçalho interno, compartilhado entre vereadores e deputados. O conteúdo analítico será definido em etapa posterior.
 
 Centralizado abaixo da rosca e do funil, o gauge de comprometimento calcula `despesa_contratada / receita_total * 100`. Exige receita positiva e despesas não negativas; ausências não viram zero. O percentual não é limitado a 100%; acima disso, a escala se amplia e uma nota explica o excesso de compromissos.
 

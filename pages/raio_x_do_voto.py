@@ -28,6 +28,7 @@ from eleitoral.deputados.neighborhood_elections import select_election, render_e
 from eleitoral.common.neighborhood_voting import render_neighborhood_voting
 from eleitoral.common.financial_cards import financial_cards_html
 from eleitoral.common.financial_charts import render_financial_charts
+from eleitoral.common.revenue_structure import render_revenue_charts, render_revenue_kpis
 from eleitoral.common.raio_x_cards import _format_number, _format_percent, _normalized_text, _map_side_card
 from eleitoral.common.shared_header import apply_shared_visual_model, render_page_header
 
@@ -3103,7 +3104,13 @@ def _render_cost_efficiency_section() -> None:
     financial_summary = _read_selected_parquet("resumo_financeiro")
     st.markdown(financial_cards_html(financial_summary), unsafe_allow_html=True)
     render_financial_charts(financial_summary)
-    _section_header("Estrutura da receita (de onde veio o dinheiro)")
+    _section_header(
+        "ESTRUTURA DA RECEITA",
+        "Origem e concentração dos recursos da campanha",
+    )
+    donor_summary = _read_selected_parquet("concentracao_doadores")
+    render_revenue_kpis(donor_summary)
+    render_revenue_charts(donor_summary)
 
 
 _apply_visual_model()

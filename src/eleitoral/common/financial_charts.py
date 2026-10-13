@@ -141,8 +141,6 @@ def render_financial_charts(frame: pd.DataFrame | None) -> None:
             else:
                 st.plotly_chart(fig, width="stretch", key="pagina1_budget_funnel_chart", config={"displayModeBar": False})
                 st.caption("As etapas mostram os totais informados, sem subtração entre barras. Obrigações contratadas podem superar a receita; a largura preserva esses valores.")
-    _, gauge_col, _ = st.columns([1, 2, 1], gap="large")
-    with gauge_col:
         with st.container(border=True, key="pagina1_budget_commitment"):
             st.html('<h3 style="text-align:center">Comprometimento Orçamentário</h3>')
             fig = budget_commitment_figure(frame)

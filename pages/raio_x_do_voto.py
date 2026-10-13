@@ -10,20 +10,17 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from streamlit_plotly_events2 import plotly_events
 
 from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, file_by_kind, hf_filesystem, hf_visualizacao_path, load_env, load_parquet, selected_deputado_files
 from eleitoral.maps.bh_projection import bh_projection_map_frame as _bh_projection_map_frame
 from eleitoral.maps.dna_geo_reference import load_geo_reference
 from eleitoral.maps.choropleth_maps import (
-    ACTION_COLORS,
     LOCAL_STRENGTH_COLORS,
     LOCAL_STRENGTH_ICONS,
     LOCAL_STRENGTH_LABELS,
     LOCAL_STRENGTH_LEGEND,
     local_political_strength_map,
     local_political_strength_municipality_map,
-    parliamentary_map,
     territorial_map,
 )
 from eleitoral.maps.territorial_mesh import (
@@ -127,10 +124,6 @@ def _apply_visual_model() -> None:
             box-shadow: none;
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
-        }}
-        .st-key-parliamentary-map-container [data-testid="stVerticalBlockBorderWrapper"] {{
-            padding-left: 0 !important;
-            padding-right: 0 !important;
         }}
         .mapa-major-section {{
             position: relative;
@@ -884,6 +877,7 @@ def _selected_deputado_label() -> dict[str, str]:
     cargo = str(filters.get("cargo") or "Deputado").replace("_", " ").title()
     cargo_labels = {
         "Estaduais": "Deputado Estadual",
+        "Dep Estaduais": "Deputado Estadual",
         "Federais": "Deputado Federal",
         "Vereadores": "Vereador",
     }
@@ -3343,764 +3337,15 @@ def _selected_expense_from_treemap(clicked_points: list[dict], display_df: pd.Da
     return None
 
 
-def _render_cost_efficiency_section(
-    votos_df: pd.DataFrame | None,
-    gastos_por_tipo_df: pd.DataFrame | None,
-) -> None:
+def _render_cost_efficiency_section() -> None:
     _major_section_header(
-        "Eficiência por Custo do Voto",
-        "Participação de cada tipo de despesa nos gastos totais da campanha.",
+        "EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO",
+        "Análise do retorno do investimento eleitoral: veja onde o orçamento foi alocado e quanto custou a conquista de cada voto.",
     )
-    chart_df = _expense_cost_by_type_frame(gastos_por_tipo_df, _campaign_total_votes(votos_df))
-    if chart_df.empty:
-        st.info("Dados de gastos por tipo ou votos da campanha indisponíveis para este candidato.")
-        return
-
-    selected_expense = st.session_state.get(EXPENSE_SELECTION_KEY)
-    if selected_expense not in chart_df["tipo_despesa"].values:
-        selected_expense = None
-        st.session_state.pop(EXPENSE_SELECTION_KEY, None)
-    selected_expense_label = _short_expense_type_label(selected_expense) if selected_expense else None
-    _render_cost_efficiency_kpis(chart_df, selected_expense)
-
-    with st.container(key="expense-layout"):
-        treemap_col, future_col = st.columns([0.75, 0.25], gap="medium")
-        with treemap_col:
-            with st.container(border=True):
-                treemap_title = (
-                    f"Gastos por tipo de despesa · filtrando {selected_expense_label}"
-                    if selected_expense_label else "Gastos por tipo de despesa"
-                )
-                st.markdown(
-                    f"<div class='raiox-chart-card-title'>{html.escape(treemap_title)}</div>",
-                    unsafe_allow_html=True,
-                )
-                if selected_expense and st.button("Mostrar gasto total", key="pagina1_reset_tipo_despesa"):
-                    st.session_state.pop(EXPENSE_SELECTION_KEY, None)
-                    st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
-                        st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
-                    )
-                    st.rerun()
-                clicked_points = plotly_events(
-                    _expense_cost_by_type_chart(chart_df, selected_expense),
-                    click_event=True,
-                    select_event=False,
-                    hover_event=False,
-                    override_height=620,
-                    override_width="100%",
-                    key=f"{EXPENSE_TREEMAP_KEY}_{st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0)}",
-                )
-                st.caption(
-                    "Áreas ajustadas para facilitar a leitura das despesas menores; "
-                    "percentuais e valores exibidos correspondem aos gastos reais."
-                )
-                clicked_expense = _selected_expense_from_treemap(
-                    clicked_points, _expense_treemap_display_frame(chart_df)
-                )
-                if clicked_expense and clicked_expense != selected_expense:
-                    st.session_state[EXPENSE_SELECTION_KEY] = clicked_expense
-                    st.session_state[EXPENSE_TREEMAP_REVISION_KEY] = (
-                        st.session_state.get(EXPENSE_TREEMAP_REVISION_KEY, 0) + 1
-                    )
-                    st.rerun()
-        with future_col:
-            _render_expense_cost_insight(chart_df, selected_expense)
-            _render_expense_budget_insight(chart_df, selected_expense)
-            _render_expense_average_comparison(chart_df, selected_expense)
-
-
-def _parliamentary_action_frame(
-    votos_df: pd.DataFrame | None,
-    emendas_df: pd.DataFrame | None,
-) -> pd.DataFrame:
-    if votos_df is None or votos_df.empty or emendas_df is None or emendas_df.empty:
-        return pd.DataFrame()
-    if "qt_votos" not in votos_df.columns:
-        return pd.DataFrame()
-
-    geojson_mg, df_tse_ref, df_municipios_ref, df_regioes_ref = _load_geo_reference()
-    if geojson_mg is None or df_tse_ref is None or df_municipios_ref is None:
-        return pd.DataFrame()
-
-    code_col = next(
-        (
-            col
-            for col in (
-                "cd_ibge_municipio",
-                "codigo_ibge",
-                "CD_MUNICIPIO",
-                "cd_municipio",
-                "codigo_tse",
-                "codigo_municipio_tse",
-            )
-            if col in votos_df.columns
-        ),
-        None,
+    _section_header(
+        "BALANÇO MACRO & LIQUIDEZ DE CAIXA",
+        "Raio-x executivo da arrecadação e dos compromissos financeiros: monitore o saldo real de caixa, o volume contratado e a saúde orçamentária da campanha.",
     )
-    city_col = "nm_municipio" if "nm_municipio" in votos_df.columns else None
-    rank_col = next(
-        (
-            col
-            for col in (
-                "rank_municipio",
-                "ranking_municipio",
-                "posicao_municipio",
-                "posicao_candidato_municipio",
-                "rank_candidato_municipio",
-                "ranking_candidato_municipio",
-            )
-            if col in votos_df.columns
-        ),
-        None,
-    )
-    extra_vote_cols = [rank_col] if rank_col else []
-
-    if code_col == "cd_ibge_municipio" or code_col == "codigo_ibge":
-        votos_base = votos_df[[code_col, "qt_votos"] + ([city_col] if city_col else []) + extra_vote_cols].copy()
-        votos_base = votos_base.rename(columns={code_col: "codigo_ibge", city_col or code_col: "municipio"})
-        votos_base["codigo_ibge"] = votos_base["codigo_ibge"].astype("string")
-    elif code_col:
-        votos_base = votos_df[[code_col, "qt_votos"] + ([city_col] if city_col else []) + extra_vote_cols].copy()
-        votos_base = votos_base.rename(columns={code_col: "codigo_tse", city_col or code_col: "municipio"})
-        votos_base["codigo_tse"] = votos_base["codigo_tse"].astype("string")
-        votos_base = votos_base.merge(
-            df_tse_ref[["codigo_tse", "codigo_ibge", "nome_municipio"]],
-            on="codigo_tse",
-            how="left",
-        )
-        votos_base["municipio"] = votos_base["municipio"].fillna(votos_base["nome_municipio"])
-    elif city_col:
-        votos_base = votos_df[[city_col, "qt_votos"] + extra_vote_cols].copy().rename(columns={city_col: "municipio"})
-        votos_base["municipio_norm"] = votos_base["municipio"].map(_normalize_municipio_name)
-        votos_base = votos_base.merge(
-            df_tse_ref[["codigo_ibge", "nome_municipio", "municipio_norm"]],
-            on="municipio_norm",
-            how="left",
-        )
-    else:
-        return pd.DataFrame()
-
-    votos_base["qt_votos"] = pd.to_numeric(votos_base["qt_votos"], errors="coerce").fillna(0)
-    agg_map = {"qt_votos": "sum", "municipio": "first"}
-    if rank_col and rank_col in votos_base.columns:
-        votos_base[rank_col] = pd.to_numeric(votos_base[rank_col], errors="coerce")
-        agg_map[rank_col] = "min"
-    votos_base = (
-        votos_base.dropna(subset=["codigo_ibge"])
-        .groupby("codigo_ibge", as_index=False)
-        .agg(agg_map)
-    )
-
-    emenda_value_col = next(
-        (
-            col
-            for col in (
-                "valor_pago_atualizado",
-                "valor_empenhado_ano",
-                "valor_indicado",
-                "valor_emenda",
-            )
-            if col in emendas_df.columns
-        ),
-        None,
-    )
-    if emenda_value_col is None:
-        return pd.DataFrame()
-
-    emendas = emendas_df.copy()
-    if "cd_ibge_municipio" in emendas.columns:
-        emendas["codigo_ibge"] = emendas["cd_ibge_municipio"].astype("string")
-    elif "nm_municipio" in emendas.columns:
-        emendas["municipio_norm"] = emendas["nm_municipio"].map(_normalize_municipio_name)
-        emendas = emendas.merge(
-            df_tse_ref[["codigo_ibge", "municipio_norm"]],
-            on="municipio_norm",
-            how="left",
-        )
-    elif "municipio" in emendas.columns:
-        emendas["municipio_norm"] = emendas["municipio"].map(_normalize_municipio_name)
-        emendas = emendas.merge(
-            df_tse_ref[["codigo_ibge", "municipio_norm"]],
-            on="municipio_norm",
-            how="left",
-        )
-    else:
-        return pd.DataFrame()
-
-    emendas[emenda_value_col] = pd.to_numeric(emendas[emenda_value_col], errors="coerce").fillna(0)
-    extra_emenda_cols = [
-        col
-        for col in (
-            "valor_total_emendas_municipio",
-            "total_votos_municipio",
-            "indice_retorno_parlamentar",
-            "classificacao_retorno_parlamentar",
-        )
-        if col in emendas.columns
-    ]
-    emendas_agg = {emenda_value_col: "sum", **{col: "first" for col in extra_emenda_cols}}
-    emendas_base = (
-        emendas.dropna(subset=["codigo_ibge"])
-        .groupby("codigo_ibge", as_index=False)
-        .agg(emendas_agg)
-        .rename(columns={emenda_value_col: "valor_emendas"})
-    )
-
-    result = df_municipios_ref.copy()
-    result["codigo_ibge"] = result["codigo_ibge"].astype("string")
-    result = result.dropna(subset=["codigo_ibge"]).merge(votos_base, on="codigo_ibge", how="left")
-    result = result.merge(emendas_base, on="codigo_ibge", how="left")
-    result["qt_votos"] = pd.to_numeric(result["qt_votos"], errors="coerce").fillna(0)
-    if "total_votos_municipio" in result.columns:
-        result["qt_votos"] = (
-            pd.to_numeric(result["total_votos_municipio"], errors="coerce")
-            .fillna(result["qt_votos"])
-            .fillna(0)
-        )
-    if "valor_total_emendas_municipio" in result.columns:
-        result["valor_emendas"] = (
-            pd.to_numeric(result["valor_total_emendas_municipio"], errors="coerce")
-            .fillna(result["valor_emendas"])
-            .fillna(0)
-        )
-    result["valor_emendas"] = pd.to_numeric(result["valor_emendas"], errors="coerce").fillna(0)
-    result["municipio"] = result["municipio"].fillna(result.get("nome"))
-    if df_regioes_ref is not None and not df_regioes_ref.empty:
-        result = result.merge(
-            df_regioes_ref[["codigo_ibge", "mesorregiao_nome", "regiao_imediata_nome"]],
-            on="codigo_ibge",
-            how="left",
-        )
-    result["codigo_ibge_str"] = result["codigo_ibge"].astype("string")
-    result["municipio_exibicao"] = result["nome"].fillna(result["municipio"]).fillna("Município")
-    result["municipio_contexto"] = result["municipio"].fillna(result["municipio_exibicao"]).astype(str)
-    result["mesorregiao_exibicao"] = (
-        result.get("mesorregiao_nome", pd.Series(index=result.index, dtype="object"))
-        .fillna("Mesorregião não informada")
-        .astype(str)
-    )
-    total_votes = float(result["qt_votos"].sum())
-    result["pct_votos_total"] = np.where(total_votes > 0, result["qt_votos"] / total_votes, 0.0)
-    if "indice_retorno_parlamentar" in result.columns:
-        result["indice_retorno"] = pd.to_numeric(result["indice_retorno_parlamentar"], errors="coerce").fillna(0)
-    else:
-        result["indice_retorno"] = 0.0
-    result["indice_retorno"] = pd.to_numeric(result["indice_retorno"], errors="coerce").replace([np.inf, -np.inf], 0).fillna(0)
-    if rank_col and rank_col in result.columns:
-        result["is_top3_vote"] = pd.to_numeric(result[rank_col], errors="coerce").le(3)
-    else:
-        top3_codes = set(result.nlargest(3, "qt_votos")["codigo_ibge"].dropna().astype("string"))
-        result["is_top3_vote"] = result["codigo_ibge"].astype("string").isin(top3_codes)
-
-    result["categoria_coerencia"] = (
-        result.get("classificacao_retorno_parlamentar", pd.Series(index=result.index, dtype="object"))
-        .fillna("Sem Expressão")
-        .astype(str)
-        .str.strip()
-    )
-    result.loc[result["categoria_coerencia"].eq(""), "categoria_coerencia"] = "Sem Expressão"
-    result["categoria_coerencia"] = result["categoria_coerencia"].replace(
-        {
-            "Sem Expressao": "Sem Expressão",
-            "sem expressao": "Sem Expressão",
-            "sem expressão": "Sem Expressão",
-        }
-    )
-    no_emendas = result["valor_emendas"].le(0)
-    result.loc[no_emendas & result["qt_votos"].gt(0), "categoria_coerencia"] = "Votos sem emendas"
-    result.loc[no_emendas & result["qt_votos"].le(0), "categoria_coerencia"] = "Sem votos nem emendas"
-    result["motivo_cor"] = result["categoria_coerencia"].map(
-        {
-            "Reduto Atendido": "Classificação de retorno parlamentar informada no parquet.",
-            "Investimento": "Classificação de retorno parlamentar informada no parquet.",
-            "Reduto Desassistido": "Classificação de retorno parlamentar informada no parquet.",
-            "Sem Expressão": "Classificação de retorno parlamentar informada no parquet.",
-            "Votos sem emendas": "O candidato recebeu votos neste município, mas não destinou emendas.",
-            "Sem votos nem emendas": "O candidato não recebeu votos nem destinou emendas neste município.",
-        }
-    ).fillna("Classificação de retorno parlamentar informada no parquet.")
-    return result
-
-
-
-
-def _parliamentary_action_kpis(action_df: pd.DataFrame) -> dict[str, str]:
-    if action_df.empty:
-        return {
-            "reciprocidade": "—",
-            "reciprocidade_caption": "Sem dados de emendas para calcular",
-            "beneficiado": "Sem dados",
-            "beneficiado_caption": "Nenhum registro de emenda disponível",
-            "media_retorno": "—",
-            "media_retorno_caption": "Sem dados de emendas para calcular",
-        }
-
-    total_emendas = float(pd.to_numeric(action_df["valor_emendas"], errors="coerce").fillna(0).sum())
-    top3_emendas = float(
-        pd.to_numeric(action_df.loc[action_df["is_top3_vote"], "valor_emendas"], errors="coerce").fillna(0).sum()
-    )
-    reciprocidade = top3_emendas / total_emendas if total_emendas > 0 else 0.0
-
-    total_votes = float(pd.to_numeric(action_df["qt_votos"], errors="coerce").fillna(0).sum())
-    media_retorno = total_emendas / total_votes if total_votes > 0 else 0.0
-
-    beneficiary = action_df.sort_values("valor_emendas", ascending=False).head(1)
-    if beneficiary.empty or float(beneficiary["valor_emendas"].iloc[0]) <= 0:
-        beneficiado = "Sem emendas"
-        beneficiado_caption = "R$ 0,00 | 0 votos"
-    else:
-        row = beneficiary.iloc[0]
-        beneficiado = str(row.get("municipio_exibicao", "Município"))
-        beneficiado_caption = (
-            f"{_format_currency(float(row.get('valor_emendas', 0) or 0))} | "
-            f"{_format_number(float(row.get('qt_votos', 0) or 0))} votos"
-        )
-
-    return {
-        "reciprocidade": _format_percent(reciprocidade),
-        "reciprocidade_caption": "Das emendas foram para municípios Top 3 do candidato",
-        "beneficiado": beneficiado,
-        "beneficiado_caption": beneficiado_caption,
-        "media_retorno": _format_currency(media_retorno),
-        "media_retorno_caption": "Valor médio de emendas por voto no estado",
-    }
-
-
-def _render_parliamentary_action_kpis(action_df: pd.DataFrame) -> None:
-    kpis = _parliamentary_action_kpis(action_df)
-    st.markdown(
-        f"""
-        <div class="raiox-kpi-grid">
-            <div class="raiox-kpi-card">
-                <div class="mapa-kpi-label">Taxa de Reciprocidade</div>
-                <div class="mapa-kpi-value">{html.escape(kpis["reciprocidade"])}</div>
-                <div class="mapa-kpi-caption">{html.escape(kpis["reciprocidade_caption"])}</div>
-            </div>
-            <div class="raiox-kpi-card">
-                <div class="mapa-kpi-label">Maior Beneficiado (R$)</div>
-                <div class="mapa-kpi-value">{html.escape(kpis["beneficiado"])}</div>
-                <div class="mapa-kpi-caption">{html.escape(kpis["beneficiado_caption"])}</div>
-            </div>
-            <div class="raiox-kpi-card">
-                <div class="mapa-kpi-label">Média R$/Voto</div>
-                <div class="mapa-kpi-value">{html.escape(kpis["media_retorno"])}</div>
-                <div class="mapa-kpi-caption">{html.escape(kpis["media_retorno_caption"])}</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-PARLIAMENTARY_LEGEND_COPY = {
-    "Reduto Atendido": {
-        "title": "🔵 BASE PRIORIZADA 🎯",
-        "description": (
-            "Municípios onde houve votação relevante e também emendas. "
-            "É a base eleitoral que recebeu retorno parlamentar."
-        ),
-    },
-    "Investimento": {
-        "title": "🟢 APOSTA POLÍTICA 🚀",
-        "description": (
-            "Municípios que receberam emendas mesmo sem serem grandes redutos. "
-            "Indicam aposta política ou construção de presença."
-        ),
-    },
-    "Reduto Desassistido": {
-        "title": "🟡 BASE EM RISCO ⚠️",
-        "description": (
-            "Municípios com votos importantes, mas pouca ou nenhuma emenda. "
-            "A base pode se sentir pouco atendida."
-        ),
-    },
-    "Sem Expressão": {
-        "title": "🟠 PRESENÇA PONTUAL 🔍",
-        "description": (
-            "Municípios com baixa expressão eleitoral e atuação parlamentar pontual. "
-            "Não são prioridade evidente nesse cruzamento."
-        ),
-    },
-    "Votos sem emendas": {
-        "title": "🔘 VOTAÇÃO ORGÂNICA 🤝",
-        "description": (
-            "Municípios onde houve votos para o candidato, mas nenhuma emenda registrada. "
-            "A votação apareceu sem retorno parlamentar."
-        ),
-    },
-    "Sem votos nem emendas": {
-        "title": "⚪ TERRITÓRIO NEUTRO 🏳️",
-        "description": (
-            "Municípios sem votos e sem emendas neste recorte. "
-            "Não há presença eleitoral nem atuação registrada."
-        ),
-    },
-}
-
-
-def _render_parliamentary_legend_cards(action_df: pd.DataFrame) -> None:
-    if action_df.empty or "categoria_coerencia" not in action_df.columns:
-        st.info("Legenda parlamentar indisponível.")
-        return
-
-    total_votes = float(pd.to_numeric(action_df.get("qt_votos", pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
-    cards = []
-    for category, copy in PARLIAMENTARY_LEGEND_COPY.items():
-        color = ACTION_COLORS.get(category, "#64748B")
-        rows = action_df[action_df["categoria_coerencia"].astype(str).eq(category)].copy()
-        cities = int(len(rows))
-        votes = float(pd.to_numeric(rows.get("qt_votos", pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
-        vote_share = votes / total_votes if total_votes > 0 else 0.0
-        cards.append(
-            f"""
-            <div class="raiox-parliament-card" style="
-                --parliament-color: {html.escape(color)};
-                background:
-                    radial-gradient(circle at 0% 0%, {html.escape(color)}45 0%, {html.escape(color)}1f 42%, transparent 72%),
-                    linear-gradient(145deg, {html.escape(color)}28 0%, rgba(7,24,54,.76) 58%, {html.escape(color)}0f 100%);
-                border-color: {html.escape(color)}66;
-            ">
-                <div class="raiox-parliament-card-title">{html.escape(copy["title"])}</div>
-                <div class="raiox-parliament-card-metric">
-                    {_format_number(cities)} cidades
-                    <span>{_format_percent(vote_share)} da votação</span>
-                </div>
-                <div class="raiox-parliament-card-description">{html.escape(copy["description"])}</div>
-            </div>
-            """
-        )
-
-    st.html(
-        """
-        <style>
-        .raiox-parliament-card-stack {
-            display: grid;
-            gap: .58rem;
-        }
-        .raiox-parliament-card {
-            min-height: 6rem;
-            padding: .68rem .78rem .72rem;
-            border: 1px solid;
-            border-radius: 16px;
-            color: #eaf2ff;
-            box-shadow: 0 12px 30px rgba(1, 8, 24, 0.22);
-            backdrop-filter: blur(7px);
-            -webkit-backdrop-filter: blur(7px);
-        }
-        .raiox-parliament-card-title {
-            display: inline-flex;
-            align-items: center;
-            max-width: 100%;
-            padding: .25rem .48rem;
-            border: 1px solid color-mix(in srgb, var(--parliament-color), white 25%);
-            border-radius: 999px;
-            background: color-mix(in srgb, var(--parliament-color), transparent 76%);
-            color: #f8fbff;
-            font-size: .68rem;
-            font-weight: 900;
-            line-height: 1.18;
-            letter-spacing: .03em;
-        }
-        .raiox-parliament-card-metric {
-            margin-top: .48rem;
-            color: #ffffff;
-            font-size: 1.06rem;
-            font-weight: 900;
-            line-height: 1.18;
-        }
-        .raiox-parliament-card-metric span {
-            display: block;
-            margin-top: .12rem;
-            color: #dbeafe;
-            font-size: .82rem;
-            font-weight: 750;
-        }
-        .raiox-parliament-card-description {
-            margin-top: .42rem;
-            color: #c8d7ef;
-            font-size: .74rem;
-            line-height: 1.32;
-        }
-        </style>
-        <div class="raiox-parliament-card-stack">
-        """ + "".join(cards) + "</div>"
-    )
-
-
-def _parliamentary_map_selection(event: object | None) -> dict[str, str]:
-    if event is None:
-        return {}
-    if hasattr(event, "selection"):
-        selection = getattr(event, "selection")
-    elif isinstance(event, dict):
-        selection = event.get("selection", {})
-    else:
-        selection = {}
-    if isinstance(selection, dict):
-        points = selection.get("points", [])
-    else:
-        points = getattr(selection, "points", [])
-    if not points:
-        return {}
-    point = points[0]
-    customdata = point.get("customdata") if isinstance(point, dict) else getattr(point, "customdata", None)
-    if customdata is None or len(customdata) < 4:
-        return {}
-    return {
-        "codigo_ibge": str(customdata[3]),
-    }
-
-
-@st.dialog("Emendas destinadas ao município", width="large")
-def _parliamentary_emendas_dialog(
-    codigo_ibge: str, action_df: pd.DataFrame, emendas_df: pd.DataFrame | None,
-) -> None:
-    selected = action_df[action_df["codigo_ibge_str"].eq(codigo_ibge)]
-    if selected.empty:
-        st.info("Município não encontrado no recorte atual.")
-        return
-    row = selected.iloc[0]
-    st.subheader(str(row["municipio_exibicao"]).title())
-    st.caption(
-        f'{_format_number(float(row["qt_votos"]))} votos · '
-        f'{row["categoria_coerencia"]}'
-    )
-    st.metric("Total de emendas indicado ao município", _format_currency(float(row["valor_emendas"])))
-    if emendas_df is None or emendas_df.empty:
-        st.info("Detalhamento das emendas indisponível.")
-        return
-    emendas = emendas_df.copy()
-    if "cd_ibge_municipio" in emendas.columns:
-        codes = emendas["cd_ibge_municipio"].astype("string")
-        emendas = emendas[codes.eq(codigo_ibge)].copy()
-    else:
-        municipality_col = next(
-            (
-                col
-                for col in ("nm_municipio", "municipio_beneficiario", "municipio")
-                if col in emendas.columns
-            ),
-            None,
-        )
-        if municipality_col is None:
-            st.info("Detalhamento das emendas indisponível.")
-            return
-        selected_municipality = row.get("municipio")
-        if pd.isna(selected_municipality) or not str(selected_municipality).strip():
-            selected_municipality = row.get("municipio_exibicao")
-        selected_municipality = _normalize_municipio_name(selected_municipality)
-        emendas = emendas.loc[
-            emendas[municipality_col].map(_normalize_municipio_name).eq(selected_municipality)
-        ].copy()
-    if emendas.empty:
-        st.info("Não há emendas registradas para este município.")
-        return
-    value_col = next(
-        (
-            col
-            for col in (
-                "valor_indicado",
-                "valor_empenhado_ano",
-                "valor_pago_atualizado",
-                "valor_emenda",
-            )
-            if col in emendas.columns
-        ),
-        None,
-    )
-    if value_col is None:
-        st.info("Detalhamento das emendas indisponível.")
-        return
-    finality_col = next(
-        (col for col in ("funcao_descricao", "objeto_finalidade") if col in emendas.columns),
-        None,
-    )
-    type_col = next(
-        (col for col in ("tipo_indicacao", "tipo_emenda") if col in emendas.columns),
-        None,
-    )
-    emendas["_valor_emenda"] = pd.to_numeric(emendas[value_col], errors="coerce").fillna(0)
-    emendas["_finalidade"] = (
-        emendas[finality_col] if finality_col else pd.Series("Não informado", index=emendas.index)
-    )
-    emendas["_tipo_emenda"] = (
-        emendas[type_col] if type_col else pd.Series("Não informado", index=emendas.index)
-    )
-    for col in ("_finalidade", "_tipo_emenda"):
-        emendas[col] = emendas[col].fillna("Não informado").astype(str).str.strip()
-        emendas.loc[emendas[col].eq(""), col] = "Não informado"
-    summary = (
-        emendas.groupby(["_finalidade", "_tipo_emenda"], as_index=False)
-        .agg(indicacoes=("_valor_emenda", "size"), valor_indicado=("_valor_emenda", "sum"))
-        .sort_values("valor_indicado", ascending=False)
-        .rename(columns={
-            "_finalidade": "Finalidade", "_tipo_emenda": "Tipo de indicação",
-            "indicacoes": "Indicações", "valor_indicado": "Valor indicado",
-        })
-    )
-    st.dataframe(
-        summary, hide_index=True, width="stretch",
-        column_config={
-            "Indicações": st.column_config.NumberColumn(format="%d"),
-            "Valor indicado": st.column_config.NumberColumn(format="R$ %.2f"),
-        },
-    )
-    st.caption("Valores, finalidade e tipo seguem os dados registrados no parquet de emendas.")
-
-
-def _bh_parliamentary_emendas_frame(emendas_df: pd.DataFrame | None) -> pd.DataFrame:
-    if emendas_df is None or emendas_df.empty:
-        return pd.DataFrame()
-
-    municipality_col = next(
-        (col for col in ("municipio_beneficiario", "nm_municipio", "municipio") if col in emendas_df.columns),
-        None,
-    )
-    if municipality_col is None:
-        return pd.DataFrame()
-
-    emendas = emendas_df.copy()
-    city_name = _normalize_municipio_name("Belo Horizonte")
-    city_mask = emendas[municipality_col].map(_normalize_municipio_name).eq(city_name)
-    return emendas.loc[city_mask].copy()
-
-
-def _render_bh_parliamentary_summary(
-    votos_bairro_df: pd.DataFrame | None,
-    emendas_df: pd.DataFrame | None,
-) -> pd.DataFrame:
-    emendas = _bh_parliamentary_emendas_frame(emendas_df)
-    votes = (
-        pd.to_numeric(votos_bairro_df.get("qt_votos"), errors="coerce").fillna(0)
-        if votos_bairro_df is not None and "qt_votos" in votos_bairro_df.columns
-        else pd.Series(dtype=float)
-    )
-    total_votes = float(votes.sum())
-    value_col = next(
-        (col for col in ("valor_pago_atualizado", "valor_empenhado_ano", "valor_indicado", "valor_emenda") if col in emendas.columns),
-        None,
-    )
-    values = (
-        pd.to_numeric(emendas[value_col], errors="coerce")
-        if value_col else pd.Series(dtype=float)
-    )
-    total_emendas = float(values.fillna(0).sum()) if value_col else None
-    years = sorted(
-        emendas.get("ano_emenda", pd.Series(dtype=object)).dropna().astype(str).unique().tolist()
-    )
-    period = f"{years[0]}–{years[-1]}" if years else "Período não informado"
-    emenda_count = int(values.notna().sum()) if value_col else 0
-    kpis = [
-        ("Votos nos bairros de BH", _format_number(total_votes) if total_votes > 0 else "—", "Votação de 2026 no parquet territorial"),
-        (
-            "Emendas registradas para BH",
-            _format_currency(total_emendas) if total_emendas is not None and emenda_count else "Sem dados",
-            "Total municipal, sem rateio entre bairros",
-        ),
-        ("Registros de emenda", _format_number(emenda_count) if emenda_count else "—", period),
-    ]
-    cards = "".join(
-        f'''<div class="raiox-kpi-card" style="margin:.65rem 0">
-            <div class="mapa-kpi-label">{html.escape(label)}</div>
-            <div class="mapa-kpi-value">{html.escape(value)}</div>
-            <div class="mapa-kpi-caption">{html.escape(caption)}</div>
-        </div>'''
-        for label, value, caption in kpis
-    )
-    st.markdown(cards, unsafe_allow_html=True)
-    return emendas
-
-
-def _render_bh_emendas_table(emendas: pd.DataFrame) -> None:
-    if emendas.empty:
-        st.info("Não há registros de emendas para Belo Horizonte nesta pasta.")
-        return
-    columns = [
-        ("ano_emenda", "Ano"),
-        ("numero_emenda", "Número"),
-        ("tipo_emenda", "Tipo"),
-        ("valor_emenda", "Valor indicado"),
-        ("objeto_finalidade", "Finalidade / objeto"),
-        ("beneficiario_final", "Beneficiário"),
-        ("status_emenda", "Status"),
-    ]
-    selected = [column for column, _ in columns if column in emendas.columns]
-    display = emendas[selected].rename(columns=dict(columns)).copy()
-    if "Valor indicado" in display.columns:
-        display["Valor indicado"] = pd.to_numeric(display["Valor indicado"], errors="coerce")
-    st.dataframe(
-        display,
-        hide_index=True,
-        width="stretch",
-        column_config={"Valor indicado": st.column_config.NumberColumn(format="R$ %.2f")},
-    )
-
-
-def _render_parliamentary_action_section(
-    votos_df: pd.DataFrame | None,
-    emendas_df: pd.DataFrame | None,
-) -> None:
-    _major_section_header(
-        "Mapa da atuação parlamentar de acordo com os votos",
-        "Compare a atuação municipal em Minas Gerais com a votação por bairro em Belo Horizonte.",
-    )
-    map_scope = st.radio(
-        "Recorte do mapa",
-        ["Minas Gerais · municípios", "Belo Horizonte · bairros"],
-        horizontal=True,
-        key="parliamentary_map_scope",
-    )
-    if map_scope == "Belo Horizonte · bairros":
-        bh_votes = _read_selected_parquet("votos_bairro", scope="bh")
-        bh_emendas = _read_selected_parquet("emendas_legislativa", scope="bh")
-        map_col, summary_col = st.columns([0.70, 0.30], gap="large")
-        with map_col:
-            with st.container(border=True, key="parliamentary-bh-map-container"):
-                try:
-                    fig, _ = municipality_mesh_map("3106200", bh_votes)
-                    if fig is None:
-                        st.info("Mapa de votação por bairro indisponível para Belo Horizonte.")
-                    else:
-                        st.plotly_chart(
-                            fig,
-                            width="stretch",
-                            height=680,
-                            key=f"pagina1_parliamentary_bh_map_{_candidate_widget_suffix()}",
-                            config={"displayModeBar": False},
-                        )
-                        st.caption(
-                            "O mapa mostra os votos de 2026 por bairro. As emendas desta pasta estão registradas "
-                            "para Belo Horizonte como um todo e não são distribuídas entre os bairros."
-                        )
-                except Exception as exc:
-                    st.warning(f"Não foi possível carregar o mapa de bairros de Belo Horizonte: {exc}")
-        with summary_col:
-            bh_emendas_rows = _render_bh_parliamentary_summary(bh_votes, bh_emendas)
-        with st.expander("Consultar emendas registradas para Belo Horizonte"):
-            _render_bh_emendas_table(bh_emendas_rows)
-        return
-
-    action_df = _parliamentary_action_frame(votos_df, emendas_df)
-    parliamentary_map_col, parliamentary_cards_col = st.columns([0.70, 0.30], gap="large")
-    with parliamentary_map_col:
-        _render_parliamentary_action_kpis(action_df)
-        with st.container(border=True, key="parliamentary-map-container"):
-            fig = parliamentary_map(action_df)
-            if fig is not None:
-                revision = st.session_state.get("pagina1_parliamentary_map_revision", 0)
-                event = st.plotly_chart(
-                    fig, width="stretch", height=720,
-                    key=f"pagina1_parliamentary_action_map_{revision}",
-                    on_select="rerun", selection_mode="points",
-                )
-                selection = _parliamentary_map_selection(event)
-                if selection:
-                    st.session_state["pagina1_parliamentary_map_revision"] = revision + 1
-                    _parliamentary_emendas_dialog(selection["codigo_ibge"], action_df, emendas_df)
-            else:
-                st.info("Mapa parlamentar indisponível.")
-    with parliamentary_cards_col:
-        _render_parliamentary_legend_cards(action_df)
 
 
 _apply_visual_model()
@@ -4130,119 +3375,120 @@ with map_col:
             st.info("Mapa territorial indisponível.")
 with cards_col:
     _render_map_side_cards(votos_municipio_df)
-_major_section_header(
-    "Como foi sua votação em Belo Horizonte",
-    "Veja o histórico dos seus votos na sua Base Eleitoral",
-)
-selected_bh_neighborhood_df = votos_bairro_df
-selected_bh_municipality_df = votos_municipio_df
-bh_cards_year = "2026"
-bh_mesh_neighborhood_count = None
-detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
-with detail_map_col:
-    with st.container(border=True):
-        bh_map_year_key = "bh_neighborhood_map_year_segmented"
-        bh_map_year_options = ["2020", "2024", "2026", "Projeção 2028"]
-        if st.session_state.get(bh_map_year_key) not in bh_map_year_options:
-            st.session_state[bh_map_year_key] = "2026"
-        bh_map_year = st.segmented_control(
-            "Eleição exibida no mapa",
-            bh_map_year_options,
-            selection_mode="single",
-            key=bh_map_year_key,
-        )
-        try:
-            # Belo Horizonte is fixed for this section (IBGE municipality code).
-            if bh_map_year in {"2020", "2024"}:
-                bh_cards_year = bh_map_year
-                _render_bh_comparison_legend()
-                comparison_df = _read_selected_parquet("votos_bairro", scope="bh")
-                history_vote_column = f"qt_votos_candidato_bairro_{bh_map_year}"
-                if comparison_df is not None and history_vote_column in comparison_df.columns:
-                    selected_bh_neighborhood_df = comparison_df.copy()
-                    selected_bh_neighborhood_df["qt_votos"] = pd.to_numeric(
-                        selected_bh_neighborhood_df[history_vote_column], errors="coerce"
-                    ).fillna(0)
-                else:
-                    selected_bh_neighborhood_df = None
-                selected_bh_municipality_df = _read_selected_parquet(
-                    "votos_municipio", scope="bh"
-                )
-                mesh_fig, mesh_count = municipality_mesh_map(
-                    "3106200", comparison_df, comparison_year=bh_map_year
-                )
-            elif bh_map_year == "Projeção 2028":
-                projection_df = _read_selected_parquet(
-                    "bh_potencial_bairro", scope="bh"
-                )
-                projection_map_df = _bh_projection_map_frame(
-                    projection_df, _read_selected_parquet("votos_bairro", scope="bh")
-                )
-                _render_bh_projection_legend()
-                mesh_fig, mesh_count = municipality_neighborhood_category_map(
-                    "3106200", projection_map_df
-                )
-            else:
-                mesh_fig, mesh_count = municipality_mesh_map(
-                    "3106200",
-                    votos_bairro_df,
-                    log_scale_gamma=0.8,
-                    zero_vote_color="#64748b",
-                )
-            if mesh_fig is not None and (mesh_fig.layout.meta or {}).get("mesh_kind") == "bairro":
-                bh_mesh_neighborhood_count = mesh_count
-            if mesh_fig is None:
-                if bh_map_year in {"2020", "2024"}:
-                    st.info(f"Comparação de votos por bairro para {bh_map_year} indisponível nesta pasta.")
-                elif bh_map_year == "Projeção 2028":
-                    st.info("Projeção estratégica de 2028 indisponível para Belo Horizonte nesta pasta.")
-                else:
-                    st.info("Mapa de votos por bairro indisponível para Belo Horizonte.")
-            else:
-                st.plotly_chart(
-                    mesh_fig,
-                    width="stretch",
-                    height=680,
-                    key=f"pagina1_malha_belo_horizonte_{bh_map_year}",
-                )
-                mesh_kind = (mesh_fig.layout.meta or {}).get("mesh_kind")
-                scale_type = (mesh_fig.layout.meta or {}).get("scale_type")
-                if bh_map_year in {"2020", "2024"}:
-                    st.caption(
-                        f"O mapa compara a participação do candidato em {bh_map_year} e 2026. "
-                        "O tooltip mostra os votos totais de cada eleição e a diferença em pontos percentuais, "
-                        "calculada nos locais de votação correspondidos. Os cards laterais mostram os indicadores "
-                        f"da eleição selecionada ({bh_map_year})."
-                    )
-                elif bh_map_year == "Projeção 2028":
-                    st.caption(
-                        "Classificação descritiva por votos de referência e espaço demográfico. "
-                        "A diferença média compara separadamente gênero, idade e escolaridade; "
-                        "não representa cruzamento individual, perda histórica ou previsão de votos em 2028. "
-                        "Os cards laterais continuam mostrando os indicadores da votação de 2026."
-                    )
-                elif scale_type == "uniform":
-                    st.caption(
-                        "Bairros com votos usam um único tom de azul, sem escala de intensidade; "
-                        "bairros sem votos ficam cinza. Passe o cursor para ver os bairros e seus votos."
-                    )
-                elif mesh_kind == "setor":
-                    scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                    st.caption(f"Azul mais escuro indica mais votos; cinza indica nenhum voto. A escala {scale_label} é relativa ao maior valor de Belo Horizonte e, nos setores censitários, ocupa toda a faixa de cores para manter visíveis os setores com votos. O tooltip identifica os bairros do TSE mesmo onde o candidato não recebeu votos; setores sem referência direta usam o bairro territorialmente mais próximo na cidade.")
-                else:
-                    scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                    st.caption(f"Azul mais escuro indica mais votos; cinza indica nenhum voto. A escala {scale_label} considera também a proporção de bairros com votos em Belo Horizonte. Passe o cursor para ver os bairros e seus votos.")
-        except Exception as exc:
-            st.warning(f"Não foi possível carregar o mapa de bairros de Belo Horizonte: {exc}")
-with detail_cards_col:
-    _render_neighborhood_side_cards(
-        selected_bh_neighborhood_df,
-        "3106200",
-        year=bh_cards_year,
-        municipality_votes_df=selected_bh_municipality_df,
-        statewide_votes_df=votos_municipio_df,
-        total_neighborhoods=bh_mesh_neighborhood_count,
+if st.session_state.get("candidate_group", "vereadores") == "vereadores":
+    _major_section_header(
+        "Como foi sua votação em Belo Horizonte",
+        "Veja o histórico dos seus votos na sua Base Eleitoral",
     )
+    selected_bh_neighborhood_df = votos_bairro_df
+    selected_bh_municipality_df = votos_municipio_df
+    bh_cards_year = "2026"
+    bh_mesh_neighborhood_count = None
+    detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
+    with detail_map_col:
+        with st.container(border=True):
+            bh_map_year_key = "bh_neighborhood_map_year_segmented"
+            bh_map_year_options = ["2020", "2024", "2026", "Projeção 2028"]
+            if st.session_state.get(bh_map_year_key) not in bh_map_year_options:
+                st.session_state[bh_map_year_key] = "2026"
+            bh_map_year = st.segmented_control(
+                "Eleição exibida no mapa",
+                bh_map_year_options,
+                selection_mode="single",
+                key=bh_map_year_key,
+            )
+            try:
+                # Belo Horizonte is fixed for this section (IBGE municipality code).
+                if bh_map_year in {"2020", "2024"}:
+                    bh_cards_year = bh_map_year
+                    _render_bh_comparison_legend()
+                    comparison_df = _read_selected_parquet("votos_bairro", scope="bh")
+                    history_vote_column = f"qt_votos_candidato_bairro_{bh_map_year}"
+                    if comparison_df is not None and history_vote_column in comparison_df.columns:
+                        selected_bh_neighborhood_df = comparison_df.copy()
+                        selected_bh_neighborhood_df["qt_votos"] = pd.to_numeric(
+                            selected_bh_neighborhood_df[history_vote_column], errors="coerce"
+                        ).fillna(0)
+                    else:
+                        selected_bh_neighborhood_df = None
+                    selected_bh_municipality_df = _read_selected_parquet(
+                        "votos_municipio", scope="bh"
+                    )
+                    mesh_fig, mesh_count = municipality_mesh_map(
+                        "3106200", comparison_df, comparison_year=bh_map_year
+                    )
+                elif bh_map_year == "Projeção 2028":
+                    projection_df = _read_selected_parquet(
+                        "bh_potencial_bairro", scope="bh"
+                    )
+                    projection_map_df = _bh_projection_map_frame(
+                        projection_df, _read_selected_parquet("votos_bairro", scope="bh")
+                    )
+                    _render_bh_projection_legend()
+                    mesh_fig, mesh_count = municipality_neighborhood_category_map(
+                        "3106200", projection_map_df
+                    )
+                else:
+                    mesh_fig, mesh_count = municipality_mesh_map(
+                        "3106200",
+                        votos_bairro_df,
+                        log_scale_gamma=0.8,
+                        zero_vote_color="#64748b",
+                    )
+                if mesh_fig is not None and (mesh_fig.layout.meta or {}).get("mesh_kind") == "bairro":
+                    bh_mesh_neighborhood_count = mesh_count
+                if mesh_fig is None:
+                    if bh_map_year in {"2020", "2024"}:
+                        st.info(f"Comparação de votos por bairro para {bh_map_year} indisponível nesta pasta.")
+                    elif bh_map_year == "Projeção 2028":
+                        st.info("Projeção estratégica de 2028 indisponível para Belo Horizonte nesta pasta.")
+                    else:
+                        st.info("Mapa de votos por bairro indisponível para Belo Horizonte.")
+                else:
+                    st.plotly_chart(
+                        mesh_fig,
+                        width="stretch",
+                        height=680,
+                        key=f"pagina1_malha_belo_horizonte_{bh_map_year}",
+                    )
+                    mesh_kind = (mesh_fig.layout.meta or {}).get("mesh_kind")
+                    scale_type = (mesh_fig.layout.meta or {}).get("scale_type")
+                    if bh_map_year in {"2020", "2024"}:
+                        st.caption(
+                            f"O mapa compara a participação do candidato em {bh_map_year} e 2026. "
+                            "O tooltip mostra os votos totais de cada eleição e a diferença em pontos percentuais, "
+                            "calculada nos locais de votação correspondidos. Os cards laterais mostram os indicadores "
+                            f"da eleição selecionada ({bh_map_year})."
+                        )
+                    elif bh_map_year == "Projeção 2028":
+                        st.caption(
+                            "Classificação descritiva por votos de referência e espaço demográfico. "
+                            "A diferença média compara separadamente gênero, idade e escolaridade; "
+                            "não representa cruzamento individual, perda histórica ou previsão de votos em 2028. "
+                            "Os cards laterais continuam mostrando os indicadores da votação de 2026."
+                        )
+                    elif scale_type == "uniform":
+                        st.caption(
+                            "Bairros com votos usam um único tom de azul, sem escala de intensidade; "
+                            "bairros sem votos ficam cinza. Passe o cursor para ver os bairros e seus votos."
+                        )
+                    elif mesh_kind == "setor":
+                        scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
+                        st.caption(f"Azul mais escuro indica mais votos; cinza indica nenhum voto. A escala {scale_label} é relativa ao maior valor de Belo Horizonte e, nos setores censitários, ocupa toda a faixa de cores para manter visíveis os setores com votos. O tooltip identifica os bairros do TSE mesmo onde o candidato não recebeu votos; setores sem referência direta usam o bairro territorialmente mais próximo na cidade.")
+                    else:
+                        scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
+                        st.caption(f"Azul mais escuro indica mais votos; cinza indica nenhum voto. A escala {scale_label} considera também a proporção de bairros com votos em Belo Horizonte. Passe o cursor para ver os bairros e seus votos.")
+            except Exception as exc:
+                st.warning(f"Não foi possível carregar o mapa de bairros de Belo Horizonte: {exc}")
+    with detail_cards_col:
+        _render_neighborhood_side_cards(
+            selected_bh_neighborhood_df,
+            "3106200",
+            year=bh_cards_year,
+            municipality_votes_df=selected_bh_municipality_df,
+            statewide_votes_df=votos_municipio_df,
+            total_neighborhoods=bh_mesh_neighborhood_count,
+        )
 
 _major_section_header(
     "Força da política local",
@@ -4295,8 +3541,7 @@ with local_cards_col:
     )
 
 _render_accumulated_concentration_section(votos_municipio_df)
-gastos_por_tipo_df = _read_selected_parquet("gastos_por_tipo")
-_render_cost_efficiency_section(votos_municipio_df, gastos_por_tipo_df)
+_render_cost_efficiency_section()
 
 
 

@@ -517,6 +517,7 @@ def selected_deputado_label() -> dict[str, str]:
     cargo = str(filters.get("cargo") or "Deputado").replace("_", " ").title()
     cargo_labels = {
         "Estaduais": "Deputado Estadual",
+        "Dep Estaduais": "Deputado Estadual",
         "Federais": "Deputado Federal",
         "Vereadores": "Vereador",
     }

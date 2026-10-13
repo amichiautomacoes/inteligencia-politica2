@@ -5,7 +5,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, deputados_index
+from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, deputados_index, sync_deputados
 
 
 SRC_DIR = Path(__file__).resolve().parent / "src"
@@ -45,17 +45,29 @@ pages = [
 
 
 with st.sidebar:
+    st.markdown("### Cargo Atual")
+    offices = {"Vereadores": "vereadores", "Deputados Estaduais": "dep_estaduais"}
+    office = st.selectbox("Cargo Atual", list(offices), key="current_office_selector", label_visibility="collapsed")
+    group = offices[office]
+    if st.session_state.get("candidate_group") != group:
+        for state_key in list(st.session_state):
+            if state_key not in {"current_office_selector", "candidate_group"}:
+                del st.session_state[state_key]
+    st.session_state["candidate_group"] = group
+    st.markdown("### Candidato")
     try:
+        if st.button("Atualizar candidatos", help="Consulta o HF novamente para incluir novos candidatos."):
+            sync_deputados(force=True)
         files = data_files()
     except Exception as exc:
         st.error(f"Falha ao ler HF: {exc}")
         files = []
 
     deputados = deputados_index(files)
-    st.markdown("### Candidato")
     if deputados:
         folders = [row["Pasta"] for row in deputados]
-        labels = {row["Pasta"]: f"{row['Nome']} · {row['Pasta']}" for row in deputados}
+        candidate_names = {"marcela_tropia": "Marcela Trópia", "lud_falcao": "Lud Falcão"}
+        labels = {row["Pasta"]: candidate_names.get(row["Pasta"], row["Nome"]) for row in deputados}
         current_filters = st.session_state.get("deputados_filters", {})
         current_folder = current_filters.get("pasta")
         current_index = next(
@@ -69,7 +81,7 @@ with st.sidebar:
                 0,
             )
         selected_folder = st.selectbox(
-            "Pasta do candidato",
+            "Candidato",
             folders,
             index=current_index,
             format_func=labels.get,
@@ -90,10 +102,7 @@ with st.sidebar:
             "nome": selected_deputado["Nome"],
             "pasta": selected_deputado["Pasta"],
         }
-        st.caption(
-            f"{_cargo_label(selected_deputado['Cargo'])} · "
-            f"{selected_deputado['Ano']} · {selected_deputado['Pasta']}"
-        )
+
     else:
         st.session_state["deputados_filters"] = {
             "ano": DEFAULT_VISUALIZATION_YEAR,
@@ -104,6 +113,6 @@ with st.sidebar:
         st.info("Nenhuma pasta de candidato encontrada no caminho configurado.")
     st.session_state["deputados_files"] = files
 
-current_page = st.navigation(pages, position="sidebar")
+current_page = st.navigation(pages, position="hidden")
 current_page.run()
 

@@ -1,12 +1,14 @@
 # Briefing visual — Visualização Eleitoral
 
-Este documento registra **a interface implementada hoje** nas duas páginas do aplicativo. Ele descreve a aparência, a ordem de leitura, os controles, as respostas às interações e os estados sem dados. O [README](README.md) concentra a arquitetura e as fontes; aqui o foco é o que o usuário vê e entende. Textos que mencionam bairros na seção Expansão 2030 do DNA descrevem rótulos atualmente presentes na interface: o mapa dessa seção é municipal.
+Este documento registra **a interface implementada hoje** nas duas páginas do aplicativo. Ele descreve a aparência, a ordem de leitura, os controles, as respostas às interações e os estados sem dados. O [README](README.md) concentra a arquitetura e as fontes; aqui o foco é o que o usuário vê e entende. A expansão para 2030 é municipal; o bloco final de potencial usa bairros oficiais em BH e setores censitários nos demais municípios.
+
+Revisado em 12 de outubro de 2026 a partir dos componentes chamados pelas páginas atuais.
 
 ## 1. Visão geral da experiência
 
 O produto é um painel de inteligência eleitoral para deputados e vereadores, com duas rotas. **Raio X Eleitoral** mostra os dados do candidato selecionado, sua distribuição territorial, concentração e custo do voto; o ano padrão do projeto é 2026 e, se não estiver disponível para uma pasta, usa o ano numérico mais recente encontrado. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
 
-O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato na raiz configurada do HF e navegar entre páginas. Um controle segmentado dentro da capa também alterna as duas rotas e indica qual está ativa.
+O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato na raiz configurada do HF e navegar entre páginas. Dois botões verticais dentro da capa também alternam as duas rotas e indica qual está ativa.
 
 ### 1.1 Sistema visual compartilhado
 
@@ -18,12 +20,12 @@ O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimi
 | Cabeçalho interno | Card azul mais leve, com título e subtítulo em duas linhas de hierarquia | Introduzir uma visualização dentro da seção |
 | Cards de conteúdo | Azul profundo translúcido, borda azul clara fina, sombra e leve blur | Agrupar informação sem esconder o fundo |
 | Gráficos Plotly | Fundo transparente, textos claros e grades discretas | Integrar gráfico e card |
-| Mapas | Coropléticos Plotly nas duas páginas, sem mapa-base de ruas | Mostrar votos por intensidade, força/atuação por classe, malhas neutras ou oportunidades |
+| Mapas | Coropléticos Plotly nas duas páginas, sem mapa-base de ruas | Mostrar votos por intensidade, força política por classe, malhas neutras ou oportunidades |
 | Mensagens de ausência | Aviso ou informação textual dentro do espaço da visualização | Explicar falta de dados sem simular um resultado |
 
 A base cromática é `#eaf2ff` para texto, `#f8fbff` para títulos e números, `#b7c7e6` para descrição e legendas. Os cards usam gradientes próximos de `rgba(11,31,77,.76)` e `rgba(7,24,54,.68)`, com bordas azuis próximas de `rgba(59,130,246,.24)`. Azul claro (`#60a5fa`), azul médio (`#2563eb`) e azul profundo (`#0b1f4d`) expressam intensidade ou seleção; verde, vermelho, amarelo, laranja e cinza têm significado específico nos mapas categóricos.
 
-Os preenchimentos dos mapas são opacos e aparecem sobre fundo transparente, sem nomes de ruas sob os polígonos. Os tooltips usam fundo escuro e texto claro. Os 853 municípios de Minas Gerais compõem os mapas estaduais; os polígonos municipais são simplificados com tolerância pequena para preservar a leitura dos limites. O mapa detalhado usa bairros oficiais quando a malha cobre pelo menos 95% do município; caso contrário, usa áreas ponderadas quando existem duas ou mais unidades. A malha completa de setores censitários fica restrita aos municípios que possuem uma única área ponderada.
+Os preenchimentos dos mapas são opacos e aparecem sobre fundo transparente, sem nomes de ruas sob os polígonos. Os tooltips usam fundo escuro e texto claro. Os 853 municípios de Minas Gerais compõem os mapas estaduais; os polígonos municipais são simplificados com tolerância pequena para preservar a leitura dos limites. O mapa detalhado de votação usa bairros oficiais quando a malha cobre pelo menos 95% do município; caso contrário, usa áreas ponderadas quando existem duas ou mais unidades. A malha completa de setores censitários fica restrita aos municípios que possuem uma única área ponderada.
 
 ### 1.2 Hierarquia de texto e formatação
 
@@ -42,7 +44,7 @@ O hero distribui o conteúdo em duas faixas: à esquerda ficam o título da pág
 
 ## 2. Página 1 — Raio X Eleitoral
 
-A página segue a ordem: **Mapa de Força Eleitoral → Como foi sua votação em Belo Horizonte → Força da política local → Concentração territorial dos votos → Eficiência por Custo do Voto**. A primeira parte oferece localização e volume; a segunda aproxima os votos nos bairros de Belo Horizonte; a seção de política local confronta capital político e market share; as duas seguintes interpretam dependência territorial e gastos.
+A página segue a ordem: **Mapa de Força Eleitoral → Como foi sua votação em Belo Horizonte → Força da política local → Concentração territorial dos votos → Eficiência por Custo do Voto**. A atuação parlamentar possui funções no código, mas não é renderizada no fluxo atual. A primeira parte oferece localização e volume; a segunda aproxima os votos nos bairros de Belo Horizonte; a seção de política local confronta capital político e market share; a concentração interpreta a dependência territorial; a seção de custo do voto mantém apenas o título.
 
 ### 2.1 Mapa de Força Eleitoral
 
@@ -90,51 +92,15 @@ Um clique na rosca abre uma janela com a composição incremental até aquele To
 
 Antes da curva, uma frase automática nomeia o líder e destaca o peso dos 15 municípios principais. Os expansores `Ver municípios do Top 5`, `Top 15` e `Top 20` aparecem em seguida, ainda antes da curva. As listas preenchem cada coluna de cima para baixo e continuam na coluna seguinte à direita, com três colunas em telas largas, duas até 900 px e uma até 600 px. Em seguida, uma curva Plotly mostra a participação acumulada em função da posição do município até **100% da votação**. O eixo horizontal usa escala logarítmica para separar melhor os primeiros marcos de concentração. A linha azul, a área translúcida, os marcadores e as referências percentuais permitem ver a velocidade da concentração. Os marcadores da curva são **Top 1**, **Top 5**, **Top 15**, **Top 20** e **Todos**; eles servem como leitura visual e não abrem janela ao clique. Sem linhas municipais válidas, o card exibe aviso e não fabrica uma curva.
 
-### 2.5 Eficiência por Custo do Voto
+### 2.5 EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
 
-**Pergunta visual:** que tipos de despesa dominam os gastos e quanto foi gasto por voto na campanha?
+A seção abre com o card de cabeçalho com o título **EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO** e o subtítulo `Análise do retorno do investimento eleitoral: veja onde o orçamento foi alocado e quanto custou a conquista de cada voto.`, no mesmo padrão visual das faixas principais.
 
-A seção abre com a frase `Participação de cada tipo de despesa nos gastos totais da campanha.`. Logo após o título, três cards na mesma linha mostram **Custo por Voto Total**, **Total Gasto** e **Despesa Líder**. Eles reutilizam o fundo em gradiente azul, borda, cantos arredondados e sombra dos cards laterais, assim como as fontes de título, valor e nota (`raiox-insight-title`, `raiox-insight-value` e `raiox-insight-note`). Valores e nomes longos podem quebrar linha. Os indicadores são calculados de `gastos_por_tipo.parquet` e dos votos totais do candidato. Ao selecionar uma despesa no treemap, os KPIs mostram o gasto e o custo por voto desse tipo; o botão **Mostrar gasto total** restaura os totais da campanha. Se faltarem gastos ou votos, a seção informa a indisponibilidade sem apresentar zeros fictícios.
-
-Uma margem de 1,25 rem separa os três indicadores superiores da faixa do treemap. O treemap Plotly ocupa cerca de **75% da largura** da faixa e tem **620 px** de altura. A área de cada retângulo usa a raiz quadrada de `valor_total_gasto`, reduzindo a dominância visual da maior despesa para deixar visíveis as categorias menores. Uma nota abaixo do gráfico explica esse ajuste; os percentuais, valores e custos exibidos continuam baseados nos gastos reais. As cores identificam tipos de despesa. Os nomes compactos das despesas aparecem dentro dos blocos; nos maiores, aparecem também participação e valor. Tipos que representam menos de 1% cada são agrupados depois dos quatro maiores em **OUTRAS DESPESAS**. O grupo informa seus componentes no hover e não é selecionável. A despesa selecionada recebe destaque; o hover mostra total gasto, participação e custo por voto na campanha. Os aliases e rótulos compactos são:
-
-| Tipo de despesa nos dados | Alias geral | Rótulo compacto no treemap |
-| --- | --- | --- |
-| Alimentação | Alimentação | Alimentação |
-| Atividades de militância e mobilização de rua | Militância | Militância |
-| Cessão ou locação de veículos | Locação de Veículos | Locação de Veículos |
-| Combustíveis e lubrificantes | Combustíveis | Combustíveis |
-| Correspondências e despesas postais | Correios | Correios |
-| Criação e inclusão de páginas na internet | Criação de Sites | Criação de Sites |
-| Despesa com Impulsionamento de Conteúdos | Anúncios Online | Anúncios Online |
-| Despesas com Hospedagem | Hospedagem | Hospedagem |
-| Despesas com pessoal | Equipe e Pessoal | Equipe e Pessoal |
-| Despesas com transporte ou deslocamento | Transporte | Transporte |
-| Encargos financeiros, taxas bancárias e/ou op. cartão de crédito | Taxas Bancárias | Taxas Bancárias |
-| Eventos de promoção da candidatura | Eventos | Eventos |
-| Locação/cessão de bens imóveis | Locação de Imóveis | Locação de Imóveis |
-| Locação/cessão de bens móveis (exceto veículos) | Locação de Bens Móveis | Locação de Bens Móveis |
-| Materiais de expediente | Material de Expediente | Material de Expediente |
-| Produção de jingles, vinhetas e slogans | Produção de Jingles e Áudio | Jingles e Áudio |
-| Produção de programas de rádio, televisão ou vídeo | Produção Audiovisual | Produção Audiovisual |
-| Publicidade por adesivos | Publicidade: Adesivos | Publicidade: Adesivos |
-| Publicidade por jornais e revistas | Publicidade: Impressa (Mídia) | Publicidade Impressa |
-| Publicidade por materiais impressos | Materiais Impressos | Materiais Impressos |
-| Serviços advocatícios | Serviços Jurídicos | Serviços Jurídicos |
-| Serviços contábeis | Serviços Contábeis | Serviços Contábeis |
-| Serviços próprios prestados por terceiros | Serviços de Terceiros (Próprios) | Terceiros Próprios |
-| Serviços prestados por terceiros | Serviços de Terceiros | Serviços de Terceiros |
-| Taxa de Administração de Financiamento Coletivo | Taxa de Vaquinha | Taxa de Vaquinha |
-
-À direita, três cards empilhados ocupam cerca de **25% da faixa** e usam o mesmo fundo em gradiente, borda e sombra dos cards laterais do **Mapa de Força Eleitoral**. Em telas largas, os três cards laterais ocupam os 25% restantes, crescem para acompanhar a altura do painel do treemap e mantêm 1 rem entre si. Em telas estreitas, voltam à altura natural do conteúdo. O primeiro, **Custo por voto da despesa**, mostra o valor gasto na categoria dividido pelos votos totais da campanha. Ao clicar em uma categoria no treemap, o card a acompanha; sem seleção, mostra a despesa líder. O card também informa o custo médio geral da campanha e um badge que compara a contribuição da categoria com esse custo total: **Baixo** (verde) abaixo de um terço, **Moderado** (amarelo) de um a dois terços e **Alto** (vermelho) a partir de dois terços. O texto esclarece que a razão não mede retorno isolado nem causalidade da despesa.
-
-O segundo card, **Peso no orçamento**, mostra `valor_total_gasto` da categoria dividido pelo gasto total da campanha, em percentual com uma casa decimal. O subtexto mostra o gasto da categoria e o total em reais. O badge verde **Rubrica principal** identifica a categoria de maior gasto; as demais recebem o badge azul **Gasto secundário**. Ele acompanha o filtro do treemap e, sem seleção, mostra a rubrica líder.
-
-O terceiro card, **Comparativo com a média**, mostra `(custo por voto da categoria - custo por voto total) / custo por voto total` como variação percentual com sinal. O subtexto mostra a diferença em reais por voto, com o mesmo sinal. O badge indica **Despesa acima** (vermelho) para variação maior que +10%, **Despesa moderada** (amarelo) entre −10% e +10%, ou **Despesa abaixo** (verde) para variação menor que −10%. Com gastos positivos, cada categoria compõe o total, então a variação acima da média total não ocorre nos dados atuais. `gastos_municipais_teoricos.parquet` ainda não alimenta a seção; o custo por voto da categoria é calculado dos totais por tipo e dos votos, com o mesmo significado de `custo_por_voto_tipo`.
+Logo abaixo, um card de subseção apresenta **BALANÇO MACRO & LIQUIDEZ DE CAIXA** e o subtítulo `Raio-x executivo da arrecadação e dos compromissos financeiros: monitore o saldo real de caixa, o volume contratado e a saúde orçamentária da campanha.`. Ele reutiliza o cabeçalho interno (`mapa-section-card`), com fundo azul translúcido mais suave, borda fina de 1 px, cantos arredondados e tipografia menor que a faixa principal. Não há indicadores, gráficos, filtros, notas ou mensagens de ausência abaixo dele.
 
 ## 3. Página 2 — DNA Eleitoral
 
-Depois do hero comum, a página apresenta **quatro faixas principais** nesta ordem: Identidade da Base Eleitoral, Distribuição do Perfil do Eleitorado, BASE ELEITORAL DO CANDIDATO, Expansão & Oportunidades para 2030. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO e a seção completa de expansão; o bloco Potencial demográfico municipal fecha a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
+Depois do hero comum, a página apresenta **seis faixas principais** nesta ordem: Identidade da Base Eleitoral → Eleitor de BH x Eleitor do Interior → Distribuição do Perfil do Eleitorado → BASE ELEITORAL DO CANDIDATO → Expansão & Oportunidades para 2030 → Potencial demográfico municipal. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO e a seção completa de expansão; o bloco Potencial demográfico municipal fecha a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
 
 ### 3.1 Identidade da Base Eleitoral
 
@@ -156,7 +122,7 @@ Os cards não exibem rodapés de metodologia ou fonte. Os critérios de cálculo
 
 Logo após o card do eleitor ideal e antes de Distribuição do Perfil do Eleitorado, uma nova faixa usa o mesmo padrão visual das faixas principais: título **Eleitor de BH x Eleitor do Interior** e subtítulo `Será que você tem o mesmo perfil de eleitor na capital e no interior?`.
 
-Abaixo, dois cards dividem igualmente a largura, com o mesmo gradiente e borda do eleitor ideal e títulos centralizados: **Eleitor da capital** à esquerda e **Eleitor do Interior** à direita. Cada gráfico apresenta barras horizontais de 0 a 100% para gênero, idade, escolaridade e estado civil, com cores por dimensão, percentuais e categorias predominantes. A capital consolida bairros com ICP calculado e votos; o interior exclui BH e usa apenas um nível territorial. A categoria predominante reúne o maior peso em votos dos territórios onde lidera; a barra mostra a média de seu percentual nesses territórios, ponderada pelos votos. Uma nota esclarece que as fontes contêm apenas categorias líderes, sem permitir reconstituir a distribuição completa. Dimensões são independentes; ausência de fonte ou percentual gera mensagem. Em telas estreitas os cards seguem o empilhamento do Streamlit.
+Abaixo, dois cards dividem igualmente a largura, com o mesmo gradiente e borda do eleitor ideal e títulos centralizados: **Eleitor da capital** à esquerda e **Eleitor do Interior** à direita. Cada gráfico apresenta barras horizontais de 0 a 100% para gênero, idade, escolaridade e estado civil, com cores por dimensão, percentuais e categorias predominantes. A capital consolida bairros com ICP calculado e votos; o interior exclui BH e usa perfis locais ou distribuições stage 02, conforme a fonte disponível. A categoria predominante reúne o maior peso em votos dos territórios onde lidera; a barra mostra a média de seu percentual nesses territórios, ponderada pelos votos. Os cards não exibem nota metodológica. O interior usa distribuições stage 02 quando o perfil geral replica a persona estadual; o cálculo e suas limitações estão descritos no README. Dimensões são independentes; ausência de fonte ou percentual gera mensagem. Em telas estreitas os cards seguem o empilhamento do Streamlit.
 
 ### 3.2 Distribuição do Perfil do Eleitorado
 
@@ -182,25 +148,27 @@ A lista abaixo contém **uma linha expansível por ICP**, ordenada dentro da cla
 
 **Pergunta visual:** onde proteger a base existente e onde há oportunidade demográfica relativa ao ICP escolhido?
 
-A faixa principal mantém o texto atual `Mapeamento em nível de bairro e área ponderada. Localização dos clusters táticos e visualização de manchas de potencial de crescimento.`. **A implementação exibida logo abaixo é municipal**: não há mapa de bairros nem de áreas ponderadas nesta seção. Um seletor à direita alterna **ELEITOR IDEAL** e classificações estratégicas.
+O diagnóstico municipal stage 09b tem prioridade. Quando essa fonte não é lida, o componente usa o cálculo legado stage 08c com Censo, mantendo o mapa agregado por município.
+
+A faixa principal apresenta `Mapeamento municipal de oportunidades demográficas e da base eleitoral para orientar a expansão territorial.`. **A implementação exibida logo abaixo é municipal**: não há mapa de bairros nem de áreas ponderadas nesta seção. Um seletor à direita alterna **ELEITOR IDEAL** e classificações estratégicas.
 
 O conteúdo usa **mapa em card à esquerda (70%) e quatro cards de legenda empilhados à direita (30%)**, no padrão do Mapa de Força Eleitoral do Raio X. O seletor de ICP fica no canto superior direito, dentro do card do mapa. Os cards laterais têm borda tonalizada, sombra, gradiente com iluminação na cor da classe, badge de cor e títulos destacados: **Oportunidade de expansão** (verde), **Proteger a base** (azul), **Potencial a desenvolver** (amarelo) e **Baixa similaridade** (cinza). Cada um mantém a explicação da legenda original. A legenda torna o mapa categórico; cores não representam uma sequência contínua.
 
-O mapa municipal é um **coroplético Plotly** com cerca de **560 px** de altura, dentro do card azul com borda e cantos arredondados. Cada município recebe uma das quatro classes; a barra categórica do Plotly fica oculta porque os cards laterais apresentam a legenda. O hover informa nome, classe, votos, oportunidade e similaridade. A nota inferior, dentro do card, explicita que os limites de votos, similaridade e potencial são relativos ao perfil selecionado e que potencial demográfico **não é previsão de votos**. Se não houver dados completos de Censo/potencial ou a malha municipal falhar, o card mostra uma informação textual no lugar do mapa, mantendo as explicações laterais. Em telas estreitas as colunas seguem o empilhamento do Streamlit.
+O mapa municipal é um **coroplético Plotly** com cerca de **560 px** de altura, dentro do card azul com borda e cantos arredondados. Cada município recebe uma das quatro classes; a barra categórica do Plotly fica oculta porque os cards laterais apresentam a legenda. No diagnóstico stage 09b, o hover informa município, leitura da classe, votos nos setores associados, população estimada do ICP e sua parcela na população de referência. No fallback stage 08c, informa votos, oportunidade e similaridade. A nota inferior explica a cobertura dos setores associados, os cortes relativos, os votos probabilísticos dos clusters e que potencial **não é previsão de votos**. No stage 09b, azul identifica o quartil superior de votos; verde exige população estimada no quartil superior e parcela na referência igual ou superior à mediana; amarelo identifica população estimada positiva fora desses critérios. Azul tem prioridade. A legenda cinza passa a **Sem potencial ou dados incompletos**. No fallback stage 08c, permanecem as explicações de oportunidade e similaridade. Se não houver dados completos de Censo/potencial ou a malha municipal falhar, o card mostra uma informação textual no lugar do mapa, mantendo as explicações laterais. Em telas estreitas as colunas seguem o empilhamento do Streamlit.
 
 ### 3.5 Potencial demográfico municipal
 
 Uma faixa principal no mesmo padrão de Identidade da Base Eleitoral e Distribuição do Perfil do Eleitorado abre o bloco, com título **Potencial demográfico municipal** e subtítulo `Explore as oportunidades demográficas e a aderência ao perfil do eleitor em cada município.`.
 
-O bloco usa os mesmos Parquets de potencial geral, clusters e Censo (gênero, idade e escolaridade) da expansão estadual, mantendo os resultados por **área ponderada**. A junção com a malha oficial usa diretamente `cd_area_ponderada` e `code_weighting`, sem rateio entre bairros ou setores.
+O bloco usa os diagnósticos **stage 09b por setor**, com filtros **Mesorregião → Município → Perfil para expansão**, independentes da expansão estadual. Não há seletor de unidade intramunicipal nem fallback para áreas ponderadas.
 
-O mapa ocupa 70% da largura; os quatro cards laterais ocupam 30% e apresentam as categorias da legenda: oportunidade alta (verde), proteger a base (azul), oportunidade com menor aderência (amarelo) e baixa similaridade/dados incompletos (cinza). Cada card mostra a quantidade de áreas da categoria no recorte exibido e sua explicação. Os fundos repetem o gradiente azul translúcido dos indicadores de Belo Horizonte do Raio X, com borda clara, raio de 16 px e sombra. Em telas largas, os quatro cards dividem a altura disponível com intervalos de 1 rem, alinhando o início e o fim da coluna ao card do mapa, sem espaço vazio abaixo do último card. Em telas estreitas, as alturas acompanham o conteúdo.
+O mapa ocupa 70% da largura e tem **640 px** de altura; quatro cards empilhados ocupam os 30% restantes. Em **Belo Horizonte**, a malha é de bairros oficiais IBGE, com diagnósticos setoriais agregados por código exato de bairro e cortes relativos recalculados entre bairros. Nos demais municípios, todos os setores censitários da malha municipal são desenhados; os nomes de bairros identificam as unidades no hover, sem mudar sua geometria setorial.
 
-Os filtros são apresentados nesta ordem: **Mesorregião → Município → Perfil para expansão**, com estado independente da expansão estadual. Não há seletor de área ponderada: o mapa e as contagens dos cards abrangem todas as áreas do município selecionado. O tooltip informa código da área, categoria, votos, oportunidade, similaridade e bairros TSE de referência pelo crosswalk. Dados ausentes aparecem como indisponíveis, com polígonos neutros.
+Os cards apresentam **Oportunidade alta** (verde), **Proteger a base** (azul), **Potencial a desenvolver** (amarelo) e **Sem potencial ou dados incompletos** (cinza). Os títulos ficam em badges arredondados na cor da classe, com texto branco em negrito e quebra de linha. Abaixo, a contagem usa o rótulo **Bairros** em BH e **Áreas** nos demais municípios, seguida da explicação. Fundo azul em gradiente, borda clara, raio de 16 px, padding de 20 px e sombra integram mapa e cards. Os cards acompanham o conteúdo; não há regra específica que force sua altura a preencher a coluna do mapa.
 
-Os títulos dos quatro cards laterais aparecem em badges arredondados com fundo na cor da respectiva categoria e texto branco em negrito. Títulos longos podem quebrar linha dentro da badge.
+O tooltip mostra **Bairro: nome**, classe, votos associados, população estimada do ICP e parcela do ICP na população de referência. Não mostra código de setor ou bairro. Sem vínculo de bairro, usa **Bairro: Sem bairro vinculado**. Valores ausentes aparecem como **Indisponível**, e polígonos sem diagnóstico permanecem cinza.
 
-As faixas são calculadas sobre todas as áreas disponíveis para o perfil selecionado, antes dos filtros territoriais. Aplicam os mesmos critérios relativos da expansão estadual, agora na unidade de área ponderada. Os votos repetidos entre dimensões são usados uma vez por área. A nota esclarece a unidade dos resultados, o vínculo dos bairros por ponto e que potencial não é previsão de votos.
+As classes seguem os critérios relativos stage 09b da expansão estadual; fora de BH, os cortes são calculados antes do filtro municipal. A nota abaixo do mapa explica a agregação de BH, os vínculos exatos, as áreas sem diagnóstico e que votos associados a locais de votação não representam residência dos eleitores. Potencial demográfico não é previsão de votos. Falta de malha, diagnóstico ou vínculos recebe mensagem específica.
 
 ## 4. Interação, estados e continuidade visual
 
@@ -208,7 +176,7 @@ As faixas são calculadas sobre todas as áreas disponíveis para o perfil selec
 
 | Controle | Onde atua | Persistência observável |
 | --- | --- | --- |
-| Pasta do candidato na barra lateral | Três páginas | Lista as pastas de candidatos encontradas na raiz configurada do HF e preserva a seleção ao trocar de rota |
+| Pasta do candidato na barra lateral | Duas páginas | Lista as pastas de candidatos encontradas na raiz configurada do HF e preserva a seleção ao trocar de rota |
 | Painel vertical Raio X / DNA | Navegação | Opção ativa destacada no hero |
 | Filtro territorial Mesorregião / Município | Mapa estadual do Raio X e conteúdo da janela aberta por clique | Restrito ao primeiro mapa |
 | Eleição no mapa de Belo Horizonte | Mapa de bairros do Raio X | 2020/2024 mostram comparação com 2026; 2026 mostra votos atuais; Projeção 2028 mostra as categorias estratégicas |
@@ -216,9 +184,8 @@ As faixas são calculadas sobre todas as áreas disponíveis para o perfil selec
 | Filtro Município da força política local | Mapa categórico dos quatro quadrantes em Minas Gerais | Única granularidade disponível nesta etapa |
 | Cards da força política local | Destacam ou restauram uma classe do mapa | Card ativo recebe contorno reforçado |
 | Clique em município da força política local | Abre o mapa isolado, os indicadores e a composição política municipal | Janela modal; fecha sem alterar o filtro dos cards |
-| Tipo de despesa no treemap | KPIs de custo e destaque no treemap | Botão restaura gasto total |
 | Município e dimensão da rosca DNA | Rosca e total do recorte | Restrito à seção de distribuição |
-| Mesorregião e município do Potencial demográfico municipal | Mapa categórico por área ponderada | Restrito ao bloco municipal |
+| Mesorregião e município do Potencial demográfico municipal | Bairros oficiais em BH; setores censitários nos demais municípios | Restrito ao bloco municipal |
 | Perfil para expansão | Classes e métricas do mapa de Expansão 2030 | Restrito à seção de expansão do DNA |
 
 ### 4.2 Estado sem dados
@@ -227,9 +194,9 @@ Falta de parquet, malha ou dimensão não deve parecer valor zero. A implementa�
 
 ### 4.3 Responsividade implementada
 
-No hero, a navegação permanece vertical à direita em telas largas; quando as colunas do Streamlit se reorganizam, o painel passa para baixo do conteúdo mantendo os dois botões empilhados. A foto e os textos também se ajustam por regras CSS próprias. Os KPIs da página 1 passam de linha para uma coluna em telas até cerca de **900 px**. A faixa Top 1/5/15/20 passa para duas colunas; a lista de municípios reduz colunas novamente abaixo de **600 px**. Os quatro sub-cards do eleitor ideal passam para duas colunas abaixo de **900 px** e uma coluna abaixo de **760 px**. No card dos ICPs, o resumo e as barras demográficas empilham abaixo de **600 px**; o cabeçalho de cada perfil pode quebrar em telas estreitas. A legenda de expansão passa de quatro para duas colunas abaixo de **900 px** e para uma abaixo de **560 px**.
+No hero, a navegação permanece vertical à direita em telas largas; quando as colunas do Streamlit se reorganizam, o painel passa para baixo do conteúdo mantendo os dois botões empilhados. A foto e os textos também se ajustam por regras CSS próprias. Os KPIs da página 1 passam de linha para uma coluna em telas até cerca de **900 px**. A faixa Top 1/5/15/20 passa para duas colunas; a lista de municípios reduz colunas novamente abaixo de **600 px**. Os quatro sub-cards do eleitor ideal passam para duas colunas abaixo de **900 px** e uma coluna abaixo de **760 px**. No card dos ICPs, o resumo e as barras demográficas empilham abaixo de **600 px**; o cabeçalho de cada perfil pode quebrar em telas estreitas. A legenda de expansão estadual mantém quatro cards em uma coluna; abaixo de **640 px**, reduz padding e remove a altura mínima dos cards.
 
-Os pares de mapa e cards laterais da página 1, o treemap com os três cards de insights ao lado e o par rosca/filtros do DNA são montados com `st.columns`; a experiência móvel também depende do empilhamento padrão do Streamlit. Nomes longos de município, persona e despesa podem quebrar linha. Tooltips complementam os rótulos que não cabem nos cards.
+Os pares de mapa e cards laterais da página 1 e o par rosca/filtros do DNA são montados com `st.columns`; a experiência móvel também depende do empilhamento padrão do Streamlit. Nomes longos de município e persona podem quebrar linha. Tooltips complementam os rótulos que não cabem nos cards.
 
 ## 5. Critérios de fidelidade para futuras alterações
 
@@ -240,15 +207,16 @@ Os pares de mapa e cards laterais da página 1, o treemap com os três cards de 
 5. Fazer seleção e estado vazio permanecerem compreensíveis sem depender só de cor.
 6. Atualizar este briefing quando mudar texto, card, escala, interação, ordem de seção ou granularidade de mapa.
 
+### Caminhos do seletor (13/10/2026)
 
-### Atualização do contrato DNA — 10 de outubro de 2026
+O seletor consulta somente `vereadores/` e exige uma pasta anual como `2026`. Marcela ja atende esse contrato. Bruno e Pablo aparecerao quando seus dados anuais forem gerados. `bh_2026` e usado apenas nas consultas especificas de BH. O grupo `dep_estaduais/` fica fora desta visualizacao. Layout e interacoes permanecem iguais.
 
-Em Belo Horizonte, o Potencial demográfico municipal usa a malha oficial de bairros: os diagnósticos dos setores são agregados pelo código exato do bairro IBGE no crosswalk. As métricas abrangem os setores diagnosticados vinculados ao bairro, sem completar a população ou os votos ausentes. Os cards contam bairros e as faixas relativas são recalculadas entre os bairros com diagnóstico. Nos demais municípios permanece a malha de setores, com contagem de áreas. O tooltip mostra apenas **Bairro: nome**, sem código de setor nem qualificadores IBGE/TSE.
+### Barra lateral (13/10/2026)
 
-**Potencial demográfico municipal — atualização por setores:** o mapa passa a desenhar todos os setores censitários do município selecionado, com os filtros Mesorregião → Município → Perfil para expansão. Os diagnósticos geral e por clusters do stage 09b são unidos diretamente pelo código do setor. Os quatro cards contam **Setores censitários** e usam as categorias Oportunidade alta, Proteger a base, Potencial a desenvolver e Sem potencial ou dados incompletos. O tooltip apresenta setor, bairro e código IBGE pelo crosswalk exato setor–bairro (com complemento do índice oficial), votos associados, população estimada do ICP e sua parcela na população de referência. Ausências aparecem como indisponíveis; os polígonos permanecem cinza. As faixas relativas são calculadas antes do recorte municipal. Uma nota explica o vínculo dos bairros, a natureza dos votos associados a locais de votação e a diferença entre potencial e previsão. Esta atualização substitui a granularidade por área ponderada descrita na seção 3.5.
+A navegacao nativa de paginas fica oculta; a troca de pagina usa os botoes do hero. Acima de Candidato, o titulo Cargo Atual acompanha um seletor com a unica opcao Vereadores. O seletor Candidato mostra somente o nome, sem slug ou nome de pasta. A legenda com cargo, ano e pasta foi removida. O botao Atualizar candidatos permanece disponivel.
 
-Validado com `pablo_almeida/2026` no HF. O ICP geral geográfico agora replica a combinação principal estadual nos bairros e fornece `pct_{dimensao}_principal_global`. Os gauges usam esses percentuais marginais, sem substituir pelo percentual conjunto. Na comparação capital/interior, BH mantém sua fonte por bairro; o interior usa as distribuições municipais do stage 02, exclui BH e calcula a categoria líder e seu percentual ponderado pelos votos. Isso evita interpretar o perfil estadual replicado como perfil exclusivo do interior.
+## Selecao por cargo e remocao de emendas (13/10/2026)
 
-A base eleitoral lê `perfil/stage03_icp_clusters_geo.parquet`, com fallback para o stage 04 antigo. Cada cluster conserva seus atributos e recebe participação calculada pelos votos probabilísticos do cluster divididos pelo total classificado, sem somar market shares locais.
+Cargo Atual oferece Vereadores (`vereadores/`) e Deputados Estaduais (`dep_estaduais/`). A escolha determina a raiz consultada no HF e filtra os candidatos pela pasta. Ao trocar cargo, os estados da candidatura e das visualizacoes sao reiniciados; a navegacao continua pelos botoes do hero. O contrato exige pasta anual nos dois grupos. Esta regra substitui as referencias anteriores a um unico cargo.
 
-Quando disponíveis, `potencial_demografico/stage09b_diagnostico_geral_municipio.parquet` e `stage09b_diagnostico_clusters_municipio.parquet` alimentam a expansão estadual, diretamente pelo código IBGE. O seletor oferece eleitor ideal e classificações estratégicas dos clusters. O diagnóstico cobre somente os setores associados, não o total municipal. A população estimada do ICP substitui a antiga oportunidade por diferenças marginais; sua parcela na população de referência substitui a antiga similaridade no tooltip. Azul marca o quartil superior de votos; verde exige população estimada no quartil superior e parcela acima da mediana; amarelo marca população estimada positiva fora desses critérios; dados incompletos ficam cinza, sem usar contagens parciais como totais. Legenda e nota explicam os critérios. O caminho antigo por áreas ponderadas permanece para candidatos que ainda forneçam stage 08c. O bloco final de potencial por área ponderada continua dependente das fontes antigas; stage 09b municipal não fornece essa resolução.
+Para deputados estaduais, Raio X oculta Como foi sua votacao em Belo Horizonte e DNA oculta Eleitor de BH x Eleitor do Interior. Vereadores conservam essas secoes. As demais secoes permanecem compartilhadas. O componente antigo de atuacao parlamentar/emendas, incluindo mapa, cards, dialogo e tabelas, foi removido a pedido; nenhuma nova secao de emendas foi implementada. Referencias anteriores a essas funcoes descrevem o estado historico. Os arquivos do HF foram preservados.

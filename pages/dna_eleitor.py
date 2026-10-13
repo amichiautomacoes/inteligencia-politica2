@@ -274,10 +274,14 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
 
 def _comparison_sources(icp_df: pd.DataFrame | None) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     capital = None
-    annual_path = next((path for path in selected_files()
-                        if path.replace("\\", "/").endswith("/2026/perfil/stage04_icp_geral_geo.parquet")), None)
-    if annual_path:
-        root = annual_path.replace("\\", "/").removesuffix("/2026/perfil/stage04_icp_geral_geo.parquet")
+    primary_path = next(iter(selected_files()), None)
+    if primary_path:
+        # The selected base can be either an annual folder or bh_2026.
+        parts = primary_path.replace("\\", "/").split("/")
+        partition = next((index for index, part in enumerate(parts)
+                          if (part.isdigit() and len(part) == 4)
+                          or (part.startswith("bh_") and part[3:].isdigit())), None)
+        root = "/".join(parts[:partition]) if partition is not None else ""
         for folder in ("bh_vereador", "bh_2026"):
             try:
                 capital = load_parquet(f"{root}/{folder}/perfil/icp_geral_por_bairro.parquet", load_env().get("HF_TOKEN"))
@@ -1014,11 +1018,12 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
     if index == 0:
         icp_general_df = _read_selected_parquet("icp_geral")
         _render_icp_geral_card(icp_general_df)
-        major_section_header(
-            "Eleitor de BH x Eleitor do Interior",
-            "Será que você tem o mesmo perfil de eleitor na capital e no interior?",
-        )
-        _render_capital_interior_comparison(icp_general_df)
+        if st.session_state.get("candidate_group", "vereadores") == "vereadores":
+            major_section_header(
+                "Eleitor de BH x Eleitor do Interior",
+                "Será que você tem o mesmo perfil de eleitor na capital e no interior?",
+            )
+            _render_capital_interior_comparison(icp_general_df)
     else:
         render_electorate_distribution(_read_selected_parquet)
         major_section_header(

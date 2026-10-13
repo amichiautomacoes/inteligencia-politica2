@@ -12,7 +12,7 @@ from huggingface_hub import HfFileSystem
 
 SUPPORTED_SUFFIXES = {".csv", ".parquet", ".json", ".jsonl", ".xlsx", ".xls", ".jpg", ".jpeg", ".png"}
 DEFAULT_VISUALIZATION_YEAR = "2026"
-DEFAULT_VISUALIZACAO_PREFIX = ""
+DEFAULT_VISUALIZACAO_PREFIX = "vereadores"
 DEFAULT_CANDIDATE_CARGO = "Vereadores"
 SHARED_BUCKET_DIRS = {"ibge", "forca-local", "intermediate", "votacao"}
 CARGO_BUCKET_DIRS = {"deputados", "estaduais", "federais", "vereadores"}
@@ -46,10 +46,12 @@ def load_env(path: str | Path = ".env") -> dict[str, str]:
 
 
 def _visualizacao_prefix(config: dict[str, str]) -> str:
+    active_group = st.session_state.get("candidate_group")
+    if active_group in ("vereadores", "dep_estaduais"):
+        return active_group
     prefix = config.get("HF_VISUALIZACAO_PREFIX", DEFAULT_VISUALIZACAO_PREFIX).strip("/")
-    # The previous bucket layout stored candidates under this prefix. Treat a
-    # stale EasyPanel setting as the new bucket root.
-    return "" if prefix.casefold() == "vereadores" else prefix
+    # Empty settings from the previous root layout now use the vereadores group.
+    return prefix or DEFAULT_VISUALIZACAO_PREFIX
 
 
 def hf_visualizacao_path(env: dict[str, str] | None = None) -> str:

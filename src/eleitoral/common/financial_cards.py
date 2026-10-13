@@ -10,7 +10,7 @@ import pandas as pd
 def financial_values(frame: pd.DataFrame | None) -> dict[str, Decimal | None]:
     """Read one candidate summary without summing repeated or unrelated totals."""
     values = {}
-    for field in ("receita_financeira", "receita_estimavel", "despesa_contratada", "despesa_paga"):
+    for field in ("receita_total", "receita_financeira", "receita_estimavel", "despesa_contratada", "despesa_paga"):
         value = None
         if frame is not None and len(frame) == 1 and field in frame.columns:
             try:

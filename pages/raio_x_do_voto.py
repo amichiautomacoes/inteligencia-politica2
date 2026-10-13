@@ -27,6 +27,7 @@ from eleitoral.deputados.emendas import render_emendas
 from eleitoral.deputados.neighborhood_elections import select_election, render_election_mode
 from eleitoral.common.neighborhood_voting import render_neighborhood_voting
 from eleitoral.common.financial_cards import financial_cards_html
+from eleitoral.common.financial_charts import render_financial_charts
 from eleitoral.common.raio_x_cards import _format_number, _format_percent, _normalized_text, _map_side_card
 from eleitoral.common.shared_header import apply_shared_visual_model, render_page_header
 
@@ -3099,7 +3100,10 @@ def _render_cost_efficiency_section() -> None:
         "BALANÇO MACRO & LIQUIDEZ DE CAIXA",
         "Raio-x executivo da arrecadação e dos compromissos financeiros: monitore o saldo real de caixa, o volume contratado e a saúde orçamentária da campanha.",
     )
-    st.markdown(financial_cards_html(_read_selected_parquet("resumo_financeiro")), unsafe_allow_html=True)
+    financial_summary = _read_selected_parquet("resumo_financeiro")
+    st.markdown(financial_cards_html(financial_summary), unsafe_allow_html=True)
+    render_financial_charts(financial_summary)
+    _section_header("Estrutura da receita (de onde veio o dinheiro)")
 
 
 _apply_visual_model()

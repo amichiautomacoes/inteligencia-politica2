@@ -1,19 +1,19 @@
 # Inteligência Política
 
-Dashboard multipágina em Streamlit para análise eleitoral de candidaturas em Minas Gerais. A aplicação cruza votação territorial, perfil demográfico, despesas de campanha, emendas parlamentares e potencial de expansão com malhas oficiais do IBGE.
+Dashboard multipágina em Streamlit para inteligência eleitoral em Minas Gerais. A proposta é compartilhar as páginas Raio X Eleitoral e DNA Eleitoral entre vereadores e deputados estaduais, adaptando candidatos, fontes e seções ao cargo selecionado. A aplicação atual reúne votação territorial, perfil demográfico, força política local e potencial de expansão com malhas oficiais do IBGE. A seção de emendas dos deputados replica o componente de `deputados_streamlit`; a análise financeira ainda será desenvolvida em etapas posteriores.
 
 Este README é a referência técnica do projeto. A aparência, a hierarquia de informação, os estados de tela e as interações estão documentados no [briefing visual](Visual.md).
 
-Documentação revisada em 12 de outubro de 2026 a partir das rotas e componentes chamados pelo código atual. As auditorias históricas do bucket abaixo não representam uma nova consulta remota.
+Documentação revisada em 13 de outubro de 2026 a partir das rotas e componentes chamados pelo código atual. As auditorias históricas do bucket abaixo não representam uma nova consulta remota.
 
 ## Escopo atual
 
 | Rota | Arquivo | Responsabilidade |
 | --- | --- | --- |
-| `/raio-x-eleitoral` | `pages/raio_x_do_voto.py` | Votação estadual e de BH, força política local e concentração; seção de custo apenas com título |
+| `/raio-x-eleitoral` | `pages/raio_x_do_voto.py` | Votação estadual e de BH, força política local, concentração e emendas exclusivas de deputados; seção financeira apenas com cabeçalhos |
 | `/dna-eleitoral` | `pages/dna_eleitor.py` | Card do eleitor ideal, distribuição demográfica, clusters de ICP e expansão territorial para 2030 e potencial demográfico municipal |
 
-`app.py` registra as duas rotas com `st.navigation`, descobre as pastas de candidatos na raiz configurada do Hugging Face e mantém a seleção em `st.session_state`. A troca de página preserva o candidato selecionado.
+`app.py` registra as duas rotas com `st.navigation(position="hidden")`. A navegação ocorre pelos botões do hero; a barra lateral contém Cargo Atual, Atualizar candidatos e Candidato. O cargo determina o grupo consultado no Hugging Face. O seletor mostra somente nomes, sem slug. A troca de página preserva cargo e candidato; a troca de cargo reinicia os estados de seleção e das visualizações.
 
 Os principais blocos implementados são:
 
@@ -21,7 +21,18 @@ Os principais blocos implementados são:
 - **DNA:** eleitor ideal, comparação BH/interior, distribuição demográfica, base eleitoral por clusters, expansão municipal para 2030 e potencial demográfico intramunicipal.
 - **Potencial municipal:** diagnósticos setoriais stage 09b; em BH, agregação por bairro oficial IBGE; nos demais municípios, polígonos de setores censitários.
 
-A seção de atuação parlamentar tem funções e leitores no código, mas não é chamada no fluxo atual do Raio X. Não constitui uma seção visível da página.
+### Variações por cargo
+
+| Comportamento | Vereadores | Deputados Estaduais |
+| --- | --- | --- |
+| Grupo no HF | `vereadores/` | `dep_estaduais/` |
+| Candidatos | Somente os candidatos desse grupo com pasta anual | Somente os candidatos desse grupo com pasta anual |
+| Raio X: Como foi sua votação em Belo Horizonte | Visível | Oculta |
+| DNA: Eleitor de BH x Eleitor do Interior | Visível | Oculta |
+| Demais seções atuais | Compartilhadas | Compartilhadas |
+| Emendas legislativas | Sem seção atual | Implementada no Raio X, após concentração e antes da seção financeira |
+
+A atuação parlamentar dos deputados foi copiada de `D:\MktPolitica\deputados_streamlit`, preservando mapa, indicadores, seis cards de legenda e diálogo municipal. O componente usa os dados do deputado selecionado no bucket configurado neste projeto e fica em `src/eleitoral/deputados/`.
 
 ## Arquitetura
 
@@ -36,6 +47,8 @@ A seção de atuação parlamentar tem funções e leitores no código, mas não
 │   ├── common/
 │   │   ├── shared_header.py       # Hero, navegação interna, CSS global e seleção compartilhada
 │   │   └── dna_copy.py            # Normalização de textos do DNA
+│   ├── vereadores/                # Seções exclusivas: votação de BH e capital/interior
+│   ├── deputados/                 # Emendas e atuação parlamentar de deputados estaduais
 │   ├── dna/
 │   │   ├── cluster_cards.py       # Cards expansíveis dos perfis de ICP
 │   │   ├── dna_distribution.py    # Rosca e filtros demográficos
@@ -43,7 +56,7 @@ A seção de atuação parlamentar tem funções e leitores no código, mas não
 │   │   ├── sector_expansion.py    # Potencial por setores e agregação por bairro em BH
 │   │   └── demographic_alignment.py # Cálculos auxiliares de alinhamento
 │   └── maps/
-│       ├── choropleth_maps.py      # Coropléticos estaduais e parlamentar
+│       ├── choropleth_maps.py      # Coropléticos estaduais e de força política local
 │       ├── dna_geo_reference.py   # Leitura, CRS e referências geográficas
 │       └── territorial_mesh.py    # Malha detalhada de bairro/área/setor
 ├── scripts/                        # Preparação e auditoria de malhas fora do runtime
@@ -55,6 +68,18 @@ A seção de atuação parlamentar tem funções e leitores no código, mas não
 ```
 
 Os módulos auxiliares ficam fora de `pages/` para que o Streamlit não os registre como páginas.
+
+### Separação por cargo no código
+
+O `app.py` continua sendo a entrada única. As duas páginas compõem as seções compartilhadas e chamam os componentes exclusivos conforme `candidate_group`, preservando a ordem da interface:
+
+- `src/eleitoral/vereadores/raio_x_bh.py`: histórico de votação de BH, indicadores laterais e legendas.
+- `src/eleitoral/vereadores/bh_projection.py`: classificação demográfica dos bairros no filtro Projeção 2028.
+- `src/eleitoral/vereadores/dna_capital_interior.py`: comparação do eleitor de BH com o interior.
+- `src/eleitoral/deputados/emendas.py` e `emendas_map.py`: seção exclusiva de atuação parlamentar, seus indicadores, legendas, diálogo e mapa.
+- `src/eleitoral/common/dna_profile.py` e `raio_x_cards.py`: consolidação de perfis, formatação e cards usados pelos componentes compartilhados e exclusivos.
+
+As leituras continuam centralizadas em `hf_sync.py`; os componentes específicos recebem o leitor da página. Os demais módulos de `common/`, `dna/` e `maps/` continuam compartilhados entre cargos. Novas seções exclusivas devem ficar na pasta do cargo correspondente, fora de `pages/`.
 
 ### Fluxo de execução
 
@@ -89,28 +114,43 @@ HF_TOKEN="seu_token"
 | Variável | Uso |
 | --- | --- |
 | `HF_BUCKET_URL` | Raiz do bucket acessado pelo `HfFileSystem`; obrigatória |
-| `HF_VISUALIZACAO_PREFIX` | Prefixo opcional dentro do bucket; vazio para descobrir candidatos na raiz |
+| `HF_VISUALIZACAO_PREFIX` | Grupo padrão fora da seleção interativa; padrão `vereadores`. Na interface, Cargo Atual determina o grupo |
 | `HF_GEOGRAPHY_PREFIX` | GeoParquets otimizados usados nos mapas |
 | `HF_GEOGRAPHY_REFERENCE_PREFIX` | Tabelas auxiliares de códigos e nomes territoriais |
 | `HF_TOKEN` | Autenticação do Hugging Face; não deve ser versionada |
 
-O prefixo padrao e `vereadores`. Valores vazios tambem resolvem para esse grupo. Variaveis do processo prevalecem sobre `.env`; outros prefixos explicitos continuam disponiveis. O grupo `dep_estaduais` fica fora da visualizacao atual.
+O prefixo padrão é `vereadores`; um valor vazio também resolve para esse grupo. Na interface, `candidate_group` em `st.session_state` tem prioridade e alterna entre `vereadores` e `dep_estaduais` conforme Cargo Atual. Não é necessário mudar a variável no EasyPanel ao trocar o cargo. Variáveis do processo prevalecem sobre `.env`. Nunca versione tokens.
 
 ### Descoberta de candidatos
 
 O formato canônico é:
 
 ```text
-vereadores/{pasta_do_candidato}/{ano}/...
+{grupo}/{pasta_do_candidato}/{ano}/...
 ```
 
-`hf_sync.deputado_parts()` reconhece candidato e ano. O seletor exige uma pasta anual, como `2026`, preferindo esse ano. As consultas gerais usam somente a pasta anual; `bh_2026` fica reservado as consultas especificas de BH. **Atualizar candidatos** renova a listagem e limpa os caches tabulares.
+`hf_sync.deputado_parts()` reconhece candidato e ano dentro do grupo ativo. O seletor exige uma pasta anual, como `2026`, preferindo esse ano e usando o ano numérico mais recente quando necessário. As consultas gerais usam somente a pasta anual; `bh_2026` é reservado às consultas específicas de BH para vereadores. Bruno e Pablo seguem o mesmo contrato da Marcela, sem fallback de BH para a base principal. **Atualizar candidatos** renova a listagem e limpa os caches tabulares de `hf_sync.py`.
 
-Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretamente na raiz foram `bruno_miranda` e `marcela_tropia`. O bucket também contém pastas compartilhadas de geografia e processamento, que não são listadas como candidatos.
+Organização verificada na reorganização de 13 de outubro de 2026:
+
+```text
+vereadores/
+├── bruno_miranda/bh_2026/
+├── pablo_almeida/bh_2026/
+└── marcela_tropia/
+    ├── 2026/
+    └── bh_2026/
+dep_estaduais/
+├── amanda_teixeira_dias/2026/
+├── fernando_breno/2026/
+└── lud_falcao/2026/
+```
+
+Bruno e Pablo aguardam a geração de suas pastas anuais `2026`; enquanto tiverem somente `bh_2026`, não aparecem no seletor. Após a geração, use **Atualizar candidatos**. As pastas compartilhadas do bucket, como IBGE, não são candidaturas.
 
 ## Contrato de dados eleitorais
 
-`hf_sync.file_by_kind()` resolve os artefatos abaixo pelo sufixo do caminho. Os nomes são parte do contrato entre a preparação dos dados e a visualização.
+`hf_sync.file_by_kind()` resolve os artefatos abaixo pelo sufixo do caminho. Os nomes são parte do contrato entre a preparação dos dados e a visualização. Os caminhos anuais abaixo são relativos a `{grupo}/{candidato}/{ano}/`; os caminhos explícitos de BH ficam sob `vereadores/`.
 
 | Grupo | Arquivo esperado | Consumidor principal |
 | --- | --- | --- |
@@ -118,7 +158,7 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 | Território | `territorio/stage01b_bairros.parquet` | Mapa intramunicipal e detalhamento por bairro |
 | Comparação de BH | `{candidato}/bh_2026/territorio/stage01b_bairros.parquet` | Votos de 2020/2024 e comparação de participação com 2026 no mapa de Belo Horizonte |
 | Potencial demográfico de BH | `{candidato}/bh_2026/potencial_demografico/stage08c_potencial_demografico_icp_bairro.parquet` | Votos e comparação ICP/população por bairro e dimensão no filtro **Projeção 2028** |
-| Emendas de BH | `{candidato}/bh_2026/emendas/emendas_municipais.parquet` | Leitor de emendas de BH; seção não chamada no fluxo atual |
+| Emendas de BH | `{candidato}/bh_2026/emendas/emendas_municipais.parquet` | Artefato opcional; sem componente de interface atual |
 | Demografia | `demografico/stage02_genero.parquet` | Distribuição do eleitorado |
 | Demografia | `demografico/stage02_idade.parquet` | Distribuição do eleitorado |
 | Demografia | `demografico/stage02_escolaridade.parquet` | Distribuição do eleitorado |
@@ -131,7 +171,7 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 | Diagnóstico setorial | `potencial_demografico/stage09b_diagnostico_clusters_setor.parquet` | Potencial intramunicipal por classificação de clusters |
 | Gastos | `gastos/gastos_por_tipo.parquet` | Leitor disponível; sem consumo na seção atual de custo do voto |
 | Gastos | `gastos/gastos_municipais_teoricos.parquet` | Disponível no bucket; ainda não utilizado na interface |
-| Emendas | `gastos/emendas_legislativa.parquet` (ou `emendas/emendas_municipais.parquet`, quando fornecido) | Funções de atuação parlamentar; seção não chamada no fluxo atual |
+| Emendas | `emendas/emendas_legislativa.parquet` (fallback para `emendas/emendas_municipais.parquet` e `gastos/emendas_legislativa.parquet`) | Atuação parlamentar, exclusiva de deputados |
 | Força local | `forca_local/stage07a_capital_local_municipios.parquet` | Quadrantes de efetividade da estrutura política municipal |
 | Força local | `forca_local/stage07b_afinidade_eleitos.parquet` | Composição nominal de prefeitos e vereadores no detalhe municipal |
 | Censo | `IBGE/censo/genero_apond.parquet` | Cálculo da expansão |
@@ -146,15 +186,15 @@ Na consulta do bucket em 8 de outubro de 2026, os candidatos encontrados diretam
 
 O app também reconhece CSV, JSON, JSONL, XLS/XLSX e imagens ao listar o bucket, mas as seções analíticas atuais leem os artefatos tabulares acima como Parquet. JPG, JPEG e PNG podem fornecer a foto do candidato.
 
-Na auditoria do bucket em 8 de outubro de 2026, cada candidato tinha 29 Parquets na pasta `2026/`. Os esquemas dos dois candidatos têm os mesmos nomes e tipos de coluna; somente a ordem das colunas difere em `IBGE/censo/genero_apond.parquet` e `IBGE/censo/idade_apond.parquet`. O leitor usa nomes, então essa diferença não altera as consultas. As contagens de linhas variam entre candidatos.
 
-O arquivo anual `gastos/emendas_legislativa.parquet` tem esquema, mas está vazio para os dois candidatos; essas fontes não alimentam uma seção visível de atuação parlamentar no fluxo atual. A pasta especial `bh_2026/emendas/emendas_municipais.parquet` contém emendas para Belo Horizonte e pode ser lida pelas funções de atuação parlamentar, atualmente fora do fluxo de renderização. Esses registros estão no nível municipal, então seus valores são exibidos como total de BH, sem rateio entre bairros. Os arquivos de força local consultados estão presentes: `forca_local/stage07a_capital_local_municipios.parquet`, `forca_local/stage07b_afinidade_eleitos.parquet` e `forca_local/stage07b_afinidade_municipios.parquet`. Em `2026/gastos`, os arquivos atuais são `gastos_por_tipo.parquet` e `gastos_municipais_teoricos.parquet`.
 
-O leitor de emendas aceita os campos `valor_pago_atualizado`, `valor_empenhado_ano`, `valor_indicado` ou `valor_emenda`; combina identificadores de município por código IBGE ou nome e lê finalidade/tipo dos campos disponíveis no arquivo.
+
+
+
 
 Na pasta especial `bh_2026`, `territorio/stage01b_bairros.parquet` traz votos históricos e os campos `diff_market_share_bairro_pp_vs_2020` e `diff_market_share_bairro_pp_vs_2024`. A comparação do mapa agrega os registros por bairro e calcula a diferença de participação em pontos percentuais usando os locais correspondidos entre as eleições.
 
-O filtro **Projeção 2028** usa `bh_2026/potencial_demografico/stage08c_potencial_demografico_icp_bairro.parquet` do candidato selecionado, encontrado nesse caminho na consulta de 8 de outubro de 2026, e não em `IBGE/censo`. O alias `bh_potencial_bairro` resolve essa fonte. `src/eleitoral/maps/bh_projection.py` calcula a média simples de `pct_icp_categoria - pct_populacao_categoria` em gênero, idade e escolaridade, exigindo as três comparações válidas e `situacao_icp=calculado`. As dimensões são marginais independentes; a média não descreve um perfil conjunto individual. Os votos repetidos por dimensão não são somados: usa-se `qt_votos_candidato_bairro` uma vez por bairro (máximo).
+O filtro **Projeção 2028** usa `bh_2026/potencial_demografico/stage08c_potencial_demografico_icp_bairro.parquet` do candidato selecionado, encontrado nesse caminho na consulta de 8 de outubro de 2026, e não em `IBGE/censo`. O alias `bh_potencial_bairro` resolve essa fonte. `src/eleitoral/vereadores/bh_projection.py` calcula a média simples de `pct_icp_categoria - pct_populacao_categoria` em gênero, idade e escolaridade, exigindo as três comparações válidas e `situacao_icp=calculado`. As dimensões são marginais independentes; a média não descreve um perfil conjunto individual. Os votos repetidos por dimensão não são somados: usa-se `qt_votos_candidato_bairro` uma vez por bairro (máximo).
 
 Base forte significa votos iguais ou superiores à mediana dos bairros com voto do candidato. Base forte com índice não negativo recebe **Base Crítica (Fortaleza)** (azul); base forte com índice negativo recebe **Vulnerável** (amarelo); votação abaixo da mediana com índice negativo recebe **Oportunidade** (verde); demais situações e comparações incompletas ficam neutras. “Vulnerável” indica espaço demográfico na base existente, sem inferir queda histórica ou risco causal. Não é previsão de votos para 2028.
 
@@ -162,7 +202,7 @@ A associação geográfica usa `cd_bairro` do TSE no arquivo territorial de `bh_
 
 ### Comparação entre capital e interior — DNA Eleitoral
 
-A capital procura `bh_vereador/perfil/icp_geral_por_bairro.parquet`, com fallback para `bh_2026/perfil/icp_geral_por_bairro.parquet`. A raiz do candidato e identificada na base selecionada, anual ou BH. Em BH, `qt_votos_candidato_bairro` fornece os pesos e `situacao_icp=calculado` delimita os perfis válidos.
+A capital procura `bh_vereador/perfil/icp_geral_por_bairro.parquet`, com fallback para `bh_2026/perfil/icp_geral_por_bairro.parquet`. Esta comparação aparece somente para vereadores. A raiz do candidato é identificada a partir da base anual selecionada. Em BH, `qt_votos_candidato_bairro` fornece os pesos e `situacao_icp=calculado` delimita os perfis válidos.
 
 O interior exclui BH e usa um único nível territorial do perfil geral. Quando `metodo_icp_geo` indica o perfil estadual replicado, o cálculo usa as distribuições municipais stage 02, excluindo BH. Para perfis locais, a categoria predominante reúne o maior peso em votos e seu percentual é a média ponderada entre os territórios onde lidera. As barras representam dimensões independentes. A interface mostra badges e barras, sem rodapé de metodologia ou fonte.
 
@@ -197,6 +237,16 @@ O mapa cruza `capital_local_0a100`, do stage 7a, com `pct_market_share`, do stag
 Os quatro cards laterais apresentam quantidade de municípios, participação nos votos do candidato, município líder e recomendação estratégica. Ao clicar em um card, sua classe permanece colorida e as demais são atenuadas; um segundo clique restaura o mapa completo.
 
 O clique em um município usa a seleção de pontos do Plotly e abre um `st.dialog`. A janela combina votos e market share do stage 1a, indicadores de capital político do stage 7a e a composição nominal do stage 7b. O recorte geográfico mostra apenas o polígono municipal com a mesma cor do mapa estadual; a lista ao lado reúne prefeito e vereadores, com partido, vínculo político e afinidade.
+
+### Emendas e atuação parlamentar — exclusiva de deputados
+
+`render_emendas()` usa a votação municipal anual e as emendas do mesmo candidato em `dep_estaduais/{candidato}/{ano}/`. O bucket é o configurado no `.env` deste projeto; as referências usam `HF_GEOGRAPHY_REFERENCE_PREFIX=IBGE/MG/dadosterritorio`.
+
+As funções da seção original foram preservadas. Os valores priorizam `valor_pago_atualizado`, depois `valor_empenhado_ano` e `valor_indicado`. Totais municipais e classificação pré-calculados são usados quando presentes. Na ausência de classificação, o componente original usa Sem Expressão nos municípios com emendas; votos sem emendas e ausência de ambos recebem classes próprias. Não são inferidas classificações estratégicas novas. O indicador de reciprocidade mantém a regra original de ranking municipal quando disponível, com fallback para os três maiores totais de votos.
+
+Os arquivos atuais trazem `cd_municipio` e nomes; o adaptador relaciona códigos TSE/IBGE e, como fallback, nomes normalizados únicos nas referências, acrescentando `cd_ibge_municipio` para o mapa e o diálogo. O diálogo agrupa `valor_indicado` por `funcao_descricao` e `tipo_indicacao`; o total do mapa pode usar valor pago. Sua nota informa que indicação e pagamento podem diferir.
+
+Na consulta de 13 de outubro de 2026, Amanda tinha 53 registros, Lud 261 e Fernando um arquivo vazio. As fontes não tinham `classificacao_retorno_parlamentar` nem totais municipais pré-calculados. Arquivo vazio mantém o estado de indisponibilidade da seção original.
 
 ## Geografia e mapas
 
@@ -236,7 +286,8 @@ O mapa estadual usa `log1p(votos)` para distribuir a intensidade. No mapa detalh
 - Leituras de Parquet, malhas e referências usam `st.cache_data` sem TTL explícito.
 - O `HfFileSystem` usa `st.cache_resource` por token.
 - `sync_deputados(force=True)` limpa a listagem remota e os caches tabulares de `hf_sync.py`.
-- A troca de deputado limpa `territorial_context`; os demais controles têm chaves próprias por seção.
+- A troca de candidato limpa `territorial_context`; os demais controles têm chaves próprias por seção.
+- A troca de cargo reinicia os estados da candidatura e das visualizações, mantendo o seletor de cargo.
 
 Após substituir arquivos mantendo o mesmo caminho, reinicie o processo ou limpe o cache do Streamlit para evitar leitura antiga.
 
@@ -271,7 +322,7 @@ docker run --env-file .env -p 8503:8503 inteligencia-politica
 
 Configuração usada no painel de deploy:
 
-- repositório: `amichiautomacoes/inteligencia-politica`;
+- repositório: `amichiautomacoes/inteligencia-politica2`;
 - branch: `main`;
 - contexto de build: `/`;
 - porta: `8503`.
@@ -288,7 +339,7 @@ git diff --check
 streamlit run app.py
 ```
 
-No smoke test, abra as duas rotas, troque o deputado, altere os seletores territoriais e confirme os estados com e sem dados.
+No smoke test, alterne os dois cargos, confirme que cada seletor lista apenas os candidatos do grupo correspondente e troque os candidatos. Abra as duas rotas pelos botões do hero, confirme a preservação da seleção entre páginas e a ausência das duas seções exclusivas de vereadores ao selecionar deputados. Verifique os filtros territoriais e os estados com e sem dados. Confirme que a seção de emendas aparece somente para deputados, após concentração e antes da seção financeira, e que o clique municipal abre o detalhamento por finalidade e tipo de indicação.
 
 Regras de manutenção:
 
@@ -297,17 +348,3 @@ Regras de manutenção:
 - preserve códigos territoriais como texto para não perder zeros nem alterar junções;
 - ao mudar nomes de artefatos, atualize `file_by_kind()` e este contrato;
 - ao mudar ordem, texto, cor, layout ou interação da interface, atualize também [Visual.md](Visual.md).
-
-## Atualizacao de caminhos HF (13/10/2026)
-
-Esta organizacao substitui o layout na raiz descrito anteriormente. O prefixo padrao agora e `vereadores`; configuracoes vazias tambem usam esse grupo. O seletor lista candidatos com dados em pasta anual. O grupo `dep_estaduais` fica fora desta visualizacao.
-
-O formato atual e `vereadores/{candidato}/{ano}/...`. Todos os vereadores seguem o mesmo contrato: pasta anual para consultas gerais e `bh_2026` para consultas especificas de BH. Marcela possui ambas; Bruno e Pablo ainda aguardam suas pastas `2026` e so aparecem no seletor quando houver arquivos anuais. Fontes ausentes mantem os estados de indisponibilidade.
-
-A navegacao usa `st.navigation(position="hidden")`: as rotas continuam registradas e os botoes do hero fazem a troca. A barra lateral apresenta Cargo Atual (Vereadores) e Candidato, com nomes sem slug.
-
-## Selecao por cargo e remocao de emendas (13/10/2026)
-
-Cargo Atual oferece Vereadores (`vereadores/`) e Deputados Estaduais (`dep_estaduais/`). A escolha determina a raiz consultada no HF e filtra os candidatos pela pasta. Ao trocar cargo, os estados da candidatura e das visualizacoes sao reiniciados; a navegacao continua pelos botoes do hero. O contrato exige pasta anual nos dois grupos. Esta regra substitui as referencias anteriores a um unico cargo.
-
-Para deputados estaduais, Raio X oculta Como foi sua votacao em Belo Horizonte e DNA oculta Eleitor de BH x Eleitor do Interior. Vereadores conservam essas secoes. As demais secoes permanecem compartilhadas. O componente antigo de atuacao parlamentar/emendas, incluindo mapa, cards, dialogo e tabelas, foi removido a pedido; nenhuma nova secao de emendas foi implementada. Referencias anteriores a essas funcoes descrevem o estado historico. Os arquivos do HF foram preservados.

@@ -1,14 +1,31 @@
 # Briefing visual — Visualização Eleitoral
 
-Este documento registra **a interface implementada hoje** nas duas páginas do aplicativo. Ele descreve a aparência, a ordem de leitura, os controles, as respostas às interações e os estados sem dados. O [README](README.md) concentra a arquitetura e as fontes; aqui o foco é o que o usuário vê e entende. A expansão para 2030 é municipal; o bloco final de potencial usa bairros oficiais em BH e setores censitários nos demais municípios.
+Este documento registra **a interface implementada hoje** nas duas páginas do aplicativo. Ele descreve a aparência, a ordem de leitura, os controles, as respostas às interações e os estados sem dados. A proposta compartilha a mesma experiência entre vereadores e deputados estaduais, com seções adaptadas ao cargo; funcionalidades planejadas são identificadas separadamente. O [README](README.md) concentra a arquitetura e as fontes; aqui o foco é o que o usuário vê e entende. A expansão para 2030 é municipal; o bloco final de potencial usa bairros oficiais em BH e setores censitários nos demais municípios.
 
-Revisado em 12 de outubro de 2026 a partir dos componentes chamados pelas páginas atuais.
+Revisado em 13 de outubro de 2026 a partir dos componentes chamados pelas páginas atuais.
+
+A implementação mantém uma entrada única em `app.py` e as duas páginas compartilhadas. As seções exclusivas de vereadores ficam em `src/eleitoral/vereadores/`; `src/eleitoral/deputados/` contém a seção de emendas desse cargo. Essa organização não altera a ordem, os controles ou a aparência descritos neste documento.
 
 ## 1. Visão geral da experiência
 
 O produto é um painel de inteligência eleitoral para deputados e vereadores, com duas rotas. **Raio X Eleitoral** mostra os dados do candidato selecionado, sua distribuição territorial, concentração e custo do voto; o ano padrão do projeto é 2026 e, se não estiver disponível para uma pasta, usa o ano numérico mais recente encontrado. **DNA Eleitoral** sintetiza o eleitor predominante, os perfis estratégicos e a distribuição demográfica. **Expansão 2030** mostra oportunidades territoriais. As páginas compartilham candidato selecionado, fundo, hero, tipografia e família de cards.
 
-O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. O app usa a barra lateral nativa do Streamlit para escolher uma pasta de candidato na raiz configurada do HF e navegar entre páginas. Dois botões verticais dentro da capa também alternam as duas rotas e indica qual está ativa.
+O percurso é vertical. Uma capa apresenta o candidato; faixas de seção delimitam cada pergunta analítica; os cards abaixo contêm números, mapas ou gráficos. A barra lateral seleciona cargo e candidato. A navegação nativa de páginas fica oculta: os dois botões verticais do hero fazem a troca entre Raio X Eleitoral e DNA do Eleitor e destacam a página ativa.
+
+### Barra lateral e variações por cargo
+
+A barra lateral começa pelo título **Cargo Atual**, seguido de um selectbox com **Vereadores** e **Deputados Estaduais**. Abaixo aparece **Candidato**, com o botão **Atualizar candidatos** e o selectbox **Candidato**. As opções exibem somente o nome, como Marcela Trópia ou Fernando Breno, sem nome de pasta. Não há legenda inferior com cargo, ano ou slug.
+
+Vereadores lista candidatos de `vereadores/`; Deputados Estaduais lista candidatos de `dep_estaduais/`. Ambos exigem uma pasta anual como `2026`. Bruno e Pablo aparecerão quando seus dados anuais forem gerados; `bh_2026` não substitui essa base. Trocar cargo reinicia os estados da candidatura e das visualizações. Trocar página pelos botões preserva cargo e candidato.
+
+| Seção | Vereadores | Deputados Estaduais |
+| --- | --- | --- |
+| Como foi sua votação em Belo Horizonte — Raio X | Visível | Oculta |
+| Eleitor de BH x Eleitor do Interior — DNA | Visível | Oculta |
+| Demais seções atuais | Compartilhadas | Compartilhadas |
+| Emendas legislativas | Sem seção atual | Implementada entre concentração e seção financeira |
+
+A seção de emendas dos deputados replica o componente de `deputados_streamlit`: mapa, três indicadores, seis cards de legenda e diálogo por município, com dados do bucket deste projeto.
 
 ### 1.1 Sistema visual compartilhado
 
@@ -44,7 +61,7 @@ O hero distribui o conteúdo em duas faixas: à esquerda ficam o título da pág
 
 ## 2. Página 1 — Raio X Eleitoral
 
-A página segue a ordem: **Mapa de Força Eleitoral → Como foi sua votação em Belo Horizonte → Força da política local → Concentração territorial dos votos → Eficiência por Custo do Voto**. A atuação parlamentar possui funções no código, mas não é renderizada no fluxo atual. A primeira parte oferece localização e volume; a segunda aproxima os votos nos bairros de Belo Horizonte; a seção de política local confronta capital político e market share; a concentração interpreta a dependência territorial; a seção de custo do voto mantém apenas o título.
+Para **vereadores**, a ordem é: **Mapa de Força Eleitoral → Como foi sua votação em Belo Horizonte → Força da política local → Concentração territorial dos votos → Eficiência Financeira & Custo do Voto**. Para **deputados estaduais**, a ordem é: **Mapa de Força Eleitoral → Força da política local → Concentração territorial dos votos → Mapa da atuação parlamentar de acordo com os votos → Eficiência Financeira & Custo do Voto**. A seção financeira contém o cabeçalho principal e o cabeçalho interno de Balanço Macro & Liquidez de Caixa, ainda sem indicadores ou gráficos. A seção de emendas é exclusiva dos deputados.
 
 ### 2.1 Mapa de Força Eleitoral
 
@@ -61,6 +78,8 @@ O gráfico de barras aparece em uma janela de detalhamento após o clique no map
 Se a malha ou os votos não puderem ser carregados, o mapa cede lugar a uma mensagem de indisponibilidade. O detalhamento também informa quando faltam dados. A interface não preenche municípios ou bairros com valores fictícios.
 
 ### 2.2 Como foi sua votação em Belo Horizonte
+
+**Exclusiva de vereadores.** Para deputados estaduais, toda a seção é omitida, sem reservar espaço vazio.
 
 A seção começa com a mesma faixa principal usada em **Mapa de Força Eleitoral**: título **Como foi sua votação em Belo Horizonte** e subtítulo `Veja o histórico dos seus votos na sua Base Eleitoral`. Abaixo, usa duas colunas na proporção aproximada de 70/30: o mapa de bairros de Belo Horizonte (código IBGE `3106200`) fica à esquerda e cinco cards de indicadores ficam à direita. No topo do card do mapa, um filtro horizontal alterna **2020**, **2024**, **2026** e **Projeção 2028**, com 2026 selecionado inicialmente. A opção 2026 mantém o mapa de votos atual. As opções 2020 e 2024 leem `bh_2026/territorio/stage01b_bairros.parquet` do candidato selecionado e comparam a participação daquela eleição com 2026. **Projeção 2028** lê `bh_2026/potencial_demografico/stage08c_potencial_demografico_icp_bairro.parquet` e colore **Base Crítica (Fortaleza)** em azul, **Vulnerável/Ameaçado** em amarelo e **Oportunidade BH** em verde; as demais categorias ficam em tom neutro. Nesse filtro, os cinco cards laterais continuam mostrando os indicadores de 2026. Para 2020 e 2024, os cards acompanham o ano selecionado.
 
@@ -92,7 +111,17 @@ Um clique na rosca abre uma janela com a composição incremental até aquele To
 
 Antes da curva, uma frase automática nomeia o líder e destaca o peso dos 15 municípios principais. Os expansores `Ver municípios do Top 5`, `Top 15` e `Top 20` aparecem em seguida, ainda antes da curva. As listas preenchem cada coluna de cima para baixo e continuam na coluna seguinte à direita, com três colunas em telas largas, duas até 900 px e uma até 600 px. Em seguida, uma curva Plotly mostra a participação acumulada em função da posição do município até **100% da votação**. O eixo horizontal usa escala logarítmica para separar melhor os primeiros marcos de concentração. A linha azul, a área translúcida, os marcadores e as referências percentuais permitem ver a velocidade da concentração. Os marcadores da curva são **Top 1**, **Top 5**, **Top 15**, **Top 20** e **Todos**; eles servem como leitura visual e não abrem janela ao clique. Sem linhas municipais válidas, o card exibe aviso e não fabrica uma curva.
 
-### 2.5 EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
+### 2.5 Mapa da atuação parlamentar de acordo com os votos
+
+**Exclusiva de deputados estaduais**, copiada de `deputados_streamlit`, depois da concentração e antes da seção financeira. A faixa principal usa o título **Mapa da atuação parlamentar de acordo com os votos** e o subtítulo `Índice de Retorno Parlamentar: valor total de emendas no município dividido pelos votos recebidos.`.
+
+A coluna esquerda ocupa 70% e apresenta três KPIs — **Taxa de Reciprocidade**, **Maior Beneficiado (R$)** e **Média R$/Voto** — acima do card com mapa municipal Plotly de **720 px**. A coluna direita ocupa 30% e mostra seis cards empilhados, com gradientes, bordas coloridas, título em badge, quantidade de cidades, participação na votação e descrição: **BASE PRIORIZADA** (azul `#2563EB`), **APOSTA POLÍTICA** (verde `#16A34A`), **BASE EM RISCO** (amarelo `#FACC15`), **PRESENÇA PONTUAL** (laranja `#F97316`), **VOTAÇÃO ORGÂNICA** (cinza `#64748B`) e **TERRITÓRIO NEUTRO** (branco `#FFFFFF`). Os cards são legenda, sem filtro por clique.
+
+O hover informa município, classe, votos e valor de emendas. Clicar no município abre **Emendas destinadas ao município**, com nome, votos, classe, total e tabela por finalidade e tipo de indicação, mostrando quantidade de indicações e valor indicado. A nota preservada esclarece que pagamento e indicação podem diferir. Fechar a janela mantém a seleção do candidato.
+
+Sem dados, permanecem as mensagens e os KPIs de ausência da seção original. As classificações fornecidas pelo parquet têm prioridade; quando faltam, municípios com emendas usam a classe original Sem Expressão. Os critérios e a adaptação dos códigos territoriais estão documentados no README.
+
+### 2.6 EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
 
 A seção abre com o card de cabeçalho com o título **EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO** e o subtítulo `Análise do retorno do investimento eleitoral: veja onde o orçamento foi alocado e quanto custou a conquista de cada voto.`, no mesmo padrão visual das faixas principais.
 
@@ -100,7 +129,7 @@ Logo abaixo, um card de subseção apresenta **BALANÇO MACRO & LIQUIDEZ DE CAIX
 
 ## 3. Página 2 — DNA Eleitoral
 
-Depois do hero comum, a página apresenta **seis faixas principais** nesta ordem: Identidade da Base Eleitoral → Eleitor de BH x Eleitor do Interior → Distribuição do Perfil do Eleitorado → BASE ELEITORAL DO CANDIDATO → Expansão & Oportunidades para 2030 → Potencial demográfico municipal. O card Eleitor ideal do candidato aparece na primeira faixa. A seção de distribuição vem em seguida, depois o card BASE ELEITORAL DO CANDIDATO e a seção completa de expansão; o bloco Potencial demográfico municipal fecha a página. Sunburst, heatmap e composição demográfica por pontos não pertencem à interface atual.
+Para **vereadores**, o DNA segue: **Identidade da Base Eleitoral → Eleitor de BH x Eleitor do Interior → Distribuição do Perfil do Eleitorado → BASE ELEITORAL DO CANDIDATO → Expansão & Oportunidades para 2030 → Potencial demográfico municipal**. Para **deputados estaduais**, a comparação BH/interior é omitida, mantendo as outras cinco seções na mesma ordem. Sunburst, heatmap e composição demográfica por pontos não integram a interface atual.
 
 ### 3.1 Identidade da Base Eleitoral
 
@@ -115,6 +144,8 @@ O card principal é um `st.container(border=True)` com borda, fundo em gradiente
 Na base do card, **quatro sub-cards com borda**, em `st.columns`, apresentam Gênero, Faixa etária, Escolaridade e Estado civil. Cada sub-card também usa `st.container(border=True)`. Títulos e categorias dominantes ficam centralizados. Cada percentual válido aparece em um gauge semicircular de 0 a 100, feito com `go.Indicator(mode="gauge+number")` dentro de `st.plotly_chart`; a cor do arco acompanha a dimensão. Os percentuais das quatro dimensões são independentes; não formam fatias de uma soma de 100%. Se o percentual não é válido ou não existe, o card não inventa o número. Os estilos desses badges e sub-cards são locais à página DNA; o hero e a navegação seguem o CSS compartilhado.
 
 #### 3.1.2 Eleitor de BH x Eleitor do Interior
+
+**Exclusiva de vereadores.** Para deputados estaduais, o fluxo segue do eleitor ideal diretamente para a distribuição demográfica.
 
 Em cada card, as categorias predominantes aparecem logo abaixo do título e antes do gráfico, em badges centralizados com rótulo da dimensão em negrito. As badges usam fonte compacta, quebra de linha e fundo/borda tonalizados pela mesma cor da barra correspondente: verde para gênero, azul para idade, roxo para escolaridade e amarelo para estado civil. Os valores continuam dinâmicos conforme o candidato e o recorte.
 
@@ -176,13 +207,15 @@ As classes seguem os critérios relativos stage 09b da expansão estadual; fora 
 
 | Controle | Onde atua | Persistência observável |
 | --- | --- | --- |
-| Pasta do candidato na barra lateral | Duas páginas | Lista as pastas de candidatos encontradas na raiz configurada do HF e preserva a seleção ao trocar de rota |
+| Cargo Atual na barra lateral | Duas páginas e fonte no HF | Alterna Vereadores/Deputados Estaduais, filtra candidatos pelo grupo e reinicia estados ao mudar |
+| Candidato na barra lateral | Duas páginas | Exibe somente nomes do cargo ativo e preserva a seleção ao trocar de rota |
 | Painel vertical Raio X / DNA | Navegação | Opção ativa destacada no hero |
 | Filtro territorial Mesorregião / Município | Mapa estadual do Raio X e conteúdo da janela aberta por clique | Restrito ao primeiro mapa |
-| Eleição no mapa de Belo Horizonte | Mapa de bairros do Raio X | 2020/2024 mostram comparação com 2026; 2026 mostra votos atuais; Projeção 2028 mostra as categorias estratégicas |
+| Eleição no mapa de Belo Horizonte | Mapa de bairros do Raio X, somente para vereadores | 2020/2024 mostram comparação com 2026; 2026 mostra votos atuais; Projeção 2028 mostra as categorias estratégicas |
 | Cards de votação em Belo Horizonte | Cinco indicadores calculados para a cidade | Atualizam em 2020/2024; ficam nos dados de 2026 em 2026 e Projeção 2028 |
 | Filtro Município da força política local | Mapa categórico dos quatro quadrantes em Minas Gerais | Única granularidade disponível nesta etapa |
 | Cards da força política local | Destacam ou restauram uma classe do mapa | Card ativo recebe contorno reforçado |
+| Clique em município da atuação parlamentar (deputados) | Abre o detalhamento das emendas por finalidade e tipo | Janela modal; preserva candidato |
 | Clique em município da força política local | Abre o mapa isolado, os indicadores e a composição política municipal | Janela modal; fecha sem alterar o filtro dos cards |
 | Município e dimensão da rosca DNA | Rosca e total do recorte | Restrito à seção de distribuição |
 | Mesorregião e município do Potencial demográfico municipal | Bairros oficiais em BH; setores censitários nos demais municípios | Restrito ao bloco municipal |
@@ -206,17 +239,5 @@ Os pares de mapa e cards laterais da página 1 e o par rosca/filtros do DNA são
 4. Mostrar voto observado, estimativa demográfica, custo de referência, gasto rateado e potencial em seus papéis corretos, com unidades e notas visíveis.
 5. Fazer seleção e estado vazio permanecerem compreensíveis sem depender só de cor.
 6. Atualizar este briefing quando mudar texto, card, escala, interação, ordem de seção ou granularidade de mapa.
-
-### Caminhos do seletor (13/10/2026)
-
-O seletor consulta somente `vereadores/` e exige uma pasta anual como `2026`. Marcela ja atende esse contrato. Bruno e Pablo aparecerao quando seus dados anuais forem gerados. `bh_2026` e usado apenas nas consultas especificas de BH. O grupo `dep_estaduais/` fica fora desta visualizacao. Layout e interacoes permanecem iguais.
-
-### Barra lateral (13/10/2026)
-
-A navegacao nativa de paginas fica oculta; a troca de pagina usa os botoes do hero. Acima de Candidato, o titulo Cargo Atual acompanha um seletor com a unica opcao Vereadores. O seletor Candidato mostra somente o nome, sem slug ou nome de pasta. A legenda com cargo, ano e pasta foi removida. O botao Atualizar candidatos permanece disponivel.
-
-## Selecao por cargo e remocao de emendas (13/10/2026)
-
-Cargo Atual oferece Vereadores (`vereadores/`) e Deputados Estaduais (`dep_estaduais/`). A escolha determina a raiz consultada no HF e filtra os candidatos pela pasta. Ao trocar cargo, os estados da candidatura e das visualizacoes sao reiniciados; a navegacao continua pelos botoes do hero. O contrato exige pasta anual nos dois grupos. Esta regra substitui as referencias anteriores a um unico cargo.
-
-Para deputados estaduais, Raio X oculta Como foi sua votacao em Belo Horizonte e DNA oculta Eleitor de BH x Eleitor do Interior. Vereadores conservam essas secoes. As demais secoes permanecem compartilhadas. O componente antigo de atuacao parlamentar/emendas, incluindo mapa, cards, dialogo e tabelas, foi removido a pedido; nenhuma nova secao de emendas foi implementada. Referencias anteriores a essas funcoes descrevem o estado historico. Os arquivos do HF foram preservados.
+7. Preservar o filtro de candidatos por cargo e as diferenças entre as seções dos vereadores e dos deputados.
+8. Preservar a seção de emendas como exclusiva de deputados e manter seu posicionamento entre concentração territorial e seção financeira.

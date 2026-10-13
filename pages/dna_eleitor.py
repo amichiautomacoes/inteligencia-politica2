@@ -12,10 +12,12 @@ import streamlit as st
 
 from hf_sync import file_by_kind, load_env, load_parquet
 from eleitoral.dna.cluster_cards import cluster_cards_html
+from eleitoral.common.dna_profile import _has_profile_label, _weighted_dominant, _territorial_rows, _demographic_percent, _icp_general_row
+from eleitoral.vereadores.dna_capital_interior import render_capital_interior_comparison
 from eleitoral.common.dna_copy import sentence_label
 from eleitoral.dna.dna_expansion import render_vote_expansion
 from eleitoral.dna.sector_expansion import render_municipal_expansion
-from eleitoral.dna.dna_distribution import render_electorate_distribution, _distribution
+from eleitoral.dna.dna_distribution import render_electorate_distribution
 from eleitoral.maps.dna_geo_reference import (
     load_area_ponderada_bairro_crosswalk, load_geo_layer, load_geo_reference,
 )
@@ -74,109 +76,14 @@ def _format_percent_value(value: str, *, fraction: bool = False) -> str:
     return f"{float(number):.1f}%".replace(".", ",")
 
 
-def _has_profile_label(value: str) -> bool:
-    normalized = unicodedata.normalize("NFKD", str(value or "").casefold())
-    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    return bool(normalized.strip()) and normalized.strip() != "nao informado"
 
 
-def _weighted_dominant(df: pd.DataFrame, value_col: str) -> tuple[str, float]:
-    if df.empty or value_col not in df.columns:
-        return "Nao informado", 0.0
-    working = df[[value_col]].copy()
-    working[value_col] = working[value_col].fillna("").astype(str).str.strip()
-    working = working[working[value_col].ne("")]
-    if working.empty:
-        return "Nao informado", 0.0
-    if "votos_candidato" in df.columns:
-        working["votos_candidato"] = pd.to_numeric(
-            df.loc[working.index, "votos_candidato"], errors="coerce"
-        ).fillna(0)
-    else:
-        working["votos_candidato"] = 1
-    grouped = working.groupby(value_col, as_index=False)["votos_candidato"].sum()
-    total = float(grouped["votos_candidato"].sum())
-    top = grouped.sort_values("votos_candidato", ascending=False).iloc[0]
-    pct = float(top["votos_candidato"]) / total * 100 if total > 0 else 0.0
-    return str(top[value_col]), pct
 
 
-def _territorial_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Use a single territorial level: municipalities, or neighborhoods as fallback."""
-    if "nivel_territorial" not in df:
-        return df.copy()
-    levels = df["nivel_territorial"].astype(str).str.strip().str.lower()
-    for level in ("municipio", "bairro"):
-        if levels.eq(level).any():
-            return df.loc[levels.eq(level)].copy()
-    return df.iloc[:0].copy()
 
 
-def _demographic_percent(df: pd.DataFrame, column: str, category: str) -> float:
-    pct_column = f"pct_{column}"
-    if pct_column not in df and f"{pct_column}_global" in df:
-        pct_column = f"{pct_column}_global"
-    if pct_column not in df or column not in df:
-        return float("nan")
-    # These percentages describe the category, not the profile's electoral share.
-    rows = df.loc[df[column].eq(category)]
-    values = pd.to_numeric(rows[pct_column], errors="coerce")
-    valid = values.between(0, 100)
-    if not valid.any():
-        return float("nan")
-    weights = pd.to_numeric(rows.loc[valid, "votos_candidato"], errors="coerce").fillna(0)
-    return float((values[valid] * weights).sum() / weights.sum()) if weights.sum() > 0 else float(values[valid].mean())
 
 
-def _icp_general_row(icp_df: pd.DataFrame) -> pd.DataFrame:
-    if icp_df.empty:
-        return icp_df
-    working = _territorial_rows(icp_df)
-    if "votos_candidato" not in working:
-        working["votos_candidato"] = 0.0
-    working["votos_candidato"] = pd.to_numeric(working["votos_candidato"], errors="coerce").fillna(0)
-
-    persona, _ = _weighted_dominant(working, "persona_executiva")
-    genero, pct_genero = _weighted_dominant(working, "genero_principal")
-    idade, pct_idade = _weighted_dominant(working, "idade_principal")
-    escolaridade, pct_escolaridade = _weighted_dominant(working, "escolaridade_principal")
-    estado_civil, pct_estado_civil = _weighted_dominant(working, "estado_civil_principal")
-    pct_genero = _demographic_percent(working, "genero_principal", genero)
-    pct_idade = _demographic_percent(working, "idade_principal", idade)
-    pct_escolaridade = _demographic_percent(working, "escolaridade_principal", escolaridade)
-    pct_estado_civil = _demographic_percent(working, "estado_civil_principal", estado_civil)
-    summary, _ = _weighted_dominant(working, "perfil_resumo")
-    if summary == "Nao informado":
-        summary = persona
-
-    confidence = 0.0
-    if "confianca_persona" in working.columns:
-        confidence_values = pd.to_numeric(working["confianca_persona"], errors="coerce")
-        if "votos_candidato" in working.columns:
-            weights = pd.to_numeric(working["votos_candidato"], errors="coerce").fillna(0)
-            valid = confidence_values.notna() & weights.gt(0)
-            if valid.any():
-                confidence = float((confidence_values[valid] * weights[valid]).sum() / weights[valid].sum())
-        elif confidence_values.notna().any():
-            confidence = float(confidence_values.mean())
-
-    return pd.DataFrame(
-        [
-            {
-                "persona_executiva": persona,
-                "perfil_resumo": summary,
-                "genero_principal": genero,
-                "pct_genero_principal": pct_genero,
-                "idade_principal": idade,
-                "pct_idade_principal": pct_idade,
-                "escolaridade_principal": escolaridade,
-                "pct_escolaridade_principal": pct_escolaridade,
-                "estado_civil_principal": estado_civil,
-                "pct_estado_civil_principal": pct_estado_civil,
-                "confianca_persona": confidence,
-            }
-        ]
-    )
 
 
 def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
@@ -272,114 +179,8 @@ def _render_icp_geral_card(icp_df: pd.DataFrame | None) -> None:
                         st.html('<div class="dna-icp-kpi-missing">Percentual indisponível</div>')
 
 
-def _comparison_sources(icp_df: pd.DataFrame | None) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
-    capital = None
-    primary_path = next(iter(selected_files()), None)
-    if primary_path:
-        # The selected base can be either an annual folder or bh_2026.
-        parts = primary_path.replace("\\", "/").split("/")
-        partition = next((index for index, part in enumerate(parts)
-                          if (part.isdigit() and len(part) == 4)
-                          or (part.startswith("bh_") and part[3:].isdigit())), None)
-        root = "/".join(parts[:partition]) if partition is not None else ""
-        for folder in ("bh_vereador", "bh_2026"):
-            try:
-                capital = load_parquet(f"{root}/{folder}/perfil/icp_geral_por_bairro.parquet", load_env().get("HF_TOKEN"))
-                break
-            except FileNotFoundError:
-                continue
-            except Exception:
-                st.warning("Não foi possível carregar o perfil dos bairros de Belo Horizonte.")
-                break
-    if capital is not None:
-        capital = capital.copy()
-        if "situacao_icp" in capital:
-            capital = capital.loc[capital["situacao_icp"].eq("calculado")].copy()
-        capital = capital.rename(columns={"qt_votos_candidato_bairro": "votos_candidato"})
-    interior = icp_df
-    if interior is not None:
-        interior = _territorial_rows(interior)
-        is_capital = pd.Series(False, index=interior.index)
-        if "cd_municipio" in interior:
-            is_capital |= interior["cd_municipio"].astype(str).isin(["41238", "3106200"])
-        if "nm_municipio" in interior:
-            is_capital |= interior["nm_municipio"].astype(str).str.strip().str.casefold().eq("belo horizonte")
-        interior = interior.loc[~is_capital].copy()
-    if interior is not None and "metodo_icp_geo" in interior and interior["metodo_icp_geo"].eq("perfil_geral_global_replicado_no_territorio_do_stage01b").any():
-        # The new stage04 repeats the statewide persona; stage02 retains local distributions.
-        record = {"votos_candidato": 1.0}
-        for dimension in ("genero", "idade", "escolaridade", "estado_civil"):
-            frame = _read_selected_parquet(dimension)
-            if frame is None:
-                continue
-            frame = _territorial_rows(frame)
-            frame = frame.loc[~frame["cd_municipio"].astype(str).isin(["41238", "3106200"])]
-            distribution = _distribution(frame, f"pct_{dimension}_")
-            if not distribution.empty:
-                top = distribution.iloc[0]
-                record[f"{dimension}_principal"] = top["categoria"]
-                record[f"pct_{dimension}_principal"] = top["percentual"]
-        interior = pd.DataFrame([record])
-    return capital, interior
 
 
-def _render_capital_interior_comparison(icp_df: pd.DataFrame | None) -> None:
-    capital, interior = _comparison_sources(icp_df)
-    dimensions = [
-        ("Gênero", "genero_principal", "#34d399"),
-        ("Idade", "idade_principal", "#60a5fa"),
-        ("Escolaridade", "escolaridade_principal", "#a78bfa"),
-        ("Estado civil", "estado_civil_principal", "#fbbf24"),
-    ]
-    for column, (scope, title, source) in zip(st.columns(2, gap="medium"), [
-        ("capital", "Eleitor da capital", capital),
-        ("interior", "Eleitor do Interior", interior),
-    ]):
-        with column:
-            with st.container(border=True, key=f"dna_{scope}_profile_card"):
-                st.html(f'<div class="dna-icp-heading"><h3 class="dna-subsection-title">{title}</h3></div>')
-                if source is None or source.empty:
-                    st.info("Perfil indisponível para este recorte.")
-                    continue
-                source = source.copy()
-                if "votos_candidato" not in source:
-                    st.info("Votos de referência indisponíveis para consolidar o perfil.")
-                    continue
-                source["votos_candidato"] = pd.to_numeric(source["votos_candidato"], errors="coerce").fillna(0).clip(lower=0)
-                source = source.loc[source["votos_candidato"].gt(0)]
-                rows = []
-                for label, field, color in dimensions:
-                    category, _ = _weighted_dominant(source, field)
-                    percentage = _demographic_percent(source, field, category)
-                    if _has_profile_label(category) and pd.notna(percentage):
-                        rows.append((label, sentence_label(category.replace("_", " ")), percentage, color))
-                if not rows:
-                    st.info("Percentuais demográficos indisponíveis para este recorte.")
-                    continue
-                badges = "".join(
-                    f'<span class="dna-comparison-badge" style="--badge-color:{color}">'
-                    f'<b>{html.escape(label)}:</b> {html.escape(category)}</span>'
-                    for label, category, _, color in rows
-                )
-                st.html(f'<div class="dna-icp-badges dna-comparison-badges">{badges}</div>')
-                fig = go.Figure(go.Bar(
-                    y=[row[0] for row in rows], x=[row[2] for row in rows], orientation="h",
-                    marker_color=[row[3] for row in rows],
-                    customdata=[row[1] for row in rows],
-                    text=[f'{row[2]:.1f}%'.replace(".", ",") for row in rows],
-                    textposition="outside", cliponaxis=False,
-                    hovertemplate="<b>%{y}: %{customdata}</b><br>%{x:.1f}%<extra></extra>",
-                ))
-                fig.update_layout(
-                    height=320, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                    margin={"l": 0, "r": 48, "t": 12, "b": 20},
-                    font={"color": "#eaf2ff", "size": 14}, separators=",.", bargap=.4,
-                    xaxis={"range": [0, 100], "ticksuffix": "%", "gridcolor": "rgba(147,197,253,.12)", "fixedrange": True},
-                    yaxis={"autorange": "reversed", "fixedrange": True}, showlegend=False,
-                )
-                st.plotly_chart(fig, width="stretch", key=f"dna_{scope}_profile_bars", config={"displayModeBar": False})
-                if len(rows) < len(dimensions):
-                    st.caption("Dimensões sem percentual válido não são exibidas.")
 
 
 def _apply_icp_card_styles() -> None:
@@ -1019,11 +820,7 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
         icp_general_df = _read_selected_parquet("icp_geral")
         _render_icp_geral_card(icp_general_df)
         if st.session_state.get("candidate_group", "vereadores") == "vereadores":
-            major_section_header(
-                "Eleitor de BH x Eleitor do Interior",
-                "Será que você tem o mesmo perfil de eleitor na capital e no interior?",
-            )
-            _render_capital_interior_comparison(icp_general_df)
+            render_capital_interior_comparison(icp_general_df, _read_selected_parquet)
     else:
         render_electorate_distribution(_read_selected_parquet)
         major_section_header(

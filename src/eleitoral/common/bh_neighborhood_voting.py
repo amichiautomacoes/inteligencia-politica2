@@ -70,25 +70,21 @@ def bh_neighborhood_voting_map(votes: pd.DataFrame | None) -> tuple[go.Figure | 
         return None, 0
     frame = bh_neighborhood_frame(mesh, votes)
     total = frame.attrs["municipality_vote_total"]
-    uniform = 0 < total < 1000
-    logarithmic = total > 5000
+    logarithmic = total > 1000
     valid = frame["votes"].notna()
     maximum = frame["votes"].max()
-    coverage = np.sqrt(float(frame["votes"].gt(0).mean()))
     if pd.isna(maximum) or maximum <= 0:
         intensity = pd.Series(0.0, index=frame.index)
-    elif uniform:
-        intensity = pd.Series(1.0, index=frame.index)
     elif logarithmic:
-        intensity = np.log1p(frame["votes"]) / np.log1p(maximum) * coverage
+        intensity = np.log1p(frame["votes"]) / np.log1p(maximum)
     else:
-        intensity = frame["votes"] / maximum * coverage
+        intensity = frame["votes"] / maximum
     geojson = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"id": row.id},
          "geometry": mapping(row.geometry.simplify(0.0001, preserve_topology=True))}
         for row in frame.itertuples(index=False)
     ]}
-    scale = [[0, "#2563eb"], [1, "#2563eb"]] if uniform else [
+    scale = [
         [0, "#e8f1ff"], [.25, "#bfd9ff"], [.5, "#60a5fa"], [.75, "#2563eb"], [1, "#0b1f4d"],
     ]
     fig = go.Figure()
@@ -110,6 +106,6 @@ def bh_neighborhood_voting_map(votes: pd.DataFrame | None) -> tuple[go.Figure | 
     fig.update_layout(
         margin={"l": 0, "r": 0, "t": 0, "b": 0}, paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)", font={"color": "#eaf2ff"},
-        meta={"mesh_kind": "bairro", "scale_type": "uniform" if uniform else "logarithmic" if logarithmic else "linear", "municipality_vote_total": total, "unmatched_rows": frame.attrs["unmatched_rows"]},
+        meta={"mesh_kind": "bairro", "scale_type": "logarithmic" if logarithmic else "linear", "municipality_vote_total": total, "unmatched_rows": frame.attrs["unmatched_rows"]},
     )
     return fig, len(mesh)

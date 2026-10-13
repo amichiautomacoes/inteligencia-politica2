@@ -652,12 +652,16 @@ def municipality_mesh_map(
             mesh, geojson, municipality_geometry, kind, rows, comparison_year
         )
     by_neighborhood = rows.groupby(["_code", "_name"], as_index=False)["qt_votos"].sum()
+    display_names = (
+        rows.drop_duplicates("_name").set_index("_name")["nm_bairro"].to_dict()
+        if candidate_neighborhood_details and kind == "area_ponderada" else {}
+    )
     by_neighborhood["_name"] = by_neighborhood["_name"].replace("", "Bairro não informado")
     by_neighborhood = by_neighborhood.groupby(["_code", "_name"], as_index=False)["qt_votos"].sum()
     totals = by_neighborhood.groupby("_code")["qt_votos"].sum()
     details = by_neighborhood.groupby("_code").apply(
         lambda group: "<br>".join(
-            f"{html.escape(str(name))}: {int(count):,} votos".replace(",", ".")
+            f"{html.escape(str(display_names.get(name, name)))}: {int(count):,} votos".replace(",", ".")
             for name, count in zip(group.sort_values("_name")["_name"], group.sort_values("_name")["qt_votos"])
         ),
         include_groups=False,
@@ -700,6 +704,12 @@ def municipality_mesh_map(
     coverage_factor = 1.0 if kind == "setor" else np.sqrt(active_share)
     use_uniform_color = 0 < municipality_vote_total < 1_000
     use_log_scale = municipality_vote_total > 5_000
+    if candidate_neighborhood_details:
+        # In the shared neighborhood section, only municipal vote volume
+        # selects the scale. Polygon count and coverage do not alter colors.
+        coverage_factor = 1.0
+        use_uniform_color = False
+        use_log_scale = municipality_vote_total > 1_000
     if max_votes <= 0:
         relative_intensity = pd.Series(0.0, index=mesh.index)
     elif use_uniform_color:
@@ -752,7 +762,11 @@ def municipality_mesh_map(
             marker_line_color="rgba(235,244,255,0.98)",
             marker_line_width=1.3,
             customdata=trace_rows[["total_label", "details"]],
-            hovertemplate="<b>Total de votos: %{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+            hovertemplate=(
+                "%{customdata[1]}<br><b>Total de votos: %{customdata[0]}</b><extra></extra>"
+                if candidate_neighborhood_details and kind == "area_ponderada"
+                else "<b>Total de votos: %{customdata[0]}</b><br>%{customdata[1]}<extra></extra>"
+            ),
         ))
     boundary_lon, boundary_lat = _boundary_coordinates(municipality_geometry)
     if boundary_lon and boundary_lat:

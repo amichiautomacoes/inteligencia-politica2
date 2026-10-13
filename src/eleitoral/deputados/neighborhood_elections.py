@@ -86,7 +86,11 @@ def _history_map(source: pd.DataFrame, code: str, year: str, historical: pd.Data
     detail_rows = dominant_tse_rows(rows, '_past') if code != '3106200' and kind == 'setor' else rows
     for key, records in detail_rows.groupby("_code"):
         tse = records.groupby(["cd_bairro", "nm_bairro"], dropna=False).agg(past=("_past", lambda x: x.sum(min_count=len(x))), current=("_current", lambda x: x.sum(min_count=len(x))))
-        details[key] = "<br>".join(f"{html.escape(str(name))} ({html.escape(str(tse_code))}): {year}: {_number(record.past)} votos · 2026: {_number(record.current)} votos" for (tse_code, name), record in tse.iterrows())
+        details[key] = "<br>".join(
+            html.escape(str(name)) + ("" if code != '3106200' and kind == 'area_ponderada' else f" ({html.escape(str(tse_code))})")
+            + f": {year}: {_number(record.past)} votos · 2026: {_number(record.current)} votos"
+            for (tse_code, name), record in tse.iterrows()
+        )
     for trace in fig.data:
         if trace.type != "choropleth":
             continue

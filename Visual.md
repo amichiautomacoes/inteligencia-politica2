@@ -61,7 +61,7 @@ O hero distribui o conteúdo em duas faixas: à esquerda ficam o título da pág
 
 ## 2. Página 1 — Raio X Eleitoral
 
-Para **vereadores**, a ordem é: **Mapa de Força Eleitoral → Como foi sua votação em Belo Horizonte → Força da política local → Concentração territorial dos votos → Eficiência Financeira & Custo do Voto**. Para **deputados estaduais**, a ordem é: **Mapa de Força Eleitoral → Força da política local → Concentração territorial dos votos → Mapa da atuação parlamentar de acordo com os votos → Eficiência Financeira & Custo do Voto**. A seção financeira contém o cabeçalho principal e o cabeçalho interno de Balanço Macro & Liquidez de Caixa, ainda sem indicadores ou gráficos. A seção de emendas é exclusiva dos deputados.
+Para **vereadores**, a ordem é: **Mapa de Força Eleitoral → Como foi sua votação em Belo Horizonte → Votação por Bairros dentro dos municípios → Força da política local → Concentração territorial dos votos → Eficiência Financeira & Custo do Voto**. Para **deputados estaduais**, a ordem é: **Mapa de Força Eleitoral → Votação por Bairros dentro dos municípios → Força da política local → Concentração territorial dos votos → Mapa da atuação parlamentar de acordo com os votos → Eficiência Financeira & Custo do Voto**. A seção financeira contém o cabeçalho principal e o cabeçalho interno de Balanço Macro & Liquidez de Caixa, ainda sem indicadores ou gráficos. A seção de emendas é exclusiva dos deputados.
 
 ### 2.1 Mapa de Força Eleitoral
 
@@ -91,7 +91,19 @@ Para 2020 e 2024, a legenda do card mostra **verde** para aumento, **azul** para
 
 No filtro **Projeção 2028**, as quatro pílulas mantêm os rótulos **Base Crítica (Fortaleza)**, **Vulnerável**, **Oportunidade** e **Demais bairros**, sem o parágrafo de critérios abaixo da legenda. Base forte sem defasagem média fica azul; base forte com espaço fica amarela; menor votação com espaço fica verde; demais situações e comparação incompleta ficam cinza. O hover mostra votos de referência e diferença média em pontos percentuais. A nota abaixo do mapa esclarece que as dimensões são independentes e que a classificação não mede perda histórica nem prevê votos em 2028.
 
-### 2.3 Força da política local
+### 2.3 Votação por Bairros dentro dos municípios
+
+**Compartilhada entre vereadores e deputados**, copiada da mesma seção de `deputados_streamlit`. Para vereadores aparece logo após **Como foi sua votação em Belo Horizonte**; para deputados, logo após **Mapa de Força Eleitoral**. Nos dois casos antecede **Força da política local**.
+
+O cabeçalho interno mantém o título **Votação por Bairros dentro dos municípios** e o subtítulo `Votos por bairro no município selecionado.`. O card do mapa fica à esquerda (70%), com os filtros **Mesorregião → Município** e mapa Plotly de **560 px**. A seleção inicial destaca o município mais votado do candidato e sua mesorregião. Os controles têm chaves próprias por candidato; o controle municipal também é separado por mesorregião.
+
+À direita (30%), cinco cards empilhados mostram **Total de votos** com a mesorregião, **Bairro principal (Top 1)**, **Dependência do bairro principal**, **Penetração por bairros** e **Densidade média por bairro**. O visual, as badges e os critérios seguem a seção original. Penetração informa a quantidade de bairros com voto; não calcula uma proporção sem conhecer o total de bairros.
+
+O mapa segue a malha intramunicipal compartilhada: bairros oficiais quando a cobertura é suficiente, áreas ponderadas ou setores conforme a disponibilidade. Até menos de 1.000 votos, mantém o azul uniforme; acima disso usa a escala de intensidade padrão. O tooltip e a nota inferior mantêm a identificação territorial e a explicação da escala. Falta de dados, malha ou opções de município apresenta a mensagem específica da seção original.
+
+**Somente para BH neste bloco**, todos os bairros são desenhados a partir de `IBGE/MG/dadosterritorio/MG_bairros_CD2022.parquet`, com vínculo exato por código IBGE de bairro ao stage 01b do candidato. Não há fallback para outras malhas ou associação por coordenadas. O hover usa nomes e votos do candidato, sem nomes vindos da malha; bairros sem registro mostram informação indisponível em cinza. Os cards de BH agrupam pelo `cd_bairro` do TSE, e o hover detalha os votos desses bairros eleitorais mesmo quando compartilham um polígono IBGE. A nota explica a origem da geometria e dos valores e informa registros sem correspondência. Essa exceção não altera o histórico de Belo Horizonte nem os demais municípios.
+
+### 2.4 Força da política local
 
 A faixa principal usa o título `Força da política local` e o subtítulo `Veja se vereadores e prefeitos das cidades foram decisivos na sua votação`. A estrutura repete a proporção 70/30 do Mapa de Força Eleitoral.
 
@@ -101,7 +113,7 @@ A faixa principal usa o título `Força da política local` e o subtítulo `Veja
 
 Um clique em qualquer município abre a janela **Força política local**, com o nome municipal como título interno. No topo aparecem a classificação e quatro números: votos, market share local, referência estadual e capital político local. Uma frase traduz a cor em leitura estratégica. Abaixo, o layout divide-se em duas colunas: à esquerda, o polígono isolado do município conserva a cor recebida e é seguido pelos detalhes da prefeitura, Câmara, partidos aliados e base dos dados; à direita, uma lista rolável apresenta prefeito e vereadores, com nome, partido, vínculo e afinidade.
 
-### 2.4 Concentração territorial dos votos
+### 2.5 Concentração territorial dos votos
 
 **Pergunta visual:** a candidatura depende de poucos redutos ou distribui votos por muitos municípios?
 
@@ -111,7 +123,7 @@ Um clique na rosca abre uma janela com a composição incremental até aquele To
 
 Antes da curva, uma frase automática nomeia o líder e destaca o peso dos 15 municípios principais. Os expansores `Ver municípios do Top 5`, `Top 15` e `Top 20` aparecem em seguida, ainda antes da curva. As listas preenchem cada coluna de cima para baixo e continuam na coluna seguinte à direita, com três colunas em telas largas, duas até 900 px e uma até 600 px. Em seguida, uma curva Plotly mostra a participação acumulada em função da posição do município até **100% da votação**. O eixo horizontal usa escala logarítmica para separar melhor os primeiros marcos de concentração. A linha azul, a área translúcida, os marcadores e as referências percentuais permitem ver a velocidade da concentração. Os marcadores da curva são **Top 1**, **Top 5**, **Top 15**, **Top 20** e **Todos**; eles servem como leitura visual e não abrem janela ao clique. Sem linhas municipais válidas, o card exibe aviso e não fabrica uma curva.
 
-### 2.5 Mapa da atuação parlamentar de acordo com os votos
+### 2.6 Mapa da atuação parlamentar de acordo com os votos
 
 **Exclusiva de deputados estaduais**, copiada de `deputados_streamlit`, depois da concentração e antes da seção financeira. A faixa principal usa o título **Mapa da atuação parlamentar de acordo com os votos** e o subtítulo `Índice de Retorno Parlamentar: valor total de emendas no município dividido pelos votos recebidos.`.
 
@@ -121,7 +133,7 @@ O hover informa município, classe, votos e valor de emendas. Clicar no municíp
 
 Sem dados, permanecem as mensagens e os KPIs de ausência da seção original. As classificações fornecidas pelo parquet têm prioridade; quando faltam, municípios com emendas usam a classe original Sem Expressão. Os critérios e a adaptação dos códigos territoriais estão documentados no README.
 
-### 2.6 EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
+### 2.7 EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
 
 A seção abre com o card de cabeçalho com o título **EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO** e o subtítulo `Análise do retorno do investimento eleitoral: veja onde o orçamento foi alocado e quanto custou a conquista de cada voto.`, no mesmo padrão visual das faixas principais.
 
@@ -213,6 +225,7 @@ As classes seguem os critérios relativos stage 09b da expansão estadual; fora 
 | Filtro territorial Mesorregião / Município | Mapa estadual do Raio X e conteúdo da janela aberta por clique | Restrito ao primeiro mapa |
 | Eleição no mapa de Belo Horizonte | Mapa de bairros do Raio X, somente para vereadores | 2020/2024 mostram comparação com 2026; 2026 mostra votos atuais; Projeção 2028 mostra as categorias estratégicas |
 | Cards de votação em Belo Horizonte | Cinco indicadores calculados para a cidade | Atualizam em 2020/2024; ficam nos dados de 2026 em 2026 e Projeção 2028 |
+| Mesorregião / Município da votação por bairros | Mapa intramunicipal e cinco cards laterais do Raio X | Independente do histórico de BH; estado por candidato e mesorregião |
 | Filtro Município da força política local | Mapa categórico dos quatro quadrantes em Minas Gerais | Única granularidade disponível nesta etapa |
 | Cards da força política local | Destacam ou restauram uma classe do mapa | Card ativo recebe contorno reforçado |
 | Clique em município da atuação parlamentar (deputados) | Abre o detalhamento das emendas por finalidade e tipo | Janela modal; preserva candidato |

@@ -78,6 +78,7 @@ O `app.py` continua sendo a entrada única. As duas páginas compõem as seçõe
 - `src/eleitoral/vereadores/dna_capital_interior.py`: comparação do eleitor de BH com o interior.
 - `src/eleitoral/deputados/emendas.py` e `emendas_map.py`: seção exclusiva de atuação parlamentar, seus indicadores, legendas, diálogo e mapa.
 - `src/eleitoral/common/dna_profile.py` e `raio_x_cards.py`: consolidação de perfis, formatação e cards usados pelos componentes compartilhados e exclusivos.
+- `src/eleitoral/common/neighborhood_voting.py`: seção de votação por bairros dentro dos municípios, compartilhada entre cargos; para vereadores vem após o histórico de BH, e para deputados vem após o Mapa de Força Eleitoral, sempre antes da força política local.
 
 As leituras continuam centralizadas em `hf_sync.py`; os componentes específicos recebem o leitor da página. Os demais módulos de `common/`, `dna/` e `maps/` continuam compartilhados entre cargos. Novas seções exclusivas devem ficar na pasta do cargo correspondente, fora de `pages/`.
 
@@ -249,6 +250,14 @@ Os arquivos atuais trazem `cd_municipio` e nomes; o adaptador relaciona códigos
 Na consulta de 13 de outubro de 2026, Amanda tinha 53 registros, Lud 261 e Fernando um arquivo vazio. As fontes não tinham `classificacao_retorno_parlamentar` nem totais municipais pré-calculados. Arquivo vazio mantém o estado de indisponibilidade da seção original.
 
 ## Geografia e mapas
+
+### Votação por bairros dentro dos municípios — Raio X
+
+A seção foi copiada de `D:\MktPolitica\deputados_streamlit` e usa as bases anuais `territorio/stage01a_municipios.parquet` e `territorio/stage01b_bairros.parquet` do candidato e cargo selecionados. Os filtros Mesorregião → Município têm estado próprio por candidato e mesorregião. A seleção inicial prioriza o município com mais votos e sua mesorregião. O mapa e as cinco métricas laterais seguem os componentes originais, sem reutilizar os indicadores específicos do histórico de BH.
+
+O mapa usa `municipality_mesh_map()` com seus parâmetros padrão: bairros oficiais, áreas ponderadas ou setores censitários conforme a cobertura disponível. Os cards agregam bairros pelo nome normalizado, mostram votos municipais, bairro líder, dependência do líder, bairros com voto e densidade média; a contagem de bairros com votos não presume o total da malha oficial. Dados ausentes mantêm os avisos e estados vazios originais. As referências geográficas continuam em `IBGE/MG/dadosterritorio`.
+
+**Exceção exclusiva de BH nesta seção:** `common/bh_neighborhood_voting.py` lê somente códigos e geometrias de `HF_GEOGRAPHY_REFERENCE_PREFIX/MG_bairros_CD2022.parquet`, filtrando `code_muni=3106200`. A junção é exata entre `code_neighborhood` da malha e `cd_ibge_bairro` de `stage01b_bairros.parquet`; `cd_bairro` do TSE identifica os bairros eleitorais e controla os cards e o detalhamento; o código IBGE serve somente ao vínculo com a geometria. Não há associação por nome, coordenadas, setor ou área ponderada. Nomes e votos do hover vêm exclusivamente do stage 01b, agregados por código IBGE, preservando o detalhamento por `cd_bairro` do TSE; os cards agrupam por esse código eleitoral. Bairros da malha sem dados ficam cinza com votos indisponíveis; códigos do candidato sem correspondência são informados abaixo do mapa. A malha não fornece atributos analíticos nem nomes exibidos. Os demais municípios e a seção histórica de BH mantêm seu comportamento anterior.
 
 As malhas são carregadas de `HF_GEOGRAPHY_PREFIX`:
 

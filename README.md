@@ -77,6 +77,7 @@ O `app.py` continua sendo a entrada única. As duas páginas compõem as seçõe
 - `src/eleitoral/vereadores/bh_projection.py`: classificação demográfica dos bairros no filtro Projeção 2028.
 - `src/eleitoral/vereadores/dna_capital_interior.py`: comparação do eleitor de BH com o interior.
 - `src/eleitoral/deputados/emendas.py` e `emendas_map.py`: seção exclusiva de atuação parlamentar, seus indicadores, legendas, diálogo e mapa.
+- `src/eleitoral/deputados/neighborhood_elections.py`: seletor 2018/2022/2026/Projeção 2030 e histórico e diagnóstico de expansão exclusivos de deputados na seção compartilhada de bairros.
 - `src/eleitoral/common/dna_profile.py` e `raio_x_cards.py`: consolidação de perfis, formatação e cards usados pelos componentes compartilhados e exclusivos.
 - `src/eleitoral/common/neighborhood_voting.py`: seção de votação por bairros dentro dos municípios, compartilhada entre cargos; para vereadores vem após o histórico de BH, e para deputados vem após o Mapa de Força Eleitoral, sempre antes da força política local.
 
@@ -255,11 +256,15 @@ Na consulta de 13 de outubro de 2026, Amanda tinha 53 registros, Lud 261 e Ferna
 
 A seção foi copiada de `D:\MktPolitica\deputados_streamlit` e usa as bases anuais `territorio/stage01a_municipios.parquet` e `territorio/stage01b_bairros.parquet` do candidato e cargo selecionados. Os filtros Mesorregião → Município têm estado próprio por candidato e mesorregião. A seleção inicial prioriza o município com mais votos e sua mesorregião. O mapa e as cinco métricas laterais seguem os componentes originais, sem reutilizar os indicadores específicos do histórico de BH.
 
-O mapa usa `municipality_mesh_map()` com seus parâmetros padrão: bairros oficiais, áreas ponderadas ou setores censitários conforme a cobertura disponível. Os cards agregam bairros pelo nome normalizado, mostram votos municipais, bairro líder, dependência do líder, bairros com voto e densidade média; a contagem de bairros com votos não presume o total da malha oficial. Dados ausentes mantêm os avisos e estados vazios originais. As referências geográficas continuam em `IBGE/MG/dadosterritorio`.
+Nesta seção, somente BH usa bairros oficiais. Nos demais municípios, as votações usam áreas ponderadas somente com 8 ou mais unidades; abaixo desse corte, usam-se setores censitários com identificação pelo bairro TSE de maior votação. O parâmetro `min_weighted_areas=8` é exclusivo desta seção e não altera o padrão dos outros mapas. Os cards agregam bairros pelo nome normalizado, mostram votos municipais, bairro líder, dependência do líder, bairros com voto e densidade média; a contagem de bairros com votos não presume o total da malha oficial. Dados ausentes mantêm os avisos e estados vazios originais. As referências geográficas continuam em `IBGE/MG/dadosterritorio`.
 
 **Exceção exclusiva de BH nesta seção:** `common/bh_neighborhood_voting.py` lê somente códigos e geometrias de `HF_GEOGRAPHY_REFERENCE_PREFIX/MG_bairros_CD2022.parquet`, filtrando `code_muni=3106200`. A junção é exata entre `code_neighborhood` da malha e `cd_ibge_bairro` de `stage01b_bairros.parquet`; `cd_bairro` do TSE identifica os bairros eleitorais e controla os cards e o detalhamento; o código IBGE serve somente ao vínculo com a geometria. Não há associação por nome, coordenadas, setor ou área ponderada. Nomes e votos do hover vêm exclusivamente do stage 01b, agregados por código IBGE, preservando o detalhamento por `cd_bairro` do TSE; os cards agrupam por esse código eleitoral. Bairros da malha sem dados ficam cinza com votos indisponíveis; códigos do candidato sem correspondência são informados abaixo do mapa. A malha não fornece atributos analíticos nem nomes exibidos. Os demais municípios e a seção histórica de BH mantêm seu comportamento anterior.
 
 As malhas são carregadas de `HF_GEOGRAPHY_PREFIX`:
+
+Na seção de bairros, somente deputados têm o seletor **2018 / 2022 / 2026 / Projeção 2030**, inicialmente em 2026. Os históricos usam `qt_votos_candidato_bairro_{ano}` no stage 01b anual. Coluna ausente ou inteiramente nula no município gera indisponibilidade, sem inferir ausência de candidatura. Zero informado é válido. Os cards históricos consideram apenas registros com votos conhecidos e identificam o ano; cobertura parcial recebe nota. O hover preserva os bairros TSE e mostra votos históricos e de 2026. Verde/azul/vermelho/cinza indicam aumento/estabilidade/queda/sem comparação. A diferença por polígono é a média de `diff_market_share_bairro_pp_vs_{ano}`, ponderada por `qt_votos_validos_bairro_{ano}`, entre registros comparáveis; não se presume uma comparação de locais correspondidos, pois esses campos não existem nas fontes atuais.
+
+**Projeção 2030**, escolhida para usar a fonte stage 09b existente, apresenta o diagnóstico do eleitor ideal com os mesmos critérios de `sector_scores()` e `_diagnostic_city_frame()` do DNA. Em BH, agrega setores com vínculo exato de bairro e recalcula os cortes entre bairros; usa a malha oficial das referências e nomes/votos TSE do stage 01b. Nos demais municípios, desenha setores censitários e mantém os cortes setoriais calculados antes do filtro municipal, como no DNA. As estimativas populacionais vêm do diagnóstico, não do stage 01b. Os cards permanecem em 2026. A legenda mostra Proteger a base, Oportunidade alta, Potencial a desenvolver e Sem potencial ou dados incompletos; diagnósticos ausentes não geram projeção fictícia. Potencial demográfico não é previsão de votos para 2030. Os vereadores mantêm esta seção sem seletor e seu histórico de BH permanece separado.
 
 | Arquivo | Papel |
 | --- | --- |
@@ -268,6 +273,8 @@ As malhas são carregadas de `HF_GEOGRAPHY_PREFIX`:
 | `MG_bairros_CD2022.parquet` | Primeira opção da malha intramunicipal |
 | `MG_AreaPonderada_CD2022.parquet` | Segunda opção da malha intramunicipal |
 | `MG_setores_mapa_CD2022.parquet` | Fallback completo por município |
+
+Para a Projeção 2030 dos deputados em BH, o vínculo setor → bairro também pode usar `MG_setores_CD2022.parquet` sob `HF_GEOGRAPHY_REFERENCE_PREFIX`, lendo apenas códigos e filtrando BH. Esse índice oficial completa os vínculos quando `setor_bairro_lookup.parquet` não existe; setores com códigos de bairro conflitantes são excluídos da agregação, sem inferência espacial.
 
 As referências `municipios_mg_mesorregioes.parquet`, `setor_bairro_lookup.parquet` e `crosswalk_setor_bairro.parquet` permanecem em `HF_GEOGRAPHY_REFERENCE_PREFIX`. O último arquivo relaciona os bairros do TSE aos setores censitários de referência e permite nomear, no tooltip, setores em que o candidato não recebeu votos.
 
@@ -357,3 +364,7 @@ Regras de manutenção:
 - preserve códigos territoriais como texto para não perder zeros nem alterar junções;
 - ao mudar nomes de artefatos, atualize `file_by_kind()` e este contrato;
 - ao mudar ordem, texto, cor, layout ou interação da interface, atualize também [Visual.md](Visual.md).
+
+Nesta seção, áreas ponderadas servem somente ao vínculo geométrico. Toda a informação eleitoral vem de `stage01b_bairros.parquet`, com bairros identificados por `cd_bairro` do TSE. O hover lista cada bairro com seu nome, código TSE e votos, além da soma dos votos associados ao polígono. Nos históricos, mostra também as somas de cada ano. Cards agrupam por `cd_bairro` em todos os municípios. Nomes e códigos de área ponderada não aparecem no hover, nos cards ou na legenda. A Projeção 2030 mantém o diagnóstico por setores fora de BH, identificando-os pelo bairro TSE mais votado em 2026.
+
+Nos municípios com menos de 8 áreas ponderadas, `cd_setor_censitario` do stage 01b serve somente para o vínculo exato com `code_tract` da malha. Nenhum nome de setor ou bairro é obtido da referência geográfica e não há associação por coordenadas/proximidade nesse modo. Em divergências, os votos são somados por `cd_bairro` dentro de cada setor e o bairro com mais votos identifica o polígono; empate usa o código TSE em ordem crescente. Nos históricos, a prioridade usa os votos do ano selecionado; na Projeção 2030, usa 2026. O tooltip informa o bairro vencedor e seus votos, enquanto o total do polígono preserva todos os votos associados. Os cards continuam calculados por bairro TSE, sem descartar bairros perdedores na disputa pela identificação do setor.

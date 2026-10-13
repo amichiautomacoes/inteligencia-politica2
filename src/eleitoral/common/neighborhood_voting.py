@@ -21,7 +21,7 @@ def _section_header(title: str, subtitle: str = "") -> None:
 
 
 
-def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: str | None) -> None:
+def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: str | None, year: str | None = None) -> None:
     card = _map_side_card
     required = {"cd_ibge_municipio", "nm_bairro", "qt_votos"}
     municipality_rows = pd.DataFrame()
@@ -30,7 +30,7 @@ def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: 
         codes = df["cd_ibge_municipio"].astype("string")
         municipality_rows = df.loc[codes.eq(str(municipality_code))].copy()
         rows = municipality_rows[["nm_bairro", "qt_votos"]].copy()
-        if str(municipality_code) == "3106200" and "cd_bairro" in municipality_rows:
+        if "cd_bairro" in municipality_rows:
             rows["cd_bairro"] = municipality_rows["cd_bairro"]
         rows["nm_bairro"] = rows["nm_bairro"].fillna("").astype(str).str.strip()
         rows["qt_votos"] = pd.to_numeric(rows["qt_votos"], errors="coerce").fillna(0)
@@ -60,7 +60,7 @@ def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: 
 
     cards = [
         card(
-            "Total de votos",
+            f"Total de votos ({year})" if year else "Total de votos",
             _format_number(municipality_total) if not municipality_rows.empty else "—",
             f"Mesorregião: {mesoregion_name}" if mesoregion_name else "Mesorregião indisponível",
         )
@@ -74,7 +74,7 @@ def _render_neighborhood_side_cards(df: pd.DataFrame | None, municipality_code: 
         ])
     else:
         rows["_bairro"] = rows["nm_bairro"].map(_normalized_text)
-        if str(municipality_code) == "3106200" and "cd_bairro" in rows:
+        if "cd_bairro" in rows:
             rows["_bairro"] = rows["cd_bairro"].astype("string").str.strip()
             rows = rows.loc[rows["_bairro"].notna() & rows["_bairro"].ne("")]
         by_name = rows.groupby("_bairro")["qt_votos"].sum()
@@ -175,16 +175,20 @@ def _candidate_widget_suffix() -> str:
 
 
 
-def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_bairro_df: pd.DataFrame | None) -> None:
+def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_bairro_df: pd.DataFrame | None, *, election_controls=None, election_renderer=None) -> None:
     _section_header(
         "Votação por Bairros dentro dos municípios",
         "Votos por bairro no município selecionado.",
     )
     selected_code = None
+    election = "2026"
+    cards_df = votos_bairro_df
     detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
     with detail_map_col:
         with st.container(border=True):
             try:
+                if election_controls is not None:
+                    election = election_controls(_candidate_widget_suffix())
                 mesoregions = mesoregion_options()
                 leading_mesorregiao, leading_municipality_code = _leading_municipality_selection(
                     votos_municipio_df
@@ -226,11 +230,13 @@ def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_ba
                             f"{_normalized_text(selected_mesorregiao).replace(' ', '_').casefold()}"
                         ),
                     )
-                if selected_code is not None:
+                if selected_code is not None and election != "2026" and election_renderer is not None:
+                    cards_df = election_renderer(votos_bairro_df, selected_code, election)
+                elif selected_code is not None:
                     mesh_fig, _ = (
                         bh_neighborhood_voting_map(votos_bairro_df)
                         if str(selected_code) == "3106200"
-                        else municipality_mesh_map(selected_code, votos_bairro_df)
+                        else municipality_mesh_map(selected_code, votos_bairro_df, allow_neighborhoods=False, min_weighted_areas=8, candidate_neighborhood_details=True)
                     )
                     if mesh_fig is None:
                         st.info("Mapa de votos por bairro indisponível para este município.")
@@ -248,13 +254,15 @@ def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_ba
                                 "Municípios com menos de 1.000 votos usam um único tom de azul, "
                                 "sem escala de intensidade. Passe o cursor para ver os bairros e seus votos."
                             )
+                        elif mesh_kind == "area_ponderada":
+                            st.caption("Cada polígono reúne os bairros do candidato vinculados a ele. O tooltip mostra cada bairro TSE, seus votos e a soma dos votos desses bairros.")
                         elif mesh_kind == "setor":
                             scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                            st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} é relativa ao maior valor do município e, nos setores censitários, ocupa toda a faixa de cores para manter visíveis os setores com votos. O tooltip identifica os bairros do TSE mesmo onde o candidato não recebeu votos; setores sem referência direta usam o bairro territorialmente mais próximo no município.")
+                            st.caption(f"Azul mais escuro indica mais votos, em escala {scale_label}. Havendo vários bairros TSE no mesmo polígono, o bairro com mais votos tem prioridade na identificação. O total preserva os votos dos registros associados. Sem vínculo exato, não se atribui um bairro por proximidade.")
                         else:
                             scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
                             st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} considera também a proporção de regiões com votos no município. Passe o cursor para ver os bairros e seus votos.")
             except Exception as exc:
                 st.warning(f"Não foi possível carregar o mapa de votos por bairro: {exc}")
     with detail_cards_col:
-        _render_neighborhood_side_cards(votos_bairro_df, selected_code)
+        _render_neighborhood_side_cards(cards_df, selected_code, election if election in {"2018", "2022"} else "2026" if election_controls else None)

@@ -24,6 +24,7 @@ from eleitoral.maps.choropleth_maps import (
 )
 from eleitoral.vereadores.raio_x_bh import render_bh_voting
 from eleitoral.deputados.emendas import render_emendas
+from eleitoral.deputados.neighborhood_elections import select_election, render_election_mode
 from eleitoral.common.neighborhood_voting import render_neighborhood_voting
 from eleitoral.common.raio_x_cards import _format_number, _format_percent, _normalized_text, _map_side_card
 from eleitoral.common.shared_header import apply_shared_visual_model, render_page_header
@@ -3129,7 +3130,10 @@ with cards_col:
 if st.session_state.get("candidate_group", "vereadores") == "vereadores":
     render_bh_voting(votos_municipio_df, votos_bairro_df, _read_selected_parquet)
 
-render_neighborhood_voting(votos_municipio_df, votos_bairro_df)
+if st.session_state.get("candidate_group", "vereadores") == "dep_estaduais":
+    render_neighborhood_voting(votos_municipio_df, votos_bairro_df, election_controls=select_election, election_renderer=render_election_mode)
+else:
+    render_neighborhood_voting(votos_municipio_df, votos_bairro_df)
 
 _major_section_header(
     "Força da política local",

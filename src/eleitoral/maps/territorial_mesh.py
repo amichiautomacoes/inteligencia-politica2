@@ -170,26 +170,40 @@ def _mesh_covers_municipality(mesh: pd.DataFrame, municipality_geometry) -> bool
     return covered_area / municipality.area >= MIN_MUNICIPAL_COVERAGE
 
 
-def municipality_mesh(municipality_code: str) -> tuple[str, pd.DataFrame, str, str]:
+def municipality_mesh(municipality_code: str, *, allow_neighborhoods: bool = True, min_weighted_areas: int = MIN_WEIGHTED_AREAS_FOR_MESH) -> tuple[str, pd.DataFrame, str, str]:
     """Select geometry by availability, without joining electoral data."""
     municipality_geometry = _municipality_geometry(municipality_code)
-    neighborhoods = load_geo_layer("bairro")
-    neighborhoods = neighborhoods.loc[
-        neighborhoods["code_muni"].astype("string").eq(str(municipality_code))
-    ]
-    if not neighborhoods.empty and _mesh_covers_municipality(neighborhoods, municipality_geometry):
-        return "bairro", neighborhoods, "code_neighborhood", "name_neighborhood"
+    if allow_neighborhoods:
+        neighborhoods = load_geo_layer("bairro")
+        neighborhoods = neighborhoods.loc[
+            neighborhoods["code_muni"].astype("string").eq(str(municipality_code))
+        ]
+        if not neighborhoods.empty and _mesh_covers_municipality(neighborhoods, municipality_geometry):
+            return "bairro", neighborhoods, "code_neighborhood", "name_neighborhood"
 
     areas = load_geo_layer("area_ponderada")
     areas = areas.loc[areas["code_muni"].astype("string").eq(str(municipality_code))]
     # A single weighted area would not subdivide the municipality, so only
     # that case falls back to census sectors. Municipalities with two or more
     # weighted areas use that coarser and more legible official mesh.
-    if areas["code_weighting"].dropna().nunique() >= MIN_WEIGHTED_AREAS_FOR_MESH:
+    if areas["code_weighting"].dropna().nunique() >= min_weighted_areas:
         return "area_ponderada", areas, "code_weighting", "code_weighting"
 
     sectors = load_municipality_sectors(municipality_code)
     return "setor", sectors, "code_tract", "code_tract"
+
+
+def dominant_tse_rows(rows: pd.DataFrame, vote_column: str = "qt_votos") -> pd.DataFrame:
+    """Choose one electoral neighborhood per sector; ties use the TSE code."""
+    if rows.empty or "cd_bairro" not in rows:
+        return rows.iloc[:0].copy()
+    working = rows.copy()
+    working["cd_bairro"] = working["cd_bairro"].astype("string").str.strip()
+    working = working.loc[working["cd_bairro"].notna() & working["cd_bairro"].ne("")]
+    working["_ranking_votes"] = pd.to_numeric(working[vote_column], errors="coerce")
+    ranking = working.groupby(["_code", "cd_bairro"], as_index=False)["_ranking_votes"].sum(min_count=1)
+    ranking = ranking.sort_values(["_code", "_ranking_votes", "cd_bairro"], ascending=[True, False, True], na_position="last").drop_duplicates("_code")
+    return working.drop(columns="_ranking_votes").merge(ranking[["_code", "cd_bairro"]], on=["_code", "cd_bairro"], how="inner", validate="many_to_one")
 
 
 def _attach_coordinate_matches(rows: pd.DataFrame, mesh: pd.DataFrame) -> pd.DataFrame:
@@ -506,12 +520,15 @@ def municipality_mesh_map(
     comparison_year: str | int | None = None,
     log_scale_gamma: float = 1.0,
     zero_vote_color: str | None = None,
+    allow_neighborhoods: bool = True,
+    min_weighted_areas: int = MIN_WEIGHTED_AREAS_FOR_MESH,
+    candidate_neighborhood_details: bool = False,
 ) -> tuple[go.Figure | None, int]:
     if comparison_year is not None:
         comparison_year = str(comparison_year)
         if comparison_year not in {"2020", "2024"}:
             return None, 0
-    kind, mesh, code_column, label_column = municipality_mesh(municipality_code)
+    kind, mesh, code_column, label_column = municipality_mesh(municipality_code, allow_neighborhoods=allow_neighborhoods, min_weighted_areas=min_weighted_areas)
     mesh = mesh.dropna(subset=[code_column, "geometry"]).copy()
     mesh = mesh.loc[mesh["geometry"].map(lambda shape: not shape.is_empty)]
     mesh["id"] = mesh[code_column].astype("string")
@@ -539,7 +556,7 @@ def municipality_mesh_map(
     mesh["_mesh_name"] = ""
     if label_column in mesh.columns and label_column != code_column:
         mesh["_mesh_name"] = mesh[label_column].fillna("").astype(str).str.strip()
-    if kind == "setor":
+    if kind == "setor" and not candidate_neighborhood_details:
         try:
             lookup = load_sector_neighborhood_lookup()
             if {"cd_setor_censitario", "nome_bairro_ibge"}.issubset(lookup.columns):
@@ -620,9 +637,15 @@ def municipality_mesh_map(
     rows = votes.loc[votes["cd_ibge_municipio"].astype("string").eq(str(municipality_code))].copy()
     rows["_code"] = rows[vote_code].astype("string")
     rows["_name"] = rows["nm_bairro"].fillna("").astype(str).str.strip()
+    if candidate_neighborhood_details and kind in {"area_ponderada", "setor"}:
+        if "cd_bairro" not in rows:
+            return None, 0
+        rows["_tse_code"] = rows["cd_bairro"].fillna("").astype(str).str.strip()
+        rows["_name"] = rows["_name"] + " (" + rows["_tse_code"] + ")"
     rows["qt_votos"] = pd.to_numeric(rows["qt_votos"], errors="coerce").fillna(0)
     municipality_vote_total = float(rows["qt_votos"].sum())
-    rows = _attach_coordinate_matches(rows, mesh)
+    if not (candidate_neighborhood_details and kind == "setor"):
+        rows = _attach_coordinate_matches(rows, mesh)
     rows = rows.loc[rows["_code"].notna() & rows["_code"].ne("")].copy()
     if comparison_year is not None:
         return _municipality_comparison_map(
@@ -639,6 +662,13 @@ def municipality_mesh_map(
         ),
         include_groups=False,
     ) if not by_neighborhood.empty else pd.Series(dtype=str)
+    if candidate_neighborhood_details and kind == "setor":
+        winners = dominant_tse_rows(rows)
+        winners = winners.groupby(["_code", "cd_bairro", "_name"], as_index=False)["qt_votos"].sum()
+        details = winners.groupby("_code").apply(
+            lambda group: "<br>".join(f"{html.escape(str(row['_name']))}: {int(row['qt_votos']):,} votos".replace(",", ".") for _, row in group.iterrows()),
+            include_groups=False,
+        ) if not winners.empty else pd.Series(dtype=str)
 
     mesh["votes"] = mesh["id"].map(totals).fillna(0)
     matched_rows = rows.loc[rows["_code"].isin(mesh["id"]), "qt_votos"].sum()
@@ -646,6 +676,8 @@ def municipality_mesh_map(
         raise ValueError("A soma dos votos na malha diverge dos registros eleitorais associados.")
     mesh["details"] = mesh["id"].map(details).fillna("")
     def territory_details(row: pd.Series) -> str:
+        if candidate_neighborhood_details and kind in {"area_ponderada", "setor"}:
+            return str(row["details"]) if row["details"] else "Sem bairros do candidato associados"
         if kind == "setor" and str(row.get("_tse_neighborhoods") or "").strip():
             tse_names = html.escape(str(row["_tse_neighborhoods"]))
             vote_details = row["details"] or "Sem votos do candidato"

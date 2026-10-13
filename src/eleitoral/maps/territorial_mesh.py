@@ -492,6 +492,8 @@ def municipality_mesh_map(
         if comparison_year not in {"2020", "2024"}:
             return None, 0
     kind, mesh, code_column, label_column = municipality_mesh(municipality_code, allow_neighborhoods=allow_neighborhoods)
+    if kind == "setor" and zero_vote_color is None:
+        zero_vote_color = "#94a3b8"
     mesh = mesh.dropna(subset=[code_column, "geometry"]).copy()
     mesh = mesh.loc[mesh["geometry"].map(lambda shape: not shape.is_empty)]
     mesh["id"] = mesh[code_column].astype("string")

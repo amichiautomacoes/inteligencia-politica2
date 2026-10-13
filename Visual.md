@@ -6,6 +6,12 @@ Revisado em 13 de outubro de 2026 a partir dos componentes chamados pelas págin
 
 ### Regra vigente — sem áreas ponderadas nos mapas
 
+Na página 1, a votação setorial atual, os históricos e a Projeção 2030 desenham a malha completa de setores e o contorno municipal IBGE. Setores sem votos associados ficam cinza na intensidade; sem comparação ficam cinza no histórico; sem vínculo ou diagnóstico ficam cinza na projeção. Assim, o interior municipal permanece preenchido entre os setores classificados. A cobertura não se limita aos setores presentes no crosswalk.
+
+No Potencial demográfico municipal, o contorno externo usa a malha municipal IBGE e a subdivisão cobre todos os setores dentro do município. Setores sem relação TSE no crosswalk ou sem diagnóstico aparecem cinza, preenchendo os espaços entre os setores classificados. As geometrias vinculadas continuam vindo do crosswalk e ficam restritas ao limite municipal. Os cards contam bairros TSE. Esta regra substitui a cobertura limitada às geometrias do crosswalk descrita anteriormente nessa seção.
+
+No Potencial demográfico municipal, os cards laterais mostram **Bairros**: bairros TSE únicos ligados aos setores de cada categoria. O mapa permanece por setores em todas as cidades. Uma nota explica que bairros com setores em categorias diferentes podem aparecer em mais de um card. Esta atualização substitui o rótulo anterior **Setores censitários** nos cards.
+
 Na seção **Potencial demográfico municipal** da página DNA, todas as cidades, inclusive Belo Horizonte, mostram setores censitários do crosswalk. Bairros TSE identificam os setores no hover, sem agregação por bairro. Os quatro cards usam o rótulo **Setores censitários**; os cortes de classificação permanecem setoriais. Esta regra substitui a exceção de BH descrita historicamente neste bloco e não altera os demais mapas.
 
 Nenhum mapa desenha áreas ponderadas. Os níveis geográficos são municípios, mesorregiões, bairros oficiais e setores censitários. Quando bairros oficiais não forem usados, a subdivisão municipal usa diretamente setores do `crosswalk_setor_bairro.parquet`, sem considerar a quantidade de áreas ponderadas. Cores, escalas, filtros e vínculos TSE são preservados. Esta regra prevalece sobre as descrições históricas de áreas ponderadas abaixo.

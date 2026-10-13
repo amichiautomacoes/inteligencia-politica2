@@ -5,15 +5,16 @@ import html
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from shapely.geometry import mapping
 
 from eleitoral.maps.choropleth_maps import categorical_choropleth
 from eleitoral.maps.dna_geo_reference import (
-    load_municipality_sectors,
+    load_complete_municipality_sectors, load_geo_layer,
     load_crosswalk_geometry,
 )
-from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options
+from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options, _boundary_coordinates
 
 
 def sector_neighborhoods(crosswalk: pd.DataFrame, lookup: pd.DataFrame) -> pd.DataFrame:
@@ -66,6 +67,24 @@ def sector_map_frame(sectors: pd.DataFrame, scores: pd.DataFrame) -> pd.DataFram
     return frame
 
 
+def neighborhood_counts(frame: pd.DataFrame, links: pd.DataFrame) -> pd.Series:
+    """Count distinct TSE neighborhoods linked to displayed sectors per class."""
+    linked = links[["id_unidade", "cd_bairro"]].dropna().drop_duplicates().copy()
+    linked["cd_bairro"] = linked["cd_bairro"].astype("string").str.strip()
+    linked = linked.loc[linked["cd_bairro"].ne("")]
+    linked = linked.merge(frame[["setor", "classe_expansao"]], left_on="id_unidade", right_on="setor", validate="many_to_one")
+    return linked.groupby("classe_expansao")["cd_bairro"].nunique()
+
+
+def municipal_potential_frame(sectors: pd.DataFrame, scores: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
+    """Keep the complete mesh neutral wherever no TSE crosswalk relation exists."""
+    related = links.dropna(subset=["cd_bairro", "id_unidade", "geometry"])
+    related = related.loc[related["cd_bairro"].astype("string").str.strip().ne("")]
+    if not scores.empty:
+        scores = scores.loc[scores["setor"].isin(related["id_unidade"])]
+    return sector_map_frame(sectors, scores)
+
+
 def render_municipal_expansion() -> None:
     from eleitoral.dna.dna_expansion import _read, CLASS_COLORS
 
@@ -94,15 +113,30 @@ def render_municipal_expansion() -> None:
         code = st.selectbox("Município", [c for c, _ in choices], format_func=dict(choices).get,
                             key=f"dna_potential_municipio_{meso}")
         profile = st.selectbox("Perfil para expansão", labels, key="dna_municipal_expansion_profile")
-        sectors = load_municipality_sectors(code).drop_duplicates("code_tract")
+        sectors = load_complete_municipality_sectors(code).drop_duplicates("code_tract").copy()
         if sectors.empty:
             st.info("Malha de setores censitários indisponível para este município.")
             return
         scores = sector_scores(general if profile == "ELEITOR IDEAL" else clusters, profile)
-        frame = sector_map_frame(sectors, scores)
         links = load_crosswalk_geometry("setor")
-        links = links.loc[links["cd_ibge_municipio"].eq(code)].dropna(subset=["id_unidade", "nm_bairro"])
-        names = links.groupby("id_unidade")["nm_bairro"].agg(lambda x: " / ".join(sorted(set(x))))
+        links = links.loc[links["cd_ibge_municipio"].eq(code)].dropna(subset=["id_unidade"])
+        # The official mesh supplies coverage. Linked sectors retain the
+        # crosswalk geometry; all other sectors keep their IBGE geometry.
+        geometry_by_sector = links.dropna(subset=["geometry"]).drop_duplicates("id_unidade").set_index("id_unidade")["geometry"]
+        sectors["code_tract"] = sectors["code_tract"].astype("string")
+        sectors["geometry"] = sectors.apply(lambda row: geometry_by_sector.get(row["code_tract"], row["geometry"]), axis=1)
+        municipalities = load_geo_layer("municipio")
+        municipality = municipalities.loc[municipalities["code_muni"].astype("string").eq(code), "geometry"]
+        if municipality.empty:
+            st.info("Contorno municipal IBGE indisponível para este município.")
+            return
+        boundary = municipality.iloc[0]
+        sectors["geometry"] = sectors["geometry"].map(lambda shape: shape.intersection(boundary) if shape is not None else None)
+        sectors = sectors.dropna(subset=["geometry"])
+        sectors = sectors.loc[sectors["geometry"].map(lambda shape: not shape.is_empty)]
+        frame = municipal_potential_frame(sectors, scores, links)
+        counts = neighborhood_counts(frame, links)
+        names = links.dropna(subset=["nm_bairro"]).groupby("id_unidade")["nm_bairro"].agg(lambda x: " / ".join(sorted(set(x))))
         frame["nome_bairro_tse"] = frame["setor"].map(names).fillna("Sem bairro vinculado")
         frame["nome"] = "Bairro: " + frame["nome_bairro_tse"]
         frame["classe_label"] = frame["classe_expansao"].map({k: v[0] for k, v in descriptions.items()})
@@ -125,13 +159,20 @@ def render_municipal_expansion() -> None:
             "<br>Votos associados: %{customdata[1]}<br>População estimada do ICP: %{customdata[2]}"
             "<br>Parcela do ICP na população de referência: %{customdata[3]}%<extra></extra>"
         ))
+        lon, lat = _boundary_coordinates(boundary)
+        fig.add_trace(go.Scattergeo(
+            lon=lon, lat=lat, mode="lines",
+            line={"color": "rgba(248,251,255,0.98)", "width": 2.2},
+            hoverinfo="skip", showlegend=False,
+        ))
         st.plotly_chart(fig, width="stretch", height=640, key="dna_municipal_expansion_map")
         if scores.empty:
             st.info("Diagnóstico por setor indisponível para este perfil; a malha permanece neutra.")
-        st.caption("Todos os municípios, incluindo Belo Horizonte, usam setores censitários com geometrias e nomes TSE do crosswalk de setores; somente unidades representadas nesse arquivo são exibidas. Os diagnósticos são vinculados pelo código exato do setor, sem agregação por bairro. Setores sem diagnóstico permanecem cinza. Votos associados a locais de votação não representam residência dos eleitores. Potencial demográfico não é previsão de votos.")
+        st.caption("O contorno municipal vem da malha IBGE. Todos os setores do município são exibidos; setores sem vínculo no crosswalk ou sem diagnóstico permanecem cinza. Os setores vinculados usam a geometria do crosswalk e o diagnóstico pelo código exato do setor. Os cards contam bairros TSE ligados às categorias. Votos associados a locais de votação não representam residência dos eleitores. Potencial demográfico não é previsão de votos.")
     with cards_col:
         for category, (title, description) in descriptions.items():
             with st.container(border=True, key=f"dna_municipal_class_{category.lower()}"):
                 st.html(f'<div class="dna-municipal-class-title" style="background:{CLASS_COLORS[category]}">{html.escape(title)}</div>')
-                st.metric("Setores censitários", int(frame["classe_expansao"].eq(category).sum()))
+                st.metric("Bairros", int(counts.get(category, 0)))
                 st.caption(description)
+        st.caption("Bairros TSE únicos vinculados aos setores de cada categoria. Um bairro ligado a setores de categorias diferentes pode aparecer em mais de um card.")

@@ -6,6 +6,12 @@ Este README é a referência técnica do projeto. A aparência, a hierarquia de 
 
 ### Regra vigente — sem áreas ponderadas nos mapas
 
+Na página 1, todos os mapas setoriais também usam a malha completa por município, preservam geometrias vinculadas do crosswalk e desenham o contorno municipal IBGE. Votação atual usa cinza nos setores sem votos associados; históricos usam cinza sem comparação; Projeção 2030 usa cinza nos setores sem vínculo ou diagnóstico. Bairros oficiais e mapas estaduais mantêm suas malhas. Esta regra substitui as referências anteriores à cobertura restrita ao crosswalk na página 1.
+
+No Potencial demográfico municipal, a cobertura é a malha completa `MG_setores_mapa_CD2022.parquet` por município, com o contorno externo de `MG_municipios_2022.parquet`, ambos em `HF_GEOGRAPHY_PREFIX`. Setores com vínculo TSE usam a geometria do crosswalk, recortada ao limite municipal; setores sem vínculo ou sem diagnóstico ficam cinza. A malha completa complementa os setores ausentes do crosswalk. Os cards continuam contando apenas bairros TSE vinculados, sem inventar bairros para setores sem relação. Esta regra substitui a cobertura limitada ao crosswalk descrita anteriormente para essa seção.
+
+Os cards do Potencial demográfico municipal contam bairros TSE distintos (`cd_bairro`) ligados aos setores exibidos em cada classe, em todas as cidades. Vários setores do mesmo bairro na mesma classe contam uma vez; um bairro com setores em classes diferentes pode entrar em mais de um card. O mapa e os critérios permanecem setoriais. Esta regra substitui a indicação anterior de contagem de setores nos cards.
+
 O Potencial demográfico municipal não lê `setor_bairro_lookup.parquet` nem atributos IBGE de bairro: o diagnóstico liga diretamente ao código do setor e os nomes TSE vêm do crosswalk com geometria. O helper de vínculos IBGE permanece disponível para outros componentes que ainda agregam por bairros oficiais.
 
 Na página DNA Eleitoral, a seção **Potencial demográfico municipal** usa exclusivamente setores censitários em todas as cidades, inclusive Belo Horizonte. Não agrega diagnósticos nem geometrias por bairro nessa seção. Os cards contam setores censitários e os cortes permanecem calculados no nível setorial antes do filtro municipal. Esta regra substitui as descrições anteriores da exceção de BH para esse bloco; não altera outros mapas.

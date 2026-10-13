@@ -4,14 +4,15 @@ from __future__ import annotations
 import html
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from shapely.geometry import mapping
 from hf_sync import load_env, hf_filesystem
 
 from eleitoral.common.bh_neighborhood_voting import load_bh_neighborhood_mesh, bh_neighborhood_frame, bh_neighborhood_voting_map
-from eleitoral.maps.territorial_mesh import municipality_mesh, municipality_mesh_map, _attach_coordinate_matches, _numeric_code_strings, dominant_tse_rows
+from eleitoral.maps.territorial_mesh import municipality_mesh, municipality_mesh_map, _attach_coordinate_matches, _numeric_code_strings, dominant_tse_rows, _municipality_geometry, _boundary_coordinates
 from eleitoral.maps.choropleth_maps import categorical_choropleth
-from eleitoral.maps.dna_geo_reference import load_municipality_sectors, load_sector_ibge_crosswalk, load_sector_neighborhood_lookup, geography_reference_path, attach_crosswalk_units
+from eleitoral.maps.dna_geo_reference import load_municipality_sectors, load_sector_ibge_crosswalk, load_sector_neighborhood_lookup, geography_reference_path, attach_crosswalk_units, load_crosswalk_geometry
 from eleitoral.dna.sector_expansion import sector_scores, sector_neighborhoods
 from eleitoral.dna.dna_expansion import _read, _diagnostic_city_frame, CLASS_COLORS
 
@@ -145,6 +146,12 @@ def _projection_map(source: pd.DataFrame, code: str):
         source_codes = "cd_ibge_bairro"
     else:
         mesh = load_municipality_sectors(code).rename(columns={"code_tract": "setor"})
+        links = load_crosswalk_geometry("setor")
+        links = links.loc[links["cd_ibge_municipio"].eq(code)].dropna(subset=["cd_bairro", "id_unidade", "geometry"])
+        scores = scores.loc[scores["setor"].isin(links["id_unidade"])]
+        boundary = _municipality_geometry(code)
+        if boundary is not None:
+            mesh["geometry"] = mesh["geometry"].map(lambda shape: shape.intersection(boundary) if shape is not None else None)
         source_codes = "cd_setor_censitario"
         rows = attach_crosswalk_units(rows, "setor", code)
         winner_rows = dominant_tse_rows(rows)
@@ -153,8 +160,6 @@ def _projection_map(source: pd.DataFrame, code: str):
         return None
     mesh['setor'] = _numeric_code_strings(mesh['setor'])
     frame = mesh[['setor']].drop_duplicates().merge(scores, on='setor', how='left', validate='one_to_one')
-    if not frame['classe_expansao'].notna().any():
-        return None
     frame['classe_expansao'] = frame['classe_expansao'].fillna('CINZA')
     frame['name'] = frame['setor'].map(names).fillna('Sem bairro TSE vinculado no arquivo do candidato')
     if code == "3106200":
@@ -170,6 +175,10 @@ def _projection_map(source: pd.DataFrame, code: str):
     fig = categorical_choropleth(frame, geojson, location='setor', category='classe_expansao', categories=list(CLASS_COLORS), colors=list(CLASS_COLORS.values()), hover_name='name', custom_data=['class_label','votes','oportunidade_demografica_label','similaridade_label'])
     fig.update_coloraxes(showscale=False)
     fig.update_traces(hovertemplate='<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos 2026 (TSE): %{customdata[1]}<br>População estimada do ICP: %{customdata[2]}<br>Parcela na referência: %{customdata[3]}%<extra></extra>')
+    boundary = _municipality_geometry(code)
+    if boundary is not None:
+        lon, lat = _boundary_coordinates(boundary)
+        fig.add_trace(go.Scattergeo(lon=lon, lat=lat, mode="lines", line={"color": "rgba(248,251,255,0.98)", "width": 2.2}, hoverinfo="skip", showlegend=False))
     return fig
 
 
@@ -189,7 +198,7 @@ def render_election_mode(source: pd.DataFrame | None, code: str, election: str) 
         _legend([('Proteger a base',CLASS_COLORS['AZUL']),('Oportunidade alta',CLASS_COLORS['VERDE']),('Potencial a desenvolver',CLASS_COLORS['AMARELO']),('Sem potencial ou dados incompletos',CLASS_COLORS['CINZA'])])
         fig = _projection_map(source, code) if source is not None else None
         cards = source
-        st.caption('Diagnóstico stage09b do eleitor ideal, com os mesmos critérios relativos do DNA. Em BH, bairros oficiais com vínculos exatos; nos demais municípios, setores censitários. Nomes e votos TSE vêm do stage01b; estimativas demográficas vêm do diagnóstico. Os cards mantêm 2026. Potencial não é previsão de votos para 2030.')
+        st.caption('Diagnóstico stage09b do eleitor ideal, com os mesmos critérios relativos do DNA. Em BH, bairros oficiais com vínculos exatos; nos demais municípios, malha completa de setores. O contorno municipal vem do IBGE; setores sem vínculo no crosswalk ou diagnóstico ficam cinza. Nomes e votos TSE vêm do stage01b; estimativas demográficas vêm do diagnóstico. Os cards mantêm 2026. Potencial não é previsão de votos para 2030.')
     if fig is None:
         st.info(f'Mapa de {election} indisponível para este município.')
     else:

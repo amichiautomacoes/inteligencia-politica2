@@ -238,7 +238,7 @@ def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_ba
                             )
                         elif mesh_kind == "setor":
                             scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                            st.caption(f"Azul mais escuro indica mais votos, em escala {scale_label}. Geometrias e vínculos por bairro TSE vêm do crosswalk de setores; somente unidades representadas nesse arquivo são exibidas. Havendo vários bairros TSE no mesmo polígono, o bairro com mais votos tem prioridade na identificação. O total preserva os votos dos registros associados. Sem vínculo exato, não se atribui um bairro por proximidade.")
+                            st.caption(f"Azul mais escuro indica mais votos, em escala {scale_label}. A malha completa de setores e o contorno municipal vêm do IBGE; setores sem votos associados ficam cinza. Geometrias vinculadas e relações por bairro TSE vêm do crosswalk. Havendo vários bairros TSE no mesmo polígono, o bairro com mais votos tem prioridade na identificação. O total preserva os votos dos registros associados. Sem vínculo exato, não se atribui um bairro por proximidade.")
                         else:
                             scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
                             st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} depende somente do volume de votos do município: logarítmica acima de 1.000 votos e linear até 1.000. Passe o cursor para ver os bairros e seus votos.")

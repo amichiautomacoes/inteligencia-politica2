@@ -163,9 +163,24 @@ def _read_geo_parquet(
 
 
 @st.cache_data(show_spinner=False)
+def load_complete_municipality_sectors(municipality_code: str) -> pd.DataFrame:
+    """Complete IBGE sector coverage, including units absent from the crosswalk."""
+    env = load_env()
+    return _read_geo_parquet(
+        geography_path(env, GEOGRAPHY_FILES["setor"]),
+        columns=GEOGRAPHY_COLUMNS["setor"],
+        filters=[("code_muni", "==", str(municipality_code))],
+    )
+
+
+@st.cache_data(show_spinner=False)
 def load_municipality_sectors(municipality_code: str) -> pd.DataFrame:
-    """Read one municipality from the compact, row-grouped sector map."""
-    return crosswalk_mesh("setor", municipality_code)
+    """Complete IBGE mesh, retaining crosswalk geometry for linked sectors."""
+    sectors = load_complete_municipality_sectors(municipality_code).copy()
+    sectors["code_tract"] = territorial_codes(sectors["code_tract"])
+    linked = crosswalk_mesh("setor", municipality_code).set_index("code_tract")["geometry"]
+    sectors["geometry"] = sectors.apply(lambda row: linked.get(row["code_tract"], row["geometry"]), axis=1)
+    return sectors.drop_duplicates("code_tract")
 
 
 @st.cache_data(show_spinner=False)

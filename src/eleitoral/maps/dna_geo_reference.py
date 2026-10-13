@@ -15,7 +15,6 @@ from hf_sync import hf_filesystem, load_env
 GEOGRAPHY_FILES = {
     "municipio": "MG_municipios_2022.parquet",
     "mesorregiao": "MG_mesorregioes_2022.parquet",
-    "area_ponderada": "MG_AreaPonderada_CD2022.parquet",
     "bairro": "MG_bairros_CD2022.parquet",
     "setor": "MG_setores_mapa_CD2022.parquet",
 }
@@ -23,12 +22,60 @@ GEOGRAPHY_FILES = {
 GEOGRAPHY_COLUMNS = {
     "municipio": ["code_muni", "name_muni", "geometry"],
     "mesorregiao": ["name_meso", "geometry"],
-    "area_ponderada": ["code_muni", "code_weighting", "geometry"],
     "bairro": ["code_muni", "code_neighborhood", "name_neighborhood", "geometry"],
     "setor": ["code_tract", "code_muni", "geometry"],
 }
 
 MUNICIPAL_GEOMETRY_TOLERANCE = 0.002
+
+CROSSWALK_FILES = {
+    "setor": "crosswalk_setor_bairro.parquet",
+}
+
+
+def territorial_codes(values: pd.Series) -> pd.Series:
+    """Preserve textual TSE keys and remove numeric Parquet's decimal suffix."""
+    return values.astype("string").str.strip().str.replace(r"\.0$", "", regex=True)
+
+
+@st.cache_data(show_spinner=False)
+def load_crosswalk_geometry(kind: str) -> pd.DataFrame:
+    env = load_env()
+    frame = _read_geo_parquet(
+        geography_reference_path(env, CROSSWALK_FILES[kind]),
+        columns=["cd_ibge_municipio", "cd_bairro", "id_unidade", "nm_bairro", "geometry"],
+    )
+    for column in ("cd_ibge_municipio", "cd_bairro", "id_unidade"):
+        frame[column] = territorial_codes(frame[column])
+    return frame
+
+
+def crosswalk_mesh(kind: str, municipality_code: str | None = None) -> pd.DataFrame:
+    """One polygon per unit, even when several TSE neighborhoods share it."""
+    frame = load_crosswalk_geometry(kind)
+    if municipality_code is not None:
+        frame = frame.loc[frame["cd_ibge_municipio"].eq(str(municipality_code))]
+    frame = frame.dropna(subset=["id_unidade", "geometry"])
+    frame = frame.loc[frame["geometry"].map(lambda shape: not shape.is_empty)]
+    code_column = "code_tract"
+    return frame.drop_duplicates(["cd_ibge_municipio", "id_unidade"]).rename(
+        columns={"cd_ibge_municipio": "code_muni", "id_unidade": code_column}
+    ).reset_index(drop=True)
+
+
+def attach_crosswalk_units(rows: pd.DataFrame, kind: str, municipality_code: str) -> pd.DataFrame:
+    """Join candidate records by TSE neighborhood, without spatial guesses."""
+    links = load_crosswalk_geometry(kind)
+    links = links.loc[links["cd_ibge_municipio"].eq(str(municipality_code))]
+    links = links.dropna(subset=["cd_bairro", "id_unidade", "geometry"])
+    links = links[["cd_bairro", "id_unidade"]].drop_duplicates()
+    # An ambiguous neighborhood must not multiply its electoral totals.
+    links = links.loc[~links["cd_bairro"].duplicated(keep=False)]
+    result = rows.copy()
+    result["cd_bairro"] = territorial_codes(result["cd_bairro"])
+    units = links.set_index("cd_bairro")["id_unidade"]
+    result["_code"] = result["cd_bairro"].map(units)
+    return result
 
 
 def geography_path(env: dict[str, str], filename: str) -> str:
@@ -118,13 +165,7 @@ def _read_geo_parquet(
 @st.cache_data(show_spinner=False)
 def load_municipality_sectors(municipality_code: str) -> pd.DataFrame:
     """Read one municipality from the compact, row-grouped sector map."""
-    env = load_env()
-    path = geography_path(env, "MG_setores_mapa_CD2022.parquet")
-    return _read_geo_parquet(
-        path,
-        columns=GEOGRAPHY_COLUMNS["setor"],
-        filters=[("code_muni", "==", str(municipality_code))],
-    )
+    return crosswalk_mesh("setor", municipality_code)
 
 
 @st.cache_data(show_spinner=False)
@@ -132,6 +173,8 @@ def load_geo_layer(granularity: str) -> pd.DataFrame:
     """Read an official IBGE GeoParquet with pandas in EPSG:4326."""
     if granularity not in GEOGRAPHY_FILES:
         raise ValueError(f"Granularidade geogrÃ¡fica desconhecida: {granularity}")
+    if granularity in CROSSWALK_FILES:
+        return crosswalk_mesh(granularity)
     env = load_env()
     bucket_url = env.get("HF_BUCKET_URL", "").rstrip("/")
     if not bucket_url:

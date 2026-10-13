@@ -1,4 +1,4 @@
-"""Municipal potential using Census sectors and exact IBGE neighborhood keys."""
+"""Municipal potential using Census sector keys and TSE crosswalk labels."""
 from __future__ import annotations
 
 import html
@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from shapely.geometry import mapping
-from shapely.ops import unary_union
 
 from eleitoral.maps.choropleth_maps import categorical_choropleth
 from eleitoral.maps.dna_geo_reference import (
-    load_municipality_sectors, load_sector_ibge_crosswalk, load_sector_neighborhood_lookup, load_geo_layer,
+    load_municipality_sectors,
+    load_crosswalk_geometry,
 )
 from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options
 
@@ -53,7 +53,7 @@ def sector_scores(data: pd.DataFrame | None, label: str) -> pd.DataFrame:
     return _diagnostic_city_frame(data).rename(columns={"codigo_ibge": "setor"})
 
 
-def sector_map_frame(sectors: pd.DataFrame, scores: pd.DataFrame, neighborhoods: pd.DataFrame) -> pd.DataFrame:
+def sector_map_frame(sectors: pd.DataFrame, scores: pd.DataFrame) -> pd.DataFrame:
     frame = sectors[["code_tract"]].rename(columns={"code_tract": "setor"}).copy()
     frame["setor"] = frame["setor"].astype("string")
     if scores.empty:
@@ -63,14 +63,11 @@ def sector_map_frame(sectors: pd.DataFrame, scores: pd.DataFrame, neighborhoods:
     else:
         frame = frame.merge(scores, on="setor", how="left", validate="one_to_one")
         frame["classe_expansao"] = frame["classe_expansao"].fillna("CINZA")
-    frame = frame.merge(neighborhoods, on="setor", how="left", validate="one_to_one")
-    frame["nome_bairro_ibge"] = frame["nome_bairro_ibge"].fillna("Sem bairro IBGE vinculado")
-    frame["codigo_bairro_ibge"] = frame["codigo_bairro_ibge"].fillna("")
     return frame
 
 
 def render_municipal_expansion() -> None:
-    from eleitoral.dna.dna_expansion import _read, CLASS_COLORS, _diagnostic_city_frame
+    from eleitoral.dna.dna_expansion import _read, CLASS_COLORS
 
     general = _read("diagnostico_geral_setor")
     clusters = _read("diagnostico_clusters_setor")
@@ -102,40 +99,12 @@ def render_municipal_expansion() -> None:
             st.info("Malha de setores censitários indisponível para este município.")
             return
         scores = sector_scores(general if profile == "ELEITOR IDEAL" else clusters, profile)
-        try:
-            neighborhoods = sector_neighborhoods(load_sector_ibge_crosswalk(), load_sector_neighborhood_lookup())
-        except Exception:
-            neighborhoods = pd.DataFrame(columns=["setor", "nome_bairro_ibge", "codigo_bairro_ibge"])
-            st.info("Vínculos de bairros IBGE indisponíveis neste momento.")
-        frame = sector_map_frame(sectors, scores, neighborhoods)
-        if code == "3106200":
-            # Aggregate only diagnosed sectors linked by exact IBGE neighborhood
-            # code; never distribute neighborhood totals back over sectors.
-            linked = scores.reindex(columns=["setor", "votos_base", "oportunidade_demografica", "reference", "complete"]).merge(neighborhoods, on="setor", how="inner", validate="one_to_one")
-            linked = linked.loc[linked["codigo_bairro_ibge"].str.fullmatch(r"\d+", na=False)]
-            grouped = linked.groupby("codigo_bairro_ibge", as_index=False).agg(
-                votos_obtidos_2026=("votos_base", lambda x: x.sum(min_count=len(x))),
-                populacao_estimada_icp=("oportunidade_demografica", lambda x: x.sum(min_count=len(x))),
-                populacao_total_referencia=("reference", lambda x: x.sum(min_count=len(x))),
-                cobertura_dados_completa=("complete", "all"),
-            ).rename(columns={"codigo_bairro_ibge": "cd_ibge_municipio_setor"})
-            results = _diagnostic_city_frame(grouped).rename(columns={"codigo_ibge": "setor"})
-            bairros = load_geo_layer("bairro")
-            bairros = bairros.loc[bairros["code_muni"].astype("string").eq(code)].copy()
-            sectors = bairros.rename(columns={"code_neighborhood": "code_tract"})
-            sectors["code_tract"] = sectors["code_tract"].astype("string")
-            sectors = sectors.groupby("code_tract", as_index=False).agg(
-                name_neighborhood=("name_neighborhood", "first"),
-                geometry=("geometry", lambda x: unary_union(list(x.dropna()))),
-            )
-            if sectors.empty:
-                st.info("Malha de bairros indisponível para Belo Horizonte.")
-                return
-            names = sectors[["code_tract", "name_neighborhood"]].rename(columns={"code_tract": "setor", "name_neighborhood": "nome_bairro_ibge"})
-            names["setor"] = names["setor"].astype("string")
-            names["codigo_bairro_ibge"] = names["setor"]
-            frame = sector_map_frame(sectors, results, names)
-        frame["nome"] = "Bairro: " + frame["nome_bairro_ibge"].replace("Sem bairro IBGE vinculado", "Sem bairro vinculado")
+        frame = sector_map_frame(sectors, scores)
+        links = load_crosswalk_geometry("setor")
+        links = links.loc[links["cd_ibge_municipio"].eq(code)].dropna(subset=["id_unidade", "nm_bairro"])
+        names = links.groupby("id_unidade")["nm_bairro"].agg(lambda x: " / ".join(sorted(set(x))))
+        frame["nome_bairro_tse"] = frame["setor"].map(names).fillna("Sem bairro vinculado")
+        frame["nome"] = "Bairro: " + frame["nome_bairro_tse"]
         frame["classe_label"] = frame["classe_expansao"].map({k: v[0] for k, v in descriptions.items()})
         for field in ("votos_base", "oportunidade_demografica", "similaridade"):
             frame[field + "_label"] = frame[field].map(
@@ -148,7 +117,7 @@ def render_municipal_expansion() -> None:
         fig = categorical_choropleth(
             frame, geojson, location="setor", category="classe_expansao",
             categories=list(CLASS_COLORS), colors=list(CLASS_COLORS.values()), hover_name="nome",
-            custom_data=["classe_label", "votos_base_label", "oportunidade_demografica_label", "similaridade_label", "nome_bairro_ibge", "codigo_bairro_ibge"],
+            custom_data=["classe_label", "votos_base_label", "oportunidade_demografica_label", "similaridade_label"],
         )
         fig.update_layout(height=640, coloraxis_showscale=False)
         fig.update_traces(hovertemplate=(
@@ -159,10 +128,10 @@ def render_municipal_expansion() -> None:
         st.plotly_chart(fig, width="stretch", height=640, key="dna_municipal_expansion_map")
         if scores.empty:
             st.info("Diagnóstico por setor indisponível para este perfil; a malha permanece neutra.")
-        st.caption("Em Belo Horizonte, os resultados são agregados por bairro a partir dos territórios com diagnóstico e vínculo exato no crosswalk. Nos demais municípios, os bairros identificam as unidades exibidas. Áreas sem diagnóstico permanecem cinza. Votos associados a locais de votação não representam residência dos eleitores. Potencial demográfico não é previsão de votos.")
+        st.caption("Todos os municípios, incluindo Belo Horizonte, usam setores censitários com geometrias e nomes TSE do crosswalk de setores; somente unidades representadas nesse arquivo são exibidas. Os diagnósticos são vinculados pelo código exato do setor, sem agregação por bairro. Setores sem diagnóstico permanecem cinza. Votos associados a locais de votação não representam residência dos eleitores. Potencial demográfico não é previsão de votos.")
     with cards_col:
         for category, (title, description) in descriptions.items():
             with st.container(border=True, key=f"dna_municipal_class_{category.lower()}"):
                 st.html(f'<div class="dna-municipal-class-title" style="background:{CLASS_COLORS[category]}">{html.escape(title)}</div>')
-                st.metric("Bairros" if code == "3106200" else "Áreas", int(frame["classe_expansao"].eq(category).sum()))
-                st.caption(description.replace("Setores", "Bairros" if code == "3106200" else "Áreas"))
+                st.metric("Setores censitários", int(frame["classe_expansao"].eq(category).sum()))
+                st.caption(description)

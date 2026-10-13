@@ -11,7 +11,7 @@ from hf_sync import load_env, hf_filesystem
 from eleitoral.common.bh_neighborhood_voting import load_bh_neighborhood_mesh, bh_neighborhood_frame, bh_neighborhood_voting_map
 from eleitoral.maps.territorial_mesh import municipality_mesh, municipality_mesh_map, _attach_coordinate_matches, _numeric_code_strings, dominant_tse_rows
 from eleitoral.maps.choropleth_maps import categorical_choropleth
-from eleitoral.maps.dna_geo_reference import load_municipality_sectors, load_sector_ibge_crosswalk, load_sector_neighborhood_lookup, geography_reference_path
+from eleitoral.maps.dna_geo_reference import load_municipality_sectors, load_sector_ibge_crosswalk, load_sector_neighborhood_lookup, geography_reference_path, attach_crosswalk_units
 from eleitoral.dna.sector_expansion import sector_scores, sector_neighborhoods
 from eleitoral.dna.dna_expansion import _read, _diagnostic_city_frame, CLASS_COLORS
 
@@ -56,14 +56,12 @@ def _history_map(source: pd.DataFrame, code: str, year: str, historical: pd.Data
         rows = source.loc[_numeric_code_strings(source["cd_ibge_municipio"]).eq(code)].copy()
         rows["_code"] = _numeric_code_strings(rows["cd_ibge_bairro"])
     else:
-        fig, _ = municipality_mesh_map(code, historical, allow_neighborhoods=False, min_weighted_areas=8, candidate_neighborhood_details=True)
-        kind, mesh, column, _ = municipality_mesh(code, allow_neighborhoods=False, min_weighted_areas=8)
+        fig, _ = municipality_mesh_map(code, historical, allow_neighborhoods=False, candidate_neighborhood_details=True)
+        kind, mesh, column, _ = municipality_mesh(code, allow_neighborhoods=False)
         mesh = mesh.copy()
         mesh["id"] = _numeric_code_strings(mesh[column])
         rows = source.loc[_numeric_code_strings(source["cd_ibge_municipio"]).eq(code)].copy()
-        rows["_code"] = _numeric_code_strings(rows[{"bairro": "cd_ibge_bairro", "area_ponderada": "cd_area_ponderada", "setor": "cd_setor_censitario"}[kind]])
-        if kind != 'setor':
-            rows = _attach_coordinate_matches(rows, mesh)
+        rows = attach_crosswalk_units(rows, kind, code)
     if fig is None:
         return None
     historic_col = f"qt_votos_candidato_bairro_{year}"
@@ -148,7 +146,7 @@ def _projection_map(source: pd.DataFrame, code: str):
     else:
         mesh = load_municipality_sectors(code).rename(columns={"code_tract": "setor"})
         source_codes = "cd_setor_censitario"
-        rows["_code"] = _numeric_code_strings(rows[source_codes])
+        rows = attach_crosswalk_units(rows, "setor", code)
         winner_rows = dominant_tse_rows(rows)
         names = winner_rows.groupby('_code').apply(lambda group: ' / '.join(dict.fromkeys(str(row.nm_bairro) + ' (' + str(row.cd_bairro) + ')' for row in group.itertuples())), include_groups=False) if not winner_rows.empty else pd.Series(dtype=str)
     if mesh.empty:
@@ -159,7 +157,8 @@ def _projection_map(source: pd.DataFrame, code: str):
         return None
     frame['classe_expansao'] = frame['classe_expansao'].fillna('CINZA')
     frame['name'] = frame['setor'].map(names).fillna('Sem bairro TSE vinculado no arquivo do candidato')
-    rows['_code'] = _numeric_code_strings(rows[source_codes])
+    if code == "3106200":
+        rows['_code'] = _numeric_code_strings(rows[source_codes])
     votes = rows.groupby('_code')['qt_votos'].agg(lambda x: pd.to_numeric(x, errors='coerce').sum(min_count=1))
     frame['votes'] = frame['setor'].map(votes).map(_number)
     for field in ('oportunidade_demografica', 'similaridade'):

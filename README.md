@@ -4,6 +4,22 @@ Dashboard multipágina em Streamlit para inteligência eleitoral em Minas Gerais
 
 Este README é a referência técnica do projeto. A aparência, a hierarquia de informação, os estados de tela e as interações estão documentados no [briefing visual](Visual.md).
 
+### Regra vigente — sem áreas ponderadas nos mapas
+
+O Potencial demográfico municipal não lê `setor_bairro_lookup.parquet` nem atributos IBGE de bairro: o diagnóstico liga diretamente ao código do setor e os nomes TSE vêm do crosswalk com geometria. O helper de vínculos IBGE permanece disponível para outros componentes que ainda agregam por bairros oficiais.
+
+Na página DNA Eleitoral, a seção **Potencial demográfico municipal** usa exclusivamente setores censitários em todas as cidades, inclusive Belo Horizonte. Não agrega diagnósticos nem geometrias por bairro nessa seção. Os cards contam setores censitários e os cortes permanecem calculados no nível setorial antes do filtro municipal. Esta regra substitui as descrições anteriores da exceção de BH para esse bloco; não altera outros mapas.
+
+Nenhum mapa usa áreas ponderadas. Quando a visualização não usa municípios, mesorregiões ou bairros oficiais, usa setores censitários de `crosswalk_setor_bairro.parquet`, em `HF_GEOGRAPHY_REFERENCE_PREFIX=IBGE/MG/dadosterritorio`. Não existe mais corte por quantidade de áreas ponderadas para escolher a malha. Esta regra substitui as descrições históricas abaixo sobre geometrias de áreas ponderadas. Dados censitários legados por área podem continuar compondo agregados municipais, sem desenhar áreas ponderadas.
+
+### Histórico da atualização das malhas intramunicipais — crosswalks com geometry
+
+Esta regra substitui as referências abaixo ao uso de `MG_AreaPonderada_CD2022.parquet`, `MG_setores_mapa_CD2022.parquet` e coordenadas para vincular votos a essas unidades. Todos os mapas que precisam de áreas ponderadas ou setores usam, respectivamente, `crosswalk_area_ponderada_bairro.parquet` e `crosswalk_setor_bairro.parquet`, em `HF_GEOGRAPHY_REFERENCE_PREFIX` (padrão `IBGE/MG/dadosterritorio`). A coluna `geometry` fornece os polígonos, decodificados conforme o CRS do GeoParquet e convertidos para EPSG:4326. Mapas estaduais e bairros oficiais mantêm suas malhas próprias, inclusive as exceções de BH.
+
+`cd_ibge_municipio` delimita o município; `cd_bairro` do TSE cruza os registros eleitorais e `id_unidade` identifica o polígono. Os códigos numéricos do crosswalk são normalizados sem o sufixo decimal `.0`, preservando códigos TSE textuais. Geometrias repetidas por bairro são exibidas uma vez por unidade; votos de bairros diferentes na mesma unidade são somados sem multiplicação de registros. Vínculos ausentes ou ambíguos não recebem associação por proximidade. Os históricos usam o mesmo vínculo; os diagnósticos stage 09b continuam ligados pelo código exato do setor, preservando sua semântica demográfica.
+
+A cobertura intramunicipal passa a ser a das unidades com geometria presentes no crosswalk, não a malha completa de setores do município. Unidades representadas sem diagnóstico permanecem cinza; setores fora do crosswalk não são desenhados. Os limites de quantidade de áreas ponderadas para escolher a granularidade permanecem, contando as unidades disponíveis no crosswalk.
+
 Documentação revisada em 13 de outubro de 2026 a partir das rotas e componentes chamados pelo código atual. As auditorias históricas do bucket abaixo não representam uma nova consulta remota.
 
 ## Escopo atual

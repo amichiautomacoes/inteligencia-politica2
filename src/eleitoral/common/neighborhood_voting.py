@@ -218,7 +218,7 @@ def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_ba
                     mesh_fig, _ = (
                         bh_neighborhood_voting_map(votos_bairro_df)
                         if str(selected_code) == "3106200"
-                        else municipality_mesh_map(selected_code, votos_bairro_df, allow_neighborhoods=False, min_weighted_areas=8, candidate_neighborhood_details=True)
+                        else municipality_mesh_map(selected_code, votos_bairro_df, allow_neighborhoods=False, candidate_neighborhood_details=True)
                     )
                     if mesh_fig is None:
                         st.info("Mapa de votos por bairro indisponível para este município.")
@@ -236,11 +236,9 @@ def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_ba
                                 "Municípios com menos de 1.000 votos usam um único tom de azul, "
                                 "sem escala de intensidade. Passe o cursor para ver os bairros e seus votos."
                             )
-                        elif mesh_kind == "area_ponderada":
-                            st.caption("Cada polígono reúne os bairros do candidato vinculados a ele. O tooltip mostra cada bairro TSE, seus votos e a soma dos votos desses bairros.")
                         elif mesh_kind == "setor":
                             scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                            st.caption(f"Azul mais escuro indica mais votos, em escala {scale_label}. Havendo vários bairros TSE no mesmo polígono, o bairro com mais votos tem prioridade na identificação. O total preserva os votos dos registros associados. Sem vínculo exato, não se atribui um bairro por proximidade.")
+                            st.caption(f"Azul mais escuro indica mais votos, em escala {scale_label}. Geometrias e vínculos por bairro TSE vêm do crosswalk de setores; somente unidades representadas nesse arquivo são exibidas. Havendo vários bairros TSE no mesmo polígono, o bairro com mais votos tem prioridade na identificação. O total preserva os votos dos registros associados. Sem vínculo exato, não se atribui um bairro por proximidade.")
                         else:
                             scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
                             st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} depende somente do volume de votos do município: logarítmica acima de 1.000 votos e linear até 1.000. Passe o cursor para ver os bairros e seus votos.")

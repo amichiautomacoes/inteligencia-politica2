@@ -4,6 +4,18 @@ Este documento registra **a interface implementada hoje** nas duas páginas do a
 
 Revisado em 13 de outubro de 2026 a partir dos componentes chamados pelas páginas atuais.
 
+### Regra vigente — sem áreas ponderadas nos mapas
+
+Na seção **Potencial demográfico municipal** da página DNA, todas as cidades, inclusive Belo Horizonte, mostram setores censitários do crosswalk. Bairros TSE identificam os setores no hover, sem agregação por bairro. Os quatro cards usam o rótulo **Setores censitários**; os cortes de classificação permanecem setoriais. Esta regra substitui a exceção de BH descrita historicamente neste bloco e não altera os demais mapas.
+
+Nenhum mapa desenha áreas ponderadas. Os níveis geográficos são municípios, mesorregiões, bairros oficiais e setores censitários. Quando bairros oficiais não forem usados, a subdivisão municipal usa diretamente setores do `crosswalk_setor_bairro.parquet`, sem considerar a quantidade de áreas ponderadas. Cores, escalas, filtros e vínculos TSE são preservados. Esta regra prevalece sobre as descrições históricas de áreas ponderadas abaixo.
+
+### Histórico — geometrias dos crosswalks
+
+Esta atualização prevalece sobre as descrições abaixo de malha completa de setores e vínculo de áreas/setores por coordenadas. Quando um mapa usa setores censitários ou áreas ponderadas, os polígonos vêm da coluna `geometry` dos crosswalks `crosswalk_setor_bairro.parquet` e `crosswalk_area_ponderada_bairro.parquet`, em `HF_GEOGRAPHY_REFERENCE_PREFIX=IBGE/MG/dadosterritorio`. Cada unidade aparece uma vez, mesmo com vários bairros TSE associados. Votos atuais e históricos são vinculados pelo `cd_bairro` TSE dentro do município; ausência ou ambiguidade de vínculo não recebe associação por proximidade. Os diagnósticos demográficos mantêm a junção por código de setor, com identificação TSE do crosswalk fora de BH.
+
+Somente unidades representadas com geometria no crosswalk são desenhadas; ausência de diagnóstico nessas unidades continua cinza. A interface informa essa cobertura junto ao mapa. Cores, escalas e controles permanecem os mesmos. Mapas estaduais, contorno municipal de referência e mapas de bairros oficiais mantêm suas fontes próprias, incluindo BH.
+
 A implementação mantém uma entrada única em `app.py` e as duas páginas compartilhadas. As seções exclusivas de vereadores ficam em `src/eleitoral/vereadores/`; `src/eleitoral/deputados/` contém a seção de emendas desse cargo. Essa organização não altera a ordem, os controles ou a aparência descritos neste documento.
 
 ## 1. Visão geral da experiência

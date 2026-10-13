@@ -17,11 +17,11 @@ from eleitoral.maps.dna_geo_reference import (
     load_municipality_sectors,
     load_sector_neighborhood_lookup,
     load_tse_neighborhood_sector_crosswalk,
+    attach_crosswalk_units,
 )
 
 
 MIN_MUNICIPAL_COVERAGE = 0.95
-MIN_WEIGHTED_AREAS_FOR_MESH = 2
 BH_PROJECTION_CATEGORY_COLORS = {
     "Base Crítica (Fortaleza)": "#2563eb",
     "Vulnerável/Ameaçado": "#facc15",
@@ -170,7 +170,7 @@ def _mesh_covers_municipality(mesh: pd.DataFrame, municipality_geometry) -> bool
     return covered_area / municipality.area >= MIN_MUNICIPAL_COVERAGE
 
 
-def municipality_mesh(municipality_code: str, *, allow_neighborhoods: bool = True, min_weighted_areas: int = MIN_WEIGHTED_AREAS_FOR_MESH) -> tuple[str, pd.DataFrame, str, str]:
+def municipality_mesh(municipality_code: str, *, allow_neighborhoods: bool = True) -> tuple[str, pd.DataFrame, str, str]:
     """Select geometry by availability, without joining electoral data."""
     municipality_geometry = _municipality_geometry(municipality_code)
     if allow_neighborhoods:
@@ -180,14 +180,6 @@ def municipality_mesh(municipality_code: str, *, allow_neighborhoods: bool = Tru
         ]
         if not neighborhoods.empty and _mesh_covers_municipality(neighborhoods, municipality_geometry):
             return "bairro", neighborhoods, "code_neighborhood", "name_neighborhood"
-
-    areas = load_geo_layer("area_ponderada")
-    areas = areas.loc[areas["code_muni"].astype("string").eq(str(municipality_code))]
-    # A single weighted area would not subdivide the municipality, so only
-    # that case falls back to census sectors. Municipalities with two or more
-    # weighted areas use that coarser and more legible official mesh.
-    if areas["code_weighting"].dropna().nunique() >= min_weighted_areas:
-        return "area_ponderada", areas, "code_weighting", "code_weighting"
 
     sectors = load_municipality_sectors(municipality_code)
     return "setor", sectors, "code_tract", "code_tract"
@@ -275,14 +267,7 @@ def _numeric_code_strings(values: pd.Series) -> pd.Series:
 def _sector_tse_neighborhood_names(
     mesh: pd.DataFrame, municipality_code: str,
 ) -> pd.Series:
-    """Label every sector from the complete TSE-neighborhood crosswalk.
-
-    The crosswalk has one representative census sector for every TSE
-    neighborhood. Sectors without a direct representative inherit the label
-    from the nearest reference sector inside the same municipality so the
-    tooltip remains informative even when the selected candidate had no votes
-    there.
-    """
+    """Label sectors using only exact crosswalk references in this municipality."""
     empty = pd.Series("", index=mesh.index, dtype="string")
     try:
         crosswalk = load_tse_neighborhood_sector_crosswalk()
@@ -312,27 +297,6 @@ def _sector_tse_neighborhood_names(
         lambda names: " / ".join(dict.fromkeys(names))
     )
     result = mesh["id"].map(direct_names).fillna("").astype("string")
-    reference_rows = mesh.loc[mesh["id"].isin(direct_names.index), ["id", "geometry"]]
-    reference_rows = reference_rows.loc[
-        reference_rows["geometry"].map(lambda geometry: geometry is not None and not geometry.is_empty)
-    ]
-    if reference_rows.empty:
-        return result
-
-    references = [
-        (row.geometry.representative_point(), str(direct_names.loc[row.id]))
-        for row in reference_rows.itertuples(index=False)
-    ]
-    for index in result.index[result.eq("")]:
-        geometry = mesh.at[index, "geometry"]
-        if geometry is None or geometry.is_empty:
-            continue
-        point = geometry.representative_point()
-        _, nearest_name = min(
-            references,
-            key=lambda reference: point.distance(reference[0]),
-        )
-        result.at[index] = nearest_name
     return result
 
 
@@ -521,14 +485,13 @@ def municipality_mesh_map(
     log_scale_gamma: float = 1.0,
     zero_vote_color: str | None = None,
     allow_neighborhoods: bool = True,
-    min_weighted_areas: int = MIN_WEIGHTED_AREAS_FOR_MESH,
     candidate_neighborhood_details: bool = False,
 ) -> tuple[go.Figure | None, int]:
     if comparison_year is not None:
         comparison_year = str(comparison_year)
         if comparison_year not in {"2020", "2024"}:
             return None, 0
-    kind, mesh, code_column, label_column = municipality_mesh(municipality_code, allow_neighborhoods=allow_neighborhoods, min_weighted_areas=min_weighted_areas)
+    kind, mesh, code_column, label_column = municipality_mesh(municipality_code, allow_neighborhoods=allow_neighborhoods)
     mesh = mesh.dropna(subset=[code_column, "geometry"]).copy()
     mesh = mesh.loc[mesh["geometry"].map(lambda shape: not shape.is_empty)]
     mesh["id"] = mesh[code_column].astype("string")
@@ -628,23 +591,25 @@ def municipality_mesh_map(
 
     vote_code = {
         "bairro": "cd_ibge_bairro",
-        "area_ponderada": "cd_area_ponderada",
         "setor": "cd_setor_censitario",
     }[kind]
-    required = {"cd_ibge_municipio", vote_code, "nm_bairro", "qt_votos"}
+    required = {"cd_ibge_municipio", "cd_bairro" if kind == "setor" else vote_code, "nm_bairro", "qt_votos"}
     if votes is None or not required.issubset(votes.columns):
         return None, 0
     rows = votes.loc[votes["cd_ibge_municipio"].astype("string").eq(str(municipality_code))].copy()
-    rows["_code"] = rows[vote_code].astype("string")
+    if kind == "setor":
+        rows = attach_crosswalk_units(rows, kind, municipality_code)
+    else:
+        rows["_code"] = rows[vote_code].astype("string")
     rows["_name"] = rows["nm_bairro"].fillna("").astype(str).str.strip()
-    if candidate_neighborhood_details and kind in {"area_ponderada", "setor"}:
+    if candidate_neighborhood_details and kind == "setor":
         if "cd_bairro" not in rows:
             return None, 0
         rows["_tse_code"] = rows["cd_bairro"].fillna("").astype(str).str.strip()
         rows["_name"] = rows["_name"] + " (" + rows["_tse_code"] + ")"
     rows["qt_votos"] = pd.to_numeric(rows["qt_votos"], errors="coerce").fillna(0)
     municipality_vote_total = float(rows["qt_votos"].sum())
-    if not (candidate_neighborhood_details and kind == "setor"):
+    if kind == "bairro":
         rows = _attach_coordinate_matches(rows, mesh)
     rows = rows.loc[rows["_code"].notna() & rows["_code"].ne("")].copy()
     if comparison_year is not None:
@@ -652,10 +617,7 @@ def municipality_mesh_map(
             mesh, geojson, municipality_geometry, kind, rows, comparison_year
         )
     by_neighborhood = rows.groupby(["_code", "_name"], as_index=False)["qt_votos"].sum()
-    display_names = (
-        rows.drop_duplicates("_name").set_index("_name")["nm_bairro"].to_dict()
-        if candidate_neighborhood_details and kind == "area_ponderada" else {}
-    )
+    display_names = {}
     by_neighborhood["_name"] = by_neighborhood["_name"].replace("", "Bairro não informado")
     by_neighborhood = by_neighborhood.groupby(["_code", "_name"], as_index=False)["qt_votos"].sum()
     totals = by_neighborhood.groupby("_code")["qt_votos"].sum()
@@ -680,7 +642,7 @@ def municipality_mesh_map(
         raise ValueError("A soma dos votos na malha diverge dos registros eleitorais associados.")
     mesh["details"] = mesh["id"].map(details).fillna("")
     def territory_details(row: pd.Series) -> str:
-        if candidate_neighborhood_details and kind in {"area_ponderada", "setor"}:
+        if candidate_neighborhood_details and kind == "setor":
             return str(row["details"]) if row["details"] else "Sem bairros do candidato associados"
         if kind == "setor" and str(row.get("_tse_neighborhoods") or "").strip():
             tse_names = html.escape(str(row["_tse_neighborhoods"]))
@@ -762,11 +724,7 @@ def municipality_mesh_map(
             marker_line_color="rgba(235,244,255,0.98)",
             marker_line_width=1.3,
             customdata=trace_rows[["total_label", "details"]],
-            hovertemplate=(
-                "%{customdata[1]}<br><b>Total de votos: %{customdata[0]}</b><extra></extra>"
-                if candidate_neighborhood_details and kind == "area_ponderada"
-                else "<b>Total de votos: %{customdata[0]}</b><br>%{customdata[1]}<extra></extra>"
-            ),
+            hovertemplate="<b>Total de votos: %{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
         ))
     boundary_lon, boundary_lat = _boundary_coordinates(municipality_geometry)
     if boundary_lon and boundary_lat:

@@ -301,6 +301,7 @@ O mapa estadual usa `log1p(votos)` para distribuir a intensidade. No mapa detalh
 - A listagem remota tem TTL de 600 segundos.
 - Leituras de Parquet, malhas e referências usam `st.cache_data` sem TTL explícito.
 - O `HfFileSystem` usa `st.cache_resource` por token.
+- Se a leitura de Parquet falhar com `ArrowInvalid` (por exemplo, rodapé não encontrado após substituir um arquivo no mesmo caminho), `load_parquet()` invalida os metadados desse caminho e tenta uma única leitura integral, sem depender do tamanho em cache nem de leituras por intervalo. Arquivos realmente inválidos continuam gerando erro; não há troca de candidato ou fallback para `bh_2026`.
 - `sync_deputados(force=True)` limpa a listagem remota e os caches tabulares de `hf_sync.py`.
 - A troca de candidato limpa `territorial_context`; os demais controles têm chaves próprias por seção.
 - A troca de cargo reinicia os estados da candidatura e das visualizações, mantendo o seletor de cargo.
@@ -347,9 +348,10 @@ O `Dockerfile` copia somente o necessário ao runtime (`app.py`, `hf_sync.py`, `
 
 ## Validação e manutenção
 
-Não há suíte automatizada de testes neste repositório. Antes de publicar, execute ao menos:
+Há testes de regressão do leitor remoto para arquivos substituídos e inválidos. Antes de publicar, execute ao menos:
 
 ```powershell
+python -m unittest discover -s tests
 python -m compileall -q app.py pages src
 git diff --check
 streamlit run app.py

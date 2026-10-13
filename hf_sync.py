@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 import re
+from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pandas as pd
+from pyarrow import ArrowInvalid
 import streamlit as st
 from huggingface_hub import HfFileSystem
 
@@ -382,8 +384,17 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
 @st.cache_data(show_spinner=False)
 def load_parquet(file_name: str, token: str | None = None) -> pd.DataFrame:
     fs = hf_filesystem(token)
-    with fs.open(file_name, "rb") as source:
-        return pd.read_parquet(source)
+    try:
+        with fs.open(file_name, "rb") as source:
+            return pd.read_parquet(source)
+    except ArrowInvalid:
+        # A replaced file can retain its old size in the filesystem's listing
+        # cache, so range reads look for the Parquet footer at the wrong offset.
+        # Retry once from a full stream, independent of cached size/range reads.
+        # Truly invalid files still raise instead of becoming empty data.
+        fs.invalidate_cache(file_name)
+        with fs.open(file_name, "rb", block_size=0) as source:
+            return pd.read_parquet(BytesIO(source.read()))
 
 
 def build_filter_options(df: pd.DataFrame, files: list[str] | None = None) -> dict[str, Any]:

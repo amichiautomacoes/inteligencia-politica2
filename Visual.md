@@ -83,6 +83,8 @@ Para **vereadores**, a ordem é: **Mapa de Força Eleitoral → Como foi sua vot
 
 ### 2.1 Mapa de Força Eleitoral
 
+Os controles **Eleição exibida no mapa** (à esquerda, 70%) e **Filtro territorial** (à direita, 30%) ficam na mesma linha, alinhados pelo topo, dentro do card do mapa.
+
 Atualização vigente: no topo do card do mapa, acima do filtro territorial, **Eleição exibida no mapa** oferece **2018 / 2022 / 2026 / Projeção 2030**, com 2026 selecionado inicialmente, no mesmo padrão de botões segmentados do mapa de bairros. Está disponível para ambos os cargos e tem estado próprio por candidato, independente dos demais mapas. **Mesorregião / Município** continua controlando a malha estadual em todos os modos.
 
 Em 2018/2022, cores categóricas mostram aumento (verde), estabilidade (azul), queda (vermelho) ou ausência de comparação (cinza) com 2026. O hover mostra território, votos do ano escolhido, votos de 2026 e diferença de participação em pontos percentuais. Mesorregiões comparam participações calculadas a partir de totais agregados de votos e votos válidos. O card Principal reduto e os quatro cards laterais mostram o ano escolhido, identificado acima dos indicadores. O clique abre o detalhamento do mesmo ano; cobertura parcial recebe nota e falta de histórico recebe mensagem, preservando zero legítimo.
@@ -117,6 +119,8 @@ No filtro **Projeção 2028**, as quatro pílulas mantêm os rótulos **Base Cr�
 
 ### 2.3 Votação por Bairros dentro dos municípios
 
+A nota de rodapé da votação setorial sobre escala, malha IBGE e crosswalk foi removida. Em telas largas, o card do mapa e o conjunto dos cinco cards laterais têm as bordas superiores e inferiores alinhadas, distribuindo a altura entre os cards laterais. Em telas menores, as colunas continuam empilhando.
+
 O hover atual e histórico exibe somente o nome do bairro e os votos, sem código TSE entre parênteses; por exemplo, **VIÚVA: 35 votos**.
 
 Em BH, bairros sem registro do candidato mostram o nome da malha oficial de bairros e **0 votos** no hover, mantendo cinza. Nomes do candidato continuam prioritários; votos nulos em registros existentes permanecem **Indisponível**. Esta regra substitui a descrição anterior de ausência de nomes provenientes da malha para esses bairros.
@@ -138,6 +142,8 @@ Somente para **deputados**, o topo do card inclui **Eleição exibida no mapa**,
 Em **Projeção 2030**, a legenda usa **Proteger a base** (azul), **Oportunidade alta** (verde), **Potencial a desenvolver** (amarelo) e **Sem potencial ou dados incompletos** (cinza), com diagnóstico stage09b do eleitor ideal e os mesmos critérios do DNA. BH preserva bairros oficiais vinculados pelo código IBGE e nomes/votos TSE do candidato; os outros municípios mostram setores censitários. As estimativas demográficas são identificadas como diagnóstico. Os cinco cards continuam em 2026. A nota explica a cobertura e que potencial não prevê votos. Para vereadores, este seletor não aparece e a seção permanece em sua votação atual.
 
 ### 2.4 Força da política local
+
+Atualização vigente: o parágrafo explicativo acima das legendas foi removido. As quatro legendas usam fonte de 1 rem em negrito, texto claro, preenchimento mais intenso na cor da classe, borda de 2 px e maior espaçamento interno, com altura mínima de 4,5 rem. Mantêm quatro colunas em telas largas, duas abaixo de 900 px e uma abaixo de 560 px.
 
 
 A faixa principal usa o título `Força da política local` e o subtítulo `Veja se vereadores e prefeitos das cidades foram decisivos na sua votação`. A estrutura repete a proporção 70/30 do Mapa de Força Eleitoral.
@@ -169,6 +175,8 @@ O hover informa município, classe, votos e valor de emendas. Clicar no municíp
 Sem dados, permanecem as mensagens e os KPIs de ausência da seção original. As classificações fornecidas pelo parquet têm prioridade; quando faltam, municípios com emendas usam a classe original Sem Expressão. Os critérios e a adaptação dos códigos territoriais estão documentados no README.
 
 ### 2.7 EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
+
+Os quatro cabeçalhos de subseção (Balanço Macro, Estrutura da Receita, Contratado × Pago e Da origem ao destino) ocupam toda a largura disponível, com padding ampliado de 1,65 rem por 1,8 rem, fundo azul mais intenso e faixa lateral azul de 6 px. Os títulos usam fonte responsiva de 1,65 a 2,2 rem, peso 850 e subtítulos de 1 a 1,15 rem em azul claro. O maior espaçamento antes e depois dos cabeçalhos identifica cada subseção na leitura vertical.
 
 Na subseção 1, o arranjo atual segue a mesma composição da subseção 2: uma coluna de 50% à esquerda com o card da rosca; à direita, os outros 50% contêm dois cards empilhados, DRE Simplificada da Campanha e Comprometimento Orçamentário. O gauge permanece centralizado dentro de seu próprio card, logo abaixo do funil. Este arranjo substitui a linha independente anterior do gauge. Em telas estreitas, as colunas seguem o empilhamento do Streamlit.
 
@@ -334,6 +342,8 @@ O card Composição das Receitas e sua rosca usam altura extensível para acompa
 
 ### Subseção 4 — Contratado × Pago
 
+Atualização vigente: os três cards são expansíveis e começam fechados, mostrando apenas título e seta. Os títulos usam a mesma fonte, padding e badge verde com largura disponível e altura mínima de 3 rem. O primeiro não reserva mais espaço vertical adicional no cabeçalho. Os indicadores aparecem somente ao expandir cada card, de forma independente.
+
 Atualização vigente: o card Indicadores de Alerta / Distorções foi removido. Os três restantes ocupam colunas iguais, alinhadas ao topo e à largura do cabeçalho, com gaps de 16 px. Total Contratado vs. Total Pago é expansível, inicialmente fechado, com seta e foco por teclado; sua abertura mostra os totais contratado e pago. Taxa de Execução Geral e Saldo em Aberto permanecem visíveis. Abaixo de 900 px os cards empilham. Esta regra substitui a descrição anterior de quatro cards.
 
 Após a Estrutura da Receita, o cabeçalho interno **Contratado × Pago** usa o subtítulo **A importância da análise de passivos, prazos e distorções entre contratos e pagamentos.** Quatro cards executivos aparecem lado a lado: Total Contratado vs. Total Pago, Taxa de Execução Geral, Saldo em Aberto e Indicadores de Alerta / Distorções. O último é expansível e começa fechado, mostrando ao abrir excesso pago conhecido, contratado sem pagamento e defasagem média conhecida em dias. O layout segue os cards azuis e badges verdes, passando para duas colunas abaixo de 1100 px e uma abaixo de 600 px.
@@ -359,6 +369,10 @@ Na última subseção, **De onde vem?** ocupa os 50% esquerdos da página, em ca
 Os rótulos das fontes mostram saldo financeiro observado e taxa de utilização financeira, também disponíveis no hover junto à receita financeira e aos valores das barras. Os indicadores vêm diretamente de `saldo_financeiro_observado` e `taxa_utilizacao_financeira_pct`: valores ausentes não viram zero, saldos negativos e taxas superiores a 100% são preservados. A nota esclarece que arrecadação total inclui receita estimável, enquanto saldo e utilização se referem à parcela financeira e não representam saldo bancário conciliado. Valores inválidos nas barras são omitidos com nota de cobertura. Não há novos KPIs ou filtros nesta etapa. Esta implementação substitui a indicação anterior de introdução sem gráficos.
 
 ### Para onde vai? — Destinação por fonte
+
+O título **Para onde vai?** e os selectboxes **Fonte de financiamento** e **Destinação por** ficam lado a lado na linha superior do card, com alinhamento vertical central. A tabela renderizada omite CPF/CNPJ e Natureza, mostrando fonte, categoria ou fornecedor, valor pago e percentual do total pago. Esta regra substitui a descrição anterior dessas colunas.
+
+Atualização vigente: os cards **De onde vem?** e **Para onde vai?** não exibem notas de rodapé. Os dois contêineres usam altura extensível para alinhar suas bordas inferiores. Avisos de dados indisponíveis ou fontes omitidas permanecem como mensagens de informação.
 
 Os 50% direitos da última subseção apresentam o card **Para onde vai?**, com tabela somente para leitura baseada no alias `destinacao_fontes`, que resolve `gastos/stage05e_destinacao_fontes.parquet`. O filtro **Fonte de financiamento** oferece Todas as fontes e as fontes disponíveis no resumo ou na destinação. **Destinação por** alterna Categoria de Despesa e Fornecedor, mantendo os recortes separados para evitar dupla contagem.
 

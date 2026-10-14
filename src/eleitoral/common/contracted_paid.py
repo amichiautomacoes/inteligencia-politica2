@@ -189,17 +189,17 @@ def contracted_paid_cards_html(frame: pd.DataFrame | None, breakdown: str = "glo
         balance_label = "Saldo Líquido"
         balance_description = "Saldo líquido informado na conciliação; excessos de pagamento podem compensar passivos."
     outstanding = indicator(balance_label, balance, balance_description)
-    cards = ('<details class="execution-card execution-expandable"><summary>'
-             '<h3>Total Contratado vs. Total Pago</h3><span class="execution-chevron" aria-hidden="true">⌄</span>'
-             f'</summary><div class="execution-expanded-content">{volume}</div></details>')
-    cards += "".join(
-        f'<article class="execution-card"><h3>{title}</h3>{body}</article>'
-        for title, body in (("Taxa de Execução Geral", execution), ("Saldo em Aberto", outstanding))
+    cards = "".join(
+        '<details class="execution-card execution-expandable"><summary>'
+        f'<h3>{title}</h3><span class="execution-chevron" aria-hidden="true">⌄</span>'
+        f'</summary><div class="execution-expanded-content">{body}</div></details>'
+        for title, body in (("Total Contratado vs. Total Pago", volume),
+                            ("Taxa de Execução Geral", execution), ("Saldo em Aberto", outstanding))
     )
     return '''<style>
     .execution-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start;width:100%;margin:18px 0 28px}
-    .execution-card{min-width:0;box-sizing:border-box;min-height:190px;padding:22px;border:1px solid rgba(96,165,250,.3);border-radius:14px;background:linear-gradient(145deg,rgba(11,31,77,.76),rgba(7,24,54,.68));box-shadow:0 12px 30px rgba(0,0,0,.14);color:#eaf2ff}
-    .execution-card h3{display:inline-block;margin:0 0 18px;padding:8px 12px;border-radius:10px;background:#15803d;color:white;font-size:1.05rem;font-weight:800;line-height:1.4}
+    .execution-card{min-width:0;box-sizing:border-box;padding:22px;border:1px solid rgba(96,165,250,.3);border-radius:14px;background:linear-gradient(145deg,rgba(11,31,77,.76),rgba(7,24,54,.68));box-shadow:0 12px 30px rgba(0,0,0,.14);color:#eaf2ff}
+    .execution-card summary h3{display:flex;align-items:center;min-height:3rem;box-sizing:border-box;margin:0;padding:8px 12px;border-radius:10px;background:#15803d;color:white;font-size:1.05rem;font-weight:800;line-height:1.4;flex:1;overflow-wrap:anywhere}
     .execution-indicator h4{margin:0 0 10px;color:#eaf2ff;font-size:1rem}
     .execution-indicator strong{display:block;color:#f8fbff;font-size:clamp(1.3rem,1.7vw,1.9rem);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
     .execution-indicator p{margin:12px 0 0;color:#b7c7e6;font-size:.85rem;line-height:1.55}
@@ -208,7 +208,7 @@ def contracted_paid_cards_html(frame: pd.DataFrame | None, breakdown: str = "glo
     .execution-neutral{background:rgba(147,197,253,.12);color:#bfdbfe}
     .execution-positive{background:rgba(22,163,74,.18);color:#86efac}
     .execution-warning{background:rgba(234,179,8,.18);color:#fde68a}
-    .execution-expandable summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:144px;cursor:pointer;list-style:none}
+    .execution-expandable summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:3rem;cursor:pointer;list-style:none}
     .execution-expandable summary h3{margin-bottom:0}
     .execution-expandable summary::-webkit-details-marker{display:none}
     .execution-expandable summary:focus-visible{outline:2px solid #93c5fd;outline-offset:5px}

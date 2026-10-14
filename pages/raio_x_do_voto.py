@@ -185,6 +185,28 @@ def _apply_visual_model() -> None:
             color: #b7c7e6;
             font-size: 0.91rem;
         }}
+        .mapa-section-card.financial-subsection {{
+            width: 100%;
+            box-sizing: border-box;
+            padding: 1.65rem 1.8rem;
+            margin: 2rem 0 1rem;
+            border: 1px solid rgba(147,197,253,.5);
+            border-left: 6px solid #60a5fa;
+            background: linear-gradient(110deg, rgba(30,64,125,.94), rgba(11,31,77,.9));
+            box-shadow: 0 12px 30px rgba(0,0,0,.25);
+        }}
+        .financial-subsection .mapa-section-title {{
+            font-size: clamp(1.65rem, 2.2vw, 2.2rem);
+            font-weight: 850;
+            line-height: 1.25;
+            color: #f8fbff;
+        }}
+        .financial-subsection .mapa-section-subtitle {{
+            margin-top: .65rem;
+            font-size: clamp(1rem, 1.15vw, 1.15rem);
+            line-height: 1.6;
+            color: #d1e3ff;
+        }}
         .mapa-kpi-grid,
         .raiox-kpi-grid {{
             display: grid;
@@ -790,7 +812,7 @@ def _major_section_header(title: str, subtitle: str) -> None:
 def _section_header(title: str, subtitle: str = "") -> None:
     st.markdown(
         f"""
-        <div class="mapa-section-card">
+        <div class="mapa-section-card financial-subsection">
             <div class="mapa-section-title">{title}</div>
             <div class="mapa-section-subtitle">{subtitle}</div>
         </div>
@@ -1334,11 +1356,6 @@ def _render_local_politics_cards(
 
 
 def _render_local_strength_map_legend(statewide_market_share: float | None) -> None:
-    reference = (
-        f"{statewide_market_share:.2f}%"
-        if statewide_market_share is not None
-        else "a participação estadual"
-    )
     legend_items = [
         (
             "Máquina eficiente",
@@ -1380,34 +1397,26 @@ def _render_local_strength_map_legend(statewide_market_share: float | None) -> N
         .raiox-local-map-legend-title {{
             display: none;
         }}
-        .raiox-local-map-legend-note {{
-            max-width: 60rem;
-            margin: 0 auto;
-            color: #f8fbff;
-            font-size: 0.86rem;
-            font-weight: 850;
-            line-height: 1.42;
-            text-align: center;
-        }}
         .raiox-local-map-legend-grid {{
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.5rem;
-            margin-top: 0.64rem;
+            gap: 0.65rem;
+            margin-top: 0;
         }}
         .raiox-local-map-legend-item {{
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 2.55rem;
-            padding: 0.4rem 0.66rem;
-            border: 1px solid color-mix(in srgb, var(--local-color), transparent 36%);
-            border-radius: 999px;
-            background: color-mix(in srgb, var(--local-color), transparent 84%);
-            color: #eaf2ff;
-            font-size: 0.7rem;
-            font-weight: 800;
-            line-height: 1.18;
+            min-height: 4.5rem;
+            padding: 0.8rem 0.9rem;
+            border: 2px solid color-mix(in srgb, var(--local-color), transparent 16%);
+            border-radius: 18px;
+            background: color-mix(in srgb, var(--local-color), transparent 72%);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+            color: #f8fbff;
+            font-size: 1rem;
+            font-weight: 850;
+            line-height: 1.4;
             letter-spacing: 0;
             text-align: center;
         }}
@@ -1429,10 +1438,6 @@ def _render_local_strength_map_legend(statewide_market_share: float | None) -> N
         }}
         </style>
         <div class="raiox-local-map-legend">
-            <div class="raiox-local-map-legend-note">
-                Avalia a eficácia de prefeitos e vereadores aliados na transferência de votos.
-                Considera-se votação alta quando o seu percentual na cidade supera a sua média no estado ({html.escape(reference)}).
-            </div>
             <div class="raiox-local-map-legend-grid">
                 {items_html}
             </div>
@@ -3148,8 +3153,9 @@ statewide_cards_df = votos_municipio_df
 map_col, cards_col = st.columns([0.70, 0.30], gap="large")
 with map_col:
     with st.container(border=True):
-        statewide_election = select_statewide_election(_candidate_widget_suffix())
-        _, filter_col = st.columns([0.70, 0.30], gap="small")
+        election_col, filter_col = st.columns([0.70, 0.30], gap="small", vertical_alignment="top")
+        with election_col:
+            statewide_election = select_statewide_election(_candidate_widget_suffix())
         with filter_col:
             territorial_kind = _territorial_kind_select()
         statewide_neighborhood_df = votos_bairro_df

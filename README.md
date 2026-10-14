@@ -250,6 +250,8 @@ O mapa tem 640 px; os quatro cards contam **Bairros** em BH e **Áreas** nos dem
 
 ### EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
 
+Os quatro cabeçalhos internos usam a classe `financial-subsection`, com largura integral, área interna ampliada, títulos e subtítulos maiores, fundo mais intenso e faixa lateral para destacar a hierarquia das subseções.
+
 Layout atual da subseção 1: a composição das receitas ocupa a coluna esquerda (50%); a coluna direita (50%) reúne os cards de funil e comprometimento orçamentário empilhados. O gauge deixa de ocupar uma linha independente centralizada.
 
 Na metade direita do ranking de doadores, dois cards empilhados mostram a concentração e o ranking completo. A rosca usa a participação do Top 10; quando a cobertura é conhecida, separa os demais doadores identificados da receita sem atribuição. O ranking completo usa `st.dataframe` somente para leitura dentro de expander, com posição, nome, CPF/CNPJ como texto, valor em reais, percentual com barra de progresso e quantidade de receitas vinculadas. Ambos usam doadores imediatos; visualizações sem dados são omitidas.
@@ -275,6 +277,8 @@ A seção renderiza o cabeçalho com o título **EFICIÊNCIA FINANCEIRA & CUSTO 
 As fontes continuam reconhecidas pelo leitor: `gastos_por_tipo.parquet` registra totais por tipo, enquanto `gastos_municipais_teoricos.parquet` contém rateio proporcional aos votos, não gasto municipal observado. Nenhuma delas alimenta a interface atual.
 
 ### Semântica da força política local
+
+O parágrafo explicativo acima das legendas não é renderizado. As quatro legendas têm texto ampliado e maior destaque de cor e borda; os critérios analíticos permanecem os mesmos.
 
 O mapa cruza `capital_local_0a100`, do stage 7a, com `pct_market_share`, do stage 1a. A nota é considerada alta acima de 50/100, corte que coincide com a entrada na faixa alta dos dados atuais. O market share municipal é considerado alto quando alcança ou supera a participação estadual do próprio candidato, calculada pela soma dos votos dividida pela soma dos votos válidos municipais.
 
@@ -313,6 +317,8 @@ Em BH, na votação atual por bairros, polígonos sem registro do candidato most
 Na votação atual de **Votação por Bairros dentro dos municípios**, setores sem votos associados ao candidato mostram **0 votos** e os nomes dos bairros TSE vinculados pelo código exato do setor no crosswalk. A referência fornece apenas o nome, sem alterar votos ou cores. Sem nome na referência, o hover mostra **Bairro sem referência disponível: 0 votos**.
 
 ### Votação por bairros dentro dos municípios — Raio X
+
+A nota de rodapé da votação setorial sobre escala, malha IBGE e crosswalk foi removida. O card do mapa e o conjunto dos cinco cards laterais alinham suas bordas superiores e inferiores em telas largas; em telas menores, permanece o empilhamento.
 
 A seção foi copiada de `D:\MktPolitica\deputados_streamlit` e usa as bases anuais `territorio/stage01a_municipios.parquet` e `territorio/stage01b_bairros.parquet` do candidato e cargo selecionados. Os filtros Mesorregião → Município têm estado próprio por candidato e mesorregião. A seleção inicial prioriza o município com mais votos e sua mesorregião. O mapa e as cinco métricas laterais seguem os componentes originais, sem reutilizar os indicadores específicos do histórico de BH.
 
@@ -446,6 +452,8 @@ O card Composição das Receitas e sua rosca usam altura extensível para acompa
 
 ### Subseção 4 — Contratado × Pago
 
+Os três cards usam `details/summary`, inicialmente fechados, com apenas título e seta visíveis. Cabeçalhos e badges compartilham tamanho e espaçamento; cada card revela seus indicadores ao expandir.
+
 Atualização vigente: Indicadores de Alerta / Distorções foi removido. Restam três cards em colunas iguais, ocupando toda a largura da seção: Total Contratado vs. Total Pago, Taxa de Execução Geral e Saldo em Aberto. O primeiro usa `details/summary`, começa fechado e revela os dois totais ao expandir. A grade empilha abaixo de 900 px. Esta regra substitui a composição anterior de quatro cards.
 
 Após a Estrutura da Receita, o cabeçalho interno **Contratado × Pago** usa o subtítulo **A importância da análise de passivos, prazos e distorções entre contratos e pagamentos.** Quatro cards executivos aparecem lado a lado: Total Contratado vs. Total Pago, Taxa de Execução Geral, Saldo em Aberto e Indicadores de Alerta / Distorções. O último é expansível e começa fechado, mostrando ao abrir excesso pago conhecido, contratado sem pagamento e defasagem média conhecida em dias. O layout segue os cards azuis e badges verdes, passando para duas colunas abaixo de 1100 px e uma abaixo de 600 px.
@@ -471,6 +479,10 @@ Na última subseção, **De onde vem?** ocupa os 50% esquerdos da página, em ca
 Os rótulos das fontes mostram saldo financeiro observado e taxa de utilização financeira, também disponíveis no hover junto à receita financeira e aos valores das barras. Os indicadores vêm diretamente de `saldo_financeiro_observado` e `taxa_utilizacao_financeira_pct`: valores ausentes não viram zero, saldos negativos e taxas superiores a 100% são preservados. A nota esclarece que arrecadação total inclui receita estimável, enquanto saldo e utilização se referem à parcela financeira e não representam saldo bancário conciliado. Valores inválidos nas barras são omitidos com nota de cobertura. Não há novos KPIs ou filtros nesta etapa. Esta implementação substitui a indicação anterior de introdução sem gráficos.
 
 ### Para onde vai? — Destinação por fonte
+
+O título e os dois filtros ocupam a mesma linha superior. CPF/CNPJ e Natureza são excluídos apenas da tabela renderizada, preservando os campos na preparação dos dados.
+
+Os dois cards de **Da origem ao destino** usam contêineres com `height="stretch"`, alinhando suas bordas inferiores. Notas de rodapé explicativas foram removidas; avisos de indisponibilidade e cobertura incompleta permanecem como mensagens de informação. As regras de cálculo descritas abaixo continuam válidas.
 
 Os 50% direitos da última subseção apresentam o card **Para onde vai?**, com tabela somente para leitura baseada no alias `destinacao_fontes`, que resolve `gastos/stage05e_destinacao_fontes.parquet`. O filtro **Fonte de financiamento** oferece Todas as fontes e as fontes disponíveis no resumo ou na destinação. **Destinação por** alterna Categoria de Despesa e Fornecedor, mantendo os recortes separados para evitar dupla contagem.
 

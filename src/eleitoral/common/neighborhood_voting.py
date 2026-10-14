@@ -162,12 +162,40 @@ def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_ba
         "Votação por Bairros dentro dos municípios",
         "Votos por bairro no município selecionado.",
     )
+    st.markdown("""
+    <style>
+    @media (min-width: 900px) {
+        [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-neighborhood-voting-map) {
+            align-items: stretch;
+        }
+        [data-testid="stColumn"]:has(.st-key-neighborhood-voting-map) > [data-testid="stVerticalBlock"],
+        .st-key-neighborhood-voting-map {
+            height: 100%;
+        }
+        [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-neighborhood-voting-map)
+        > [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"] {
+            height: 100%;
+        }
+        [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-neighborhood-voting-map)
+        > [data-testid="stColumn"]:last-child [data-testid="stElementContainer"],
+        [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-neighborhood-voting-map)
+        > [data-testid="stColumn"]:last-child [data-testid="stMarkdownContainer"] {
+            height: 100%;
+        }
+        [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-neighborhood-voting-map)
+        .raiox-map-side-cards {
+            height: 100%;
+            grid-template-rows: repeat(5, minmax(9.25rem, 1fr));
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
     selected_code = None
     election = "2026"
     cards_df = votos_bairro_df
     detail_map_col, detail_cards_col = st.columns([0.70, 0.30], gap="large")
     with detail_map_col:
-        with st.container(border=True):
+        with st.container(border=True, key="neighborhood-voting-map"):
             try:
                 if election_controls is not None:
                     election = election_controls(_candidate_widget_suffix())
@@ -236,10 +264,7 @@ def render_neighborhood_voting(votos_municipio_df: pd.DataFrame | None, votos_ba
                                 "Municípios com menos de 1.000 votos usam um único tom de azul, "
                                 "sem escala de intensidade. Passe o cursor para ver os bairros e seus votos."
                             )
-                        elif mesh_kind == "setor":
-                            scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
-                            st.caption(f"Azul mais escuro indica mais votos, em escala {scale_label}. A malha completa de setores e o contorno municipal vêm do IBGE; setores sem votos associados ficam cinza. Geometrias vinculadas e relações por bairro TSE vêm do crosswalk. Havendo vários bairros TSE no mesmo polígono, o bairro com mais votos tem prioridade na identificação. O total preserva os votos dos registros associados. Sem vínculo exato, não se atribui um bairro por proximidade.")
-                        else:
+                        elif mesh_kind != "setor":
                             scale_label = "logarítmica" if scale_type == "logarithmic" else "linear"
                             st.caption(f"Azul mais escuro indica mais votos. A escala {scale_label} depende somente do volume de votos do município: logarítmica acima de 1.000 votos e linear até 1.000. Passe o cursor para ver os bairros e seus votos.")
             except Exception as exc:

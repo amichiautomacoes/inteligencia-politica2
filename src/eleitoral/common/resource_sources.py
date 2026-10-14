@@ -98,41 +98,42 @@ def destination_table(frame: pd.DataFrame | None, source: str | None, breakdown:
 def render_resource_flow(frame: pd.DataFrame | None, destinations: pd.DataFrame | None) -> None:
     left, right = st.columns([.5, .5], gap="large")
     with left:
-        with st.container(border=True, key="pagina1_funding_sources"):
+        with st.container(border=True, key="pagina1_funding_sources", height="stretch"):
             st.markdown("### De onde vem?")
             fig = funding_sources_figure(frame)
             if fig is None:
                 st.info("Dados por fonte indisponíveis para comparar arrecadação e pagamentos.")
             else:
                 st.plotly_chart(fig, width="stretch", key="pagina1_funding_sources_chart", config={"displayModeBar": False})
-                st.caption("Arrecadado inclui receita financeira e estimável. Saldo observado e utilização financeira são os indicadores informados pela fonte, referentes à parcela financeira; não representam saldo bancário conciliado.")
                 if fig.layout.meta["omitted"]:
-                    st.caption(f"{fig.layout.meta['omitted']} fonte(s) com valores incompletos ou inválidos não foram exibidas.")
+                    st.info(f"{fig.layout.meta['omitted']} fonte(s) com valores incompletos ou inválidos não foram exibidas.")
     with right:
-        with st.container(border=True, key="pagina1_resource_destinations"):
-            st.markdown("### Para onde vai?")
+        with st.container(border=True, key="pagina1_resource_destinations", height="stretch"):
             scope = str(st.session_state.get("selected_deputado_key", "default"))
             labels = {}
             for source_frame in (frame, destinations):
                 if source_frame is not None and {"fonte_chave", "fonte_descricao"}.issubset(source_frame.columns):
                     for _, row in source_frame.dropna(subset=["fonte_chave"]).iterrows():
                         labels[str(row["fonte_chave"])] = str(row["fonte_descricao"]) if pd.notna(row["fonte_descricao"]) else "Fonte não informada"
-            source = st.selectbox("Fonte de financiamento", [None, *sorted(labels, key=lambda key: (labels[key], key))],
-                format_func=lambda value: "Todas as fontes" if value is None else labels[value],
-                key=f"resource_destination_source_{scope}")
-            breakdown = st.selectbox("Destinação por", ["categoria", "fornecedor"],
-                format_func=lambda value: "Categoria de Despesa" if value == "categoria" else "Fornecedor",
-                key=f"resource_destination_breakdown_{scope}")
+            title_col, source_col, breakdown_col = st.columns([1, 1.35, 1.25], gap="small", vertical_alignment="center")
+            with title_col:
+                st.markdown("### Para onde vai?")
+            with source_col:
+                source = st.selectbox("Fonte de financiamento", [None, *sorted(labels, key=lambda key: (labels[key], key))],
+                    format_func=lambda value: "Todas as fontes" if value is None else labels[value],
+                    key=f"resource_destination_source_{scope}")
+            with breakdown_col:
+                breakdown = st.selectbox("Destinação por", ["categoria", "fornecedor"],
+                    format_func=lambda value: "Categoria de Despesa" if value == "categoria" else "Fornecedor",
+                    key=f"resource_destination_breakdown_{scope}")
             table = destination_table(destinations, source, breakdown)
             if table.empty:
                 st.info("Não há dados de destinação disponíveis para a fonte e o recorte selecionados.")
             else:
-                st.dataframe(table, hide_index=True, width="stretch", height=450, column_config={
+                visible_table = table.drop(columns=["nr_cpf_cnpj_fornecedor", "natureza_despesa"], errors="ignore")
+                st.dataframe(visible_table, hide_index=True, width="stretch", height=450, column_config={
                     "fonte_descricao": st.column_config.TextColumn("Fonte"),
                     "grupo_descricao": st.column_config.TextColumn("Categoria" if breakdown == "categoria" else "Fornecedor", width="large"),
-                    "nr_cpf_cnpj_fornecedor": st.column_config.TextColumn("CPF / CNPJ"),
-                    "natureza_despesa": st.column_config.TextColumn("Natureza"),
                     "valor_pago": st.column_config.TextColumn("Valor pago (R$)"),
                     "pct_total_pago": st.column_config.NumberColumn("% do total pago", format="%.2f%%"),
                 })
-            st.caption("Percentuais mantêm o total pago da campanha como referência, sem recalcular pelo filtro. Categorias e fornecedores são recortes separados para evitar duplicar pagamentos.")

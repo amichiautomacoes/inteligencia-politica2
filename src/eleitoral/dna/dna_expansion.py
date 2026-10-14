@@ -307,7 +307,15 @@ def _expansion_legend(*, diagnostic: bool = False) -> None:
     """)
 
 
-def _expansion_map(city_data: pd.DataFrame) -> object | None:
+def _map_metric_label(value: object, decimals: int = 1) -> str:
+    if pd.isna(value) or not np.isfinite(value):
+        return "Indisponível"
+    if value == 0:
+        return "0"
+    return f"{value:,.{decimals}f}".replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _expansion_map(city_data: pd.DataFrame, *, diagnostic: bool = False) -> object | None:
     geojson, _, municipalities, _ = load_geo_reference()
     if not geojson or municipalities is None or municipalities.empty:
         return None
@@ -322,10 +330,18 @@ def _expansion_map(city_data: pd.DataFrame) -> object | None:
         "codigo_ibge", "oportunidade_demografica", "diferenca_media_absoluta", "similaridade",
         "dimensoes_com_dados", "votos_base", "classe_expansao",
     ]
-    frame = frame.merge(city_data[display_cols], on="codigo_ibge", how="left")
+    frame = frame.merge(city_data[display_cols], on="codigo_ibge", how="left", indicator="_data_match")
     frame["classe_expansao"] = frame["classe_expansao"].fillna("CINZA")
-    frame["votos_base"] = pd.to_numeric(frame["votos_base"], errors="coerce").fillna(0.0)
+    frame["votos_base"] = pd.to_numeric(frame["votos_base"], errors="coerce")
     frame["oportunidade_demografica"] = pd.to_numeric(frame["oportunidade_demografica"], errors="coerce")
+    frame["votos_base_label"] = frame["votos_base"].map(lambda value: _map_metric_label(value, 0))
+    frame.loc[frame["_data_match"].eq("left_only"), "votos_base_label"] = "0"
+    frame["oportunidade_demografica_label"] = frame["oportunidade_demografica"].map(lambda value: _map_metric_label(value, 0))
+    frame["similaridade_label"] = frame["similaridade"].map(_map_metric_label)
+    if diagnostic:
+        frame["similaridade_label"] = frame["similaridade_label"].map(
+            lambda value: value if value == "Indisponível" else value + "%"
+        )
     frame["municipio"] = frame["nome"].fillna("Município")
     frame["classe_label"] = frame["classe_expansao"].map({
         "VERDE": "Pode buscar muitos votos",
@@ -336,11 +352,11 @@ def _expansion_map(city_data: pd.DataFrame) -> object | None:
     fig = categorical_choropleth(
         frame, geojson, location="codigo_ibge", category="classe_expansao",
         categories=list(CLASS_COLORS), colors=list(CLASS_COLORS.values()),
-        hover_name="municipio", custom_data=["classe_label", "votos_base", "oportunidade_demografica", "similaridade"],
+        hover_name="municipio", custom_data=["classe_label", "votos_base_label", "oportunidade_demografica_label", "similaridade_label"],
     )
     fig.update_traces(hovertemplate=(
-        "<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos: %{customdata[1]:,.0f}"
-        "<br>Oportunidade: %{customdata[2]:,.0f}<br>Similaridade: %{customdata[3]:.1f}<extra></extra>"
+        "<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos: %{customdata[1]}"
+        "<br>Oportunidade: %{customdata[2]}<br>Similaridade: %{customdata[3]}<extra></extra>"
     ))
     return fig
 
@@ -427,15 +443,15 @@ def render_vote_expansion() -> None:
         if city_data.empty:
             st.info("Ainda não há dados completos de Censo e potencial demográfico para montar este mapa.")
             return
-        fig = _expansion_map(city_data)
+        fig = _expansion_map(city_data, diagnostic=diagnostic_mode)
         if fig is None:
             st.info("A malha municipal de Minas Gerais não está disponível.")
             return
         fig.update_layout(height=560, coloraxis_showscale=False, margin={"l": 0, "r": 0, "t": 8, "b": 0})
         if diagnostic_mode:
             fig.update_traces(hovertemplate=(
-                "<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos nos setores associados: %{customdata[1]:,.0f}"
-                "<br>População estimada do ICP: %{customdata[2]:,.0f}<br>Parcela do ICP na população de referência: %{customdata[3]:.1f}%<extra></extra>"
+                "<b>%{hovertext}</b><br>%{customdata[0]}<br>Votos nos setores associados: %{customdata[1]}"
+                "<br>População estimada do ICP: %{customdata[2]}<br>Parcela do ICP na população de referência: %{customdata[3]}<extra></extra>"
             ))
             st.plotly_chart(fig, width="stretch", height=560, key="dna_vote_expansion_map")
             st.caption("Stage 09b: diagnóstico dos setores associados, sem representar totais municipais. Azul: quartil superior de votos; verde: quartil superior de população estimada do ICP e participação acima da mediana; amarelo: população estimada positiva; cinza: sem potencial ou dados incompletos. Clusters usam votos probabilísticos. Potencial não é previsão de votos.")

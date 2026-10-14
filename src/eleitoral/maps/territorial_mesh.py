@@ -266,13 +266,15 @@ def _numeric_code_strings(values: pd.Series) -> pd.Series:
 
 def _sector_tse_neighborhood_names(
     mesh: pd.DataFrame, municipality_code: str,
+    *, crosswalk: pd.DataFrame | None = None,
 ) -> pd.Series:
     """Label sectors using only exact crosswalk references in this municipality."""
     empty = pd.Series("", index=mesh.index, dtype="string")
-    try:
-        crosswalk = load_tse_neighborhood_sector_crosswalk()
-    except Exception:
-        return empty
+    if crosswalk is None:
+        try:
+            crosswalk = load_tse_neighborhood_sector_crosswalk()
+        except Exception:
+            return empty
 
     required = {"cd_ibge_municipio", "id_unidade", "nm_bairro"}
     if crosswalk.empty or not required.issubset(crosswalk.columns):
@@ -536,6 +538,7 @@ def municipality_mesh_map(
         except Exception:
             # The map remains usable if the optional reference table is absent.
             pass
+    if kind == "setor":
         mesh["_tse_neighborhoods"] = _sector_tse_neighborhood_names(
             mesh, municipality_code
         )
@@ -604,11 +607,6 @@ def municipality_mesh_map(
     else:
         rows["_code"] = rows[vote_code].astype("string")
     rows["_name"] = rows["nm_bairro"].fillna("").astype(str).str.strip()
-    if candidate_neighborhood_details and kind == "setor":
-        if "cd_bairro" not in rows:
-            return None, 0
-        rows["_tse_code"] = rows["cd_bairro"].fillna("").astype(str).str.strip()
-        rows["_name"] = rows["_name"] + " (" + rows["_tse_code"] + ")"
     rows["qt_votos"] = pd.to_numeric(rows["qt_votos"], errors="coerce").fillna(0)
     municipality_vote_total = float(rows["qt_votos"].sum())
     if kind == "bairro":
@@ -645,7 +643,10 @@ def municipality_mesh_map(
     mesh["details"] = mesh["id"].map(details).fillna("")
     def territory_details(row: pd.Series) -> str:
         if candidate_neighborhood_details and kind == "setor":
-            return str(row["details"]) if row["details"] else "Sem bairros do candidato associados"
+            if row["details"]:
+                return str(row["details"])
+            names = str(row.get("_tse_neighborhoods") or "").strip()
+            return f"{html.escape(names or 'Bairro sem referência disponível')}: 0 votos"
         if kind == "setor" and str(row.get("_tse_neighborhoods") or "").strip():
             tse_names = html.escape(str(row["_tse_neighborhoods"]))
             vote_details = row["details"] or "Sem votos do candidato"

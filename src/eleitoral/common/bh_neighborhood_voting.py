@@ -1,4 +1,4 @@
-"""BH: geometria oficial por código IBGE; conteúdo exclusivamente do stage01b."""
+"""BH: malha oficial por código IBGE e votos do stage01b."""
 from __future__ import annotations
 
 import html
@@ -19,14 +19,19 @@ def load_bh_neighborhood_mesh() -> pd.DataFrame:
     env = load_env()
     mesh = _read_geo_parquet(
         geography_reference_path(env, "MG_bairros_CD2022.parquet"),
-        columns=["code_muni", "code_neighborhood", "geometry"],
+        columns=["code_muni", "code_neighborhood", "name_neighborhood", "geometry"],
         filters=[("code_muni", "==", "3106200")],
     )
     mesh["id"] = _numeric_code_strings(mesh["code_neighborhood"])
     mesh = mesh.dropna(subset=["id", "geometry"])
     mesh = mesh.loc[mesh["id"].ne("") & mesh["geometry"].map(lambda shape: not shape.is_empty)]
     # Preserve all parts if an official code spans multiple polygon records.
-    return mesh.groupby("id", as_index=False).agg(geometry=("geometry", lambda shapes: unary_union(list(shapes))))
+    return mesh.groupby("id", as_index=False).agg(
+        geometry=("geometry", lambda shapes: unary_union(list(shapes))),
+        reference_name=("name_neighborhood", lambda names: " / ".join(dict.fromkeys(
+            str(name).strip() for name in names.dropna() if str(name).strip()
+        ))),
+    )
 
 
 def bh_neighborhood_frame(mesh: pd.DataFrame, votes: pd.DataFrame | None) -> pd.DataFrame:
@@ -53,9 +58,16 @@ def bh_neighborhood_frame(mesh: pd.DataFrame, votes: pd.DataFrame | None) -> pd.
         votes=("qt_votos", lambda values: values.sum(min_count=1)),
         name=("nm_bairro", lambda values: " / ".join(dict.fromkeys(value for value in values if value))),
     )
-    result = mesh[["id", "geometry"]].merge(grouped, on="id", how="left", validate="one_to_one")
-    result["name"] = result["name"].fillna("").replace("", "Bairro sem nome no arquivo do candidato")
+    result = mesh.copy().merge(grouped, on="id", how="left", validate="one_to_one", indicator=True)
+    without_record = result["_merge"].eq("left_only")
+    reference_names = result.get("reference_name", pd.Series("", index=result.index)).fillna("")
+    result["name"] = result["name"].fillna("")
+    result.loc[result["name"].eq(""), "name"] = reference_names
+    result["name"] = result["name"].replace("", "Bairro sem referência disponível")
+    result.loc[without_record, "votes"] = 0
     result["details"] = result["id"].map(details).fillna("Sem dados do candidato para este polígono")
+    result.loc[without_record, "details"] = result.loc[without_record, "name"].map(html.escape) + ": 0 votos"
+    result = result.drop(columns="_merge")
     result["total_label"] = result["votes"].map(
         lambda value: f"{value:,.0f}".replace(",", ".") if pd.notna(value) else "Indisponível"
     )
@@ -71,7 +83,7 @@ def bh_neighborhood_voting_map(votes: pd.DataFrame | None) -> tuple[go.Figure | 
     frame = bh_neighborhood_frame(mesh, votes)
     total = frame.attrs["municipality_vote_total"]
     logarithmic = total > 1000
-    valid = frame["votes"].notna()
+    valid = frame["votes"].notna() & frame["votes"].gt(0)
     maximum = frame["votes"].max()
     if pd.isna(maximum) or maximum <= 0:
         intensity = pd.Series(0.0, index=frame.index)

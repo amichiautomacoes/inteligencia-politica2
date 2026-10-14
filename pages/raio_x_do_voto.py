@@ -26,6 +26,7 @@ from eleitoral.vereadores.raio_x_bh import render_bh_voting
 from eleitoral.deputados.emendas import render_emendas
 from eleitoral.deputados.neighborhood_elections import select_election, render_election_mode
 from eleitoral.common.neighborhood_voting import render_neighborhood_voting
+from eleitoral.common.statewide_elections import election_votes, select_statewide_election, statewide_election_map, render_statewide_legend
 from eleitoral.common.financial_cards import financial_cards_html
 from eleitoral.common.resource_sources import render_resource_flow
 from eleitoral.common.contracted_paid import contracted_paid_cards_html, render_contracted_paid_chart, render_execution_filters
@@ -1076,8 +1077,9 @@ def _selected_territory(event: object, kind: str) -> str:
 
 @st.dialog("Detalhamento territorial", width="large")
 def _territorial_drilldown(territory: str, kind: str, municipal_votes: pd.DataFrame | None,
-                            neighborhood_votes: pd.DataFrame | None) -> None:
+                            neighborhood_votes: pd.DataFrame | None, election: str = "2026") -> None:
     st.subheader(territory)
+    st.caption("Votação observada em 2026; o potencial demográfico não é previsão de votos." if election == "Projeção 2030" else f"Votação de {election}.")
     if kind == "votos_mesorregiao":
         source = municipal_votes
         region_col, label_col = "nm_mesorregiao", "nm_municipio"
@@ -3141,27 +3143,49 @@ votos_municipio_df = _read_selected_parquet("votos_municipio")
 votos_bairro_df = _read_selected_parquet("votos_bairro")
 _render_page_header(_total_votes_label(votos_municipio_df))
 _major_section_header("Mapa de Força Eleitoral", "Onde estão concentrados seus votos e a força da sua votação.")
-_render_territory_leader(votos_municipio_df)
+leader_placeholder = st.empty()
+statewide_cards_df = votos_municipio_df
 map_col, cards_col = st.columns([0.70, 0.30], gap="large")
 with map_col:
     with st.container(border=True):
+        statewide_election = select_statewide_election(_candidate_widget_suffix())
         _, filter_col = st.columns([0.70, 0.30], gap="small")
         with filter_col:
             territorial_kind = _territorial_kind_select()
-        votos_df = _territorial_map_view(_read_selected_parquet(territorial_kind), territorial_kind)
-        fig = territorial_map(votos_df, territorial_kind)
+        statewide_neighborhood_df = votos_bairro_df
+        if statewide_election == "2026":
+            votos_df = _territorial_map_view(votos_municipio_df, territorial_kind)
+            fig = territorial_map(votos_df, territorial_kind)
+        else:
+            render_statewide_legend(statewide_election)
+            diagnostic = _read_selected_parquet("diagnostico_geral") if statewide_election == "Projeção 2030" else None
+            fig = statewide_election_map(votos_municipio_df, territorial_kind, statewide_election, diagnostic)
+            if statewide_election in {"2018", "2022"}:
+                historical_votes = election_votes(votos_municipio_df, statewide_election)
+                statewide_cards_df = historical_votes.loc[historical_votes["qt_votos"].notna()].copy() if historical_votes is not None else None
+                statewide_neighborhood_df = election_votes(votos_bairro_df, statewide_election, level="bairro")
+                if statewide_neighborhood_df is not None:
+                    statewide_neighborhood_df = statewide_neighborhood_df.loc[statewide_neighborhood_df["qt_votos"].notna()].copy()
+                if historical_votes is not None and historical_votes["qt_votos"].isna().any():
+                    st.caption("Cobertura histórica parcial: indicadores e detalhamento consideram somente votos conhecidos.")
+                st.caption(f"Comparação de participação com 2026 a partir do stage01a municipal. Nas mesorregiões, a diferença usa as somas de votos e votos válidos de cada eleição, sem média de percentuais. Os indicadores mostram {statewide_election}.")
+            else:
+                st.caption("Diagnóstico municipal do eleitor ideal, com os mesmos critérios relativos do DNA. Mesorregiões agregam os diagnósticos municipais e recalculam os cortes; dados incompletos ficam cinza. Votos e população do diagnóstico cobrem setores associados. Indicadores e detalhamento mantêm a votação de 2026. Potencial não é previsão de votos para 2030.")
         if fig is not None:
             map_event = st.plotly_chart(
-                fig, width="stretch", height=560, key=f"pagina1_territorial_map_{territorial_kind}",
+                fig, width="stretch", height=560, key=f"pagina1_territorial_map_{territorial_kind}_{statewide_election}_{_candidate_widget_suffix()}",
                 on_select="rerun", selection_mode="points",
             )
             territory = _selected_territory(map_event, territorial_kind)
             if territory:
-                _territorial_drilldown(territory, territorial_kind, votos_municipio_df, votos_bairro_df)
+                _territorial_drilldown(territory, territorial_kind, statewide_cards_df, statewide_neighborhood_df, statewide_election)
         else:
-            st.info("Mapa territorial indisponível.")
+            st.info(f"Mapa de {statewide_election} indisponível para este candidato; dados ausentes não indicam zero votos ou ausência de candidatura.")
+with leader_placeholder.container():
+    _render_territory_leader(statewide_cards_df)
 with cards_col:
-    _render_map_side_cards(votos_municipio_df)
+    st.caption(f"Indicadores de {statewide_election if statewide_election in {'2018', '2022'} else '2026'}")
+    _render_map_side_cards(statewide_cards_df)
 if st.session_state.get("candidate_group", "vereadores") == "vereadores":
     render_bh_voting(votos_municipio_df, votos_bairro_df, _read_selected_parquet)
 

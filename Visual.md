@@ -83,6 +83,12 @@ Para **vereadores**, a ordem é: **Mapa de Força Eleitoral → Como foi sua vot
 
 ### 2.1 Mapa de Força Eleitoral
 
+Atualização vigente: no topo do card do mapa, acima do filtro territorial, **Eleição exibida no mapa** oferece **2018 / 2022 / 2026 / Projeção 2030**, com 2026 selecionado inicialmente, no mesmo padrão de botões segmentados do mapa de bairros. Está disponível para ambos os cargos e tem estado próprio por candidato, independente dos demais mapas. **Mesorregião / Município** continua controlando a malha estadual em todos os modos.
+
+Em 2018/2022, cores categóricas mostram aumento (verde), estabilidade (azul), queda (vermelho) ou ausência de comparação (cinza) com 2026. O hover mostra território, votos do ano escolhido, votos de 2026 e diferença de participação em pontos percentuais. Mesorregiões comparam participações calculadas a partir de totais agregados de votos e votos válidos. O card Principal reduto e os quatro cards laterais mostram o ano escolhido, identificado acima dos indicadores. O clique abre o detalhamento do mesmo ano; cobertura parcial recebe nota e falta de histórico recebe mensagem, preservando zero legítimo.
+
+Em **Projeção 2030**, pílulas apresentam Proteger a base (azul), Oportunidade alta (verde), Potencial a desenvolver (amarelo) e Sem potencial ou dados incompletos (cinza). O hover mostra diagnóstico do eleitor ideal, votos nos setores associados, população estimada e parcela na referência. Mesorregiões agregam diagnósticos e recalculam as classes, sem fabricar dados faltantes. Principal reduto, cards e detalhamento mantêm os votos de 2026; uma nota identifica esse recorte e esclarece que potencial não é previsão de votos. Em 2026, o mapa mantém a intensidade azul atual. Estas regras substituem as descrições abaixo de intensidade azul em todos os modos.
+
 **Pergunta visual:** onde estão os votos e quais localidades lideram?
 
 A faixa **Mapa de Força Eleitoral** apresenta o subtítulo `Onde estão concentrados seus votos e a força da sua votação.`. Logo abaixo, antes do mapa e dos cards laterais, o card horizontal de **Principal reduto eleitoral** destaca a mesorregião mais votada e seu volume. Uma badge verde **Maior base eleitoral** aparece no canto superior direito, e o rodapé informa `{votos} votos recebidos` com maior peso visual. O total de votos do candidato fica no hero, abaixo do partido e no mesmo padrão tipográfico das demais linhas de identificação.
@@ -110,6 +116,12 @@ Para 2020 e 2024, a legenda do card mostra **verde** para aumento, **azul** para
 No filtro **Projeção 2028**, as quatro pílulas mantêm os rótulos **Base Crítica (Fortaleza)**, **Vulnerável**, **Oportunidade** e **Demais bairros**, sem o parágrafo de critérios abaixo da legenda. Base forte sem defasagem média fica azul; base forte com espaço fica amarela; menor votação com espaço fica verde; demais situações e comparação incompleta ficam cinza. O hover mostra votos de referência e diferença média em pontos percentuais. A nota abaixo do mapa esclarece que as dimensões são independentes e que a classificação não mede perda histórica nem prevê votos em 2028.
 
 ### 2.3 Votação por Bairros dentro dos municípios
+
+O hover atual e histórico exibe somente o nome do bairro e os votos, sem código TSE entre parênteses; por exemplo, **VIÚVA: 35 votos**.
+
+Em BH, bairros sem registro do candidato mostram o nome da malha oficial de bairros e **0 votos** no hover, mantendo cinza. Nomes do candidato continuam prioritários; votos nulos em registros existentes permanecem **Indisponível**. Esta regra substitui a descrição anterior de ausência de nomes provenientes da malha para esses bairros.
+
+Na votação atual, o hover dos setores sem votos do candidato exibe **Total de votos: 0** e o nome dos bairros TSE correspondentes no crosswalk, seguido de **0 votos**. Sem referência nominal, exibe **Bairro sem referência disponível: 0 votos**. Os setores continuam cinza.
 
 **Compartilhada entre vereadores e deputados**, copiada da mesma seção de `deputados_streamlit`. Para vereadores aparece logo após **Como foi sua votação em Belo Horizonte**; para deputados, logo após **Mapa de Força Eleitoral**. Nos dois casos antecede **Força da política local**.
 
@@ -234,6 +246,8 @@ A lista abaixo contém **uma linha expansível por ICP**, ordenada dentro da cla
 
 ### 3.4 Expansão & Oportunidades para 2030
 
+No hover, municípios sem associação ao diagnóstico mostram seu nome oficial e **0 votos**. Votos nulos em registros existentes, população estimada e participação ausentes aparecem como **Indisponível**, sem texto `nan` ou percentual de indisponibilidade. As cores permanecem ligadas ao diagnóstico.
+
 **Pergunta visual:** onde proteger a base existente e onde há oportunidade demográfica relativa ao ICP escolhido?
 
 O diagnóstico municipal stage 09b tem prioridade. Quando essa fonte não é lida, o componente usa o cálculo legado stage 08c com Censo, mantendo o mapa agregado por município.
@@ -245,6 +259,8 @@ O conteúdo usa **mapa em card à esquerda (70%) e quatro cards de legenda empil
 O mapa municipal é um **coroplético Plotly** com cerca de **560 px** de altura, dentro do card azul com borda e cantos arredondados. Cada município recebe uma das quatro classes; a barra categórica do Plotly fica oculta porque os cards laterais apresentam a legenda. No diagnóstico stage 09b, o hover informa município, leitura da classe, votos nos setores associados, população estimada do ICP e sua parcela na população de referência. No fallback stage 08c, informa votos, oportunidade e similaridade. A nota inferior explica a cobertura dos setores associados, os cortes relativos, os votos probabilísticos dos clusters e que potencial **não é previsão de votos**. No stage 09b, azul identifica o quartil superior de votos; verde exige população estimada no quartil superior e parcela na referência igual ou superior à mediana; amarelo identifica população estimada positiva fora desses critérios. Azul tem prioridade. A legenda cinza passa a **Sem potencial ou dados incompletos**. No fallback stage 08c, permanecem as explicações de oportunidade e similaridade. Se não houver dados completos de Censo/potencial ou a malha municipal falhar, o card mostra uma informação textual no lugar do mapa, mantendo as explicações laterais. Em telas estreitas as colunas seguem o empilhamento do Streamlit.
 
 ### 3.5 Potencial demográfico municipal
+
+Atualização vigente: o hover dos setores sem associação exibe **Votos associados: 0** e o nome do bairro TSE correspondente no crosswalk, inclusive em BH. Sem nome de referência, exibe **Bairro sem referência disponível** e **0 votos**. Votos nulos em diagnósticos existentes continuam **Indisponível**; estimativas e percentuais ausentes também permanecem indisponíveis. Os nomes não incluem códigos TSE entre parênteses, e setores sem diagnóstico continuam cinza. Esta regra substitui a descrição anterior de votos indisponíveis em todo setor sem associação.
 
 Uma faixa principal no mesmo padrão de Identidade da Base Eleitoral e Distribuição do Perfil do Eleitorado abre o bloco, com título **Potencial demográfico municipal** e subtítulo `Explore as oportunidades demográficas e a aderência ao perfil do eleitor em cada município.`.
 

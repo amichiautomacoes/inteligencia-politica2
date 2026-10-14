@@ -14,7 +14,7 @@ from eleitoral.maps.dna_geo_reference import (
     load_complete_municipality_sectors, load_geo_layer,
     load_crosswalk_geometry,
 )
-from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options, _boundary_coordinates
+from eleitoral.maps.territorial_mesh import mesoregion_options, municipality_options, _boundary_coordinates, _sector_tse_neighborhood_names
 
 
 def sector_neighborhoods(crosswalk: pd.DataFrame, lookup: pd.DataFrame) -> pd.DataFrame:
@@ -58,11 +58,14 @@ def sector_map_frame(sectors: pd.DataFrame, scores: pd.DataFrame) -> pd.DataFram
     frame = sectors[["code_tract"]].rename(columns={"code_tract": "setor"}).copy()
     frame["setor"] = frame["setor"].astype("string")
     if scores.empty:
+        frame["_has_diagnostic"] = False
         frame["classe_expansao"] = "CINZA"
         for field in ("votos_base", "oportunidade_demografica", "similaridade"):
             frame[field] = np.nan
     else:
-        frame = frame.merge(scores, on="setor", how="left", validate="one_to_one")
+        frame = frame.merge(scores, on="setor", how="left", validate="one_to_one", indicator="_diagnostic_match")
+        frame["_has_diagnostic"] = frame["_diagnostic_match"].eq("both")
+        frame = frame.drop(columns="_diagnostic_match")
         frame["classe_expansao"] = frame["classe_expansao"].fillna("CINZA")
     return frame
 
@@ -83,6 +86,27 @@ def municipal_potential_frame(sectors: pd.DataFrame, scores: pd.DataFrame, links
     if not scores.empty:
         scores = scores.loc[scores["setor"].isin(related["id_unidade"])]
     return sector_map_frame(sectors, scores)
+
+
+def municipal_potential_hover_frame(frame: pd.DataFrame, links: pd.DataFrame, municipality_code: str) -> pd.DataFrame:
+    """Label every displayed sector without inventing missing diagnostics."""
+    from eleitoral.dna.dna_expansion import _map_metric_label
+
+    frame = frame.copy()
+    names = _sector_tse_neighborhood_names(
+        frame[["setor"]].rename(columns={"setor": "id"}), municipality_code, crosswalk=links,
+    )
+    frame["nome_bairro_tse"] = names.replace("", "Bairro sem referência disponível")
+    frame["nome"] = names.map(lambda name: "Bairro: " + html.escape(name) if name else "Bairro sem referência disponível")
+    for field in ("votos_base", "oportunidade_demografica", "similaridade"):
+        frame[field + "_label"] = frame[field].map(_map_metric_label)
+    # Only a missing association gets a zero display. A null vote in an
+    # existing diagnostic remains unavailable, and classification is unchanged.
+    frame.loc[~frame["_has_diagnostic"], "votos_base_label"] = "0"
+    frame["similaridade_label"] = frame["similaridade_label"].map(
+        lambda value: value if value == "Indisponível" else value + "%"
+    )
+    return frame
 
 
 def render_municipal_expansion() -> None:
@@ -136,14 +160,8 @@ def render_municipal_expansion() -> None:
         sectors = sectors.loc[sectors["geometry"].map(lambda shape: not shape.is_empty)]
         frame = municipal_potential_frame(sectors, scores, links)
         counts = neighborhood_counts(frame, links)
-        names = links.dropna(subset=["nm_bairro"]).groupby("id_unidade")["nm_bairro"].agg(lambda x: " / ".join(sorted(set(x))))
-        frame["nome_bairro_tse"] = frame["setor"].map(names).fillna("Sem bairro vinculado")
-        frame["nome"] = "Bairro: " + frame["nome_bairro_tse"]
+        frame = municipal_potential_hover_frame(frame, links, code)
         frame["classe_label"] = frame["classe_expansao"].map({k: v[0] for k, v in descriptions.items()})
-        for field in ("votos_base", "oportunidade_demografica", "similaridade"):
-            frame[field + "_label"] = frame[field].map(
-                lambda v: "Indisponível" if pd.isna(v) else f"{v:,.1f}".replace(",", "_").replace(".", ",").replace("_", ".")
-            )
         geojson = {"type": "FeatureCollection", "features": [
             {"type": "Feature", "properties": {"id": str(row.code_tract)}, "geometry": mapping(row.geometry)}
             for row in sectors.itertuples(index=False) if row.geometry is not None and not row.geometry.is_empty
@@ -157,7 +175,7 @@ def render_municipal_expansion() -> None:
         fig.update_traces(hovertemplate=(
             "<b>%{hovertext}</b><br>%{customdata[0]}"
             "<br>Votos associados: %{customdata[1]}<br>População estimada do ICP: %{customdata[2]}"
-            "<br>Parcela do ICP na população de referência: %{customdata[3]}%<extra></extra>"
+            "<br>Parcela do ICP na população de referência: %{customdata[3]}<extra></extra>"
         ))
         lon, lat = _boundary_coordinates(boundary)
         fig.add_trace(go.Scattergeo(
@@ -168,7 +186,7 @@ def render_municipal_expansion() -> None:
         st.plotly_chart(fig, width="stretch", height=640, key="dna_municipal_expansion_map")
         if scores.empty:
             st.info("Diagnóstico por setor indisponível para este perfil; a malha permanece neutra.")
-        st.caption("O contorno municipal vem da malha IBGE. Todos os setores do município são exibidos; setores sem vínculo no crosswalk ou sem diagnóstico permanecem cinza. Os setores vinculados usam a geometria do crosswalk e o diagnóstico pelo código exato do setor. Os cards contam bairros TSE ligados às categorias. Votos associados a locais de votação não representam residência dos eleitores. Potencial demográfico não é previsão de votos.")
+        st.caption("O contorno municipal vem da malha IBGE. Todos os setores do município são exibidos; setores sem vínculo no crosswalk ou sem diagnóstico permanecem cinza. Os setores vinculados usam a geometria do crosswalk e o diagnóstico pelo código exato do setor. No hover, setores sem associação mostram 0 votos e o bairro da referência quando disponível; votos nulos em diagnósticos existentes continuam indisponíveis. Os cards contam bairros TSE ligados às categorias. Votos associados a locais de votação não representam residência dos eleitores. Potencial demográfico não é previsão de votos.")
     with cards_col:
         for category, (title, description) in descriptions.items():
             with st.container(border=True, key=f"dna_municipal_class_{category.lower()}"):

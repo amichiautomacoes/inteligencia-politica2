@@ -236,6 +236,8 @@ O alias `icp_clusters` prioriza o stage 03 e mantém fallback para o stage 04 an
 
 ### Expansão estadual e potencial intramunicipal — DNA Eleitoral
 
+No hover dos mapas do DNA, ausência de associação ao diagnóstico exibe **0 votos** apenas como valor de apresentação; votos nulos em registros existentes continuam **Indisponível**. O mapa estadual identifica o município oficial. No Potencial demográfico municipal, inclusive em BH, os setores mostram nomes TSE pelo vínculo exato do crosswalk, sem códigos; nomes vazios não geram rótulos em branco e ausência de referência mostra **Bairro sem referência disponível**. As classes, estimativas, métricas e contagens dos cards não são alteradas por esse tratamento do hover. População e participação ausentes permanecem indisponíveis.
+
 `dna_expansion.render_vote_expansion()` usa o diagnóstico municipal stage 09b quando a leitura do diagnóstico geral retorna um DataFrame, mesmo vazio. Sem essa fonte, mantém o cálculo legado stage 08c com Censo por área ponderada, agregado por município. O seletor oferece **ELEITOR IDEAL** e classificações estratégicas. No stage 09b, as classificações são ligadas aos identificadores de perfil do arquivo de clusters.
 
 O diagnóstico agrega votos e população estimada do ICP, mantém a população de referência uma vez por território e exige cobertura completa, referência positiva e parcela do ICP entre 0 e 100%. Os cortes são relativos ao perfil: azul tem prioridade e identifica votos positivos no quartil superior; verde exige população estimada positiva no quartil superior e parcela na referência igual ou superior à mediana; amarelo indica população estimada positiva fora desses critérios; os demais ficam cinza. O diagnóstico cobre setores associados e não representa totais completos dos municípios. Clusters usam votos probabilísticos. O tooltip mostra votos associados, população estimada do ICP e sua parcela na referência. O fallback stage 08c conserva oportunidade por diferenças marginais e similaridade, com legenda e nota próprias.
@@ -293,6 +295,22 @@ Os arquivos atuais trazem `cd_municipio` e nomes; o adaptador relaciona códigos
 Na consulta de 13 de outubro de 2026, Amanda tinha 53 registros, Lud 261 e Fernando um arquivo vazio. As fontes não tinham `classificacao_retorno_parlamentar` nem totais municipais pré-calculados. Arquivo vazio mantém o estado de indisponibilidade da seção original.
 
 ## Geografia e mapas
+
+### Eleições no Mapa de Força Eleitoral
+
+O mapa estadual tem o seletor **Eleição exibida no mapa**, compartilhado entre cargos, com **2018 / 2022 / 2026 / Projeção 2030** e padrão 2026. O estado é independente do mapa de bairros e separado por candidato. Votação atual e históricos usam somente `territorio/stage01a_municipios.parquet`; Mesorregião agrega os municípios dessa fonte, sem ler um artefato eleitoral mesorregional separado.
+
+Os históricos usam `qt_votos_candidato_{ano}` e `diff_market_share_pp_vs_{ano}`. Verde, azul, vermelho e cinza indicam aumento, estabilidade, queda e ausência de comparação com 2026. Mesorregiões com cobertura completa calculam a diferença entre as participações agregadas, usando as somas de votos do candidato e votos válidos (`qt_votos_validos_{ano}` / `qt_votos_validos_municipio`), sem média de percentuais municipais. Ausências não viram zero; zero informado é válido. Registros municipais duplicados tornam o mapa histórico indisponível. Principal reduto e cards laterais acompanham o ano selecionado, considerando somente votos conhecidos e informando cobertura parcial.
+
+O clique mostra municípios da mesorregião ou bairros do município no ano selecionado; o histórico por bairros usa `qt_votos_candidato_bairro_{ano}` do stage 01b. Sem dados desse ano, o detalhamento fica indisponível. Os demais blocos e o total do hero mantêm a base atual.
+
+**Projeção 2030** usa `potencial_demografico/stage09b_diagnostico_geral_municipio.parquet` e os critérios do eleitor ideal do DNA (`_diagnostic_city_frame`). Mesorregiões somam votos associados, população estimada e referência municipal uma vez por município, exigem cobertura completa e recalculam os cortes relativos entre mesorregiões. Municípios ou mesorregiões sem diagnóstico completo ficam cinza; sem a fonte, o mapa fica indisponível. Cards e detalhamento preservam 2026. O diagnóstico cobre setores associados e não prevê votos futuros.
+
+Em **Votação por Bairros dentro dos municípios**, o hover atual e histórico mostra os nomes dos bairros e seus votos, sem exibir `cd_bairro` entre parênteses. O código TSE permanece como chave interna de vínculo e agrupamento.
+
+Em BH, na votação atual por bairros, polígonos sem registro do candidato mostram o nome oficial `name_neighborhood` da malha de bairros e **0 votos**, mantendo cinza. Registros existentes com votos nulos continuam indisponíveis. Nomes TSE do candidato têm prioridade; o nome da malha serve apenas como identificação alternativa, sem alterar a junção exata por código IBGE.
+
+Na votação atual de **Votação por Bairros dentro dos municípios**, setores sem votos associados ao candidato mostram **0 votos** e os nomes dos bairros TSE vinculados pelo código exato do setor no crosswalk. A referência fornece apenas o nome, sem alterar votos ou cores. Sem nome na referência, o hover mostra **Bairro sem referência disponível: 0 votos**.
 
 ### Votação por bairros dentro dos municípios — Raio X
 

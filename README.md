@@ -250,7 +250,7 @@ O mapa tem 640 px; os quatro cards contam **Bairros** em BH e **Áreas** nos dem
 
 ### EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
 
-Os quatro cabeçalhos internos usam a classe `financial-subsection`, com largura integral, área interna ampliada, títulos e subtítulos maiores, fundo mais intenso e faixa lateral para destacar a hierarquia das subseções.
+Os quatro cabeçalhos internos usam a classe `financial-subsection`, com largura integral, composição compacta, títulos menores que os da seção principal, fundo azul discreto e faixa lateral para identificar as subseções.
 
 Layout atual da subseção 1: a composição das receitas ocupa a coluna esquerda (50%); a coluna direita (50%) reúne os cards de funil e comprometimento orçamentário empilhados. O gauge deixa de ocupar uma linha independente centralizada.
 
@@ -489,6 +489,8 @@ Os 50% direitos da última subseção apresentam o card **Para onde vai?**, com 
 A tabela ordena `valor_pago` em ordem decrescente e mostra fonte, `grupo_descricao`, `nr_cpf_cnpj_fornecedor`, natureza da despesa quando disponível, valor pago em reais e `pct_total_pago`. CPF/CNPJ permanece texto, preservando zeros iniciais; valores ausentes não viram zero. Os percentuais mantêm o total pago da campanha como referência, sem renormalização após filtrar fonte. Filtros têm estado por candidato e atuam apenas na tabela. Ausência de fonte ou recorte recebe mensagem específica, sem impedir o gráfico esquerdo. Esta composição substitui a reserva anterior da metade direita para um gráfico futuro.
 
 ### Filtros da Estrutura da Receita
+
+O ranking começa expandido. Os contêineres do gráfico de doadores e da tabela usam `height="stretch"` para padronizar a altura dos dois cards lado a lado.
 
 A tabela Ranking do recorte não exibe CPF/CNPJ. O documento permanece na base de dados, mas é excluído da tabela renderizada.
 

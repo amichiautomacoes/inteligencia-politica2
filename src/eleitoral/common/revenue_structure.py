@@ -191,16 +191,16 @@ def render_revenue_charts(frame: pd.DataFrame | None, *, top_only: bool = True) 
     details_col = columns[-1]
     with ranking_col:
         if fig is not None:
-            with st.container(border=True, key="pagina1_top_donors"):
+            with st.container(border=True, key="pagina1_top_donors", height="stretch"):
                 st.markdown("### Top 10 Doadores" if top_only else "### Todos os Doadores")
                 st.caption("Principais financiadores da campanha por valor atribuído.")
                 st.plotly_chart(fig, width="stretch", key="pagina1_top_donors_chart", config={"displayModeBar": False})
     with details_col:
         if not table.empty:
-            with st.container(border=True, key="pagina1_donor_audit"):
+            with st.container(border=True, key="pagina1_donor_audit", height="stretch"):
                 st.markdown("### Ranking do recorte")
                 st.caption("Detalhamento dos doadores selecionados para conferência individualizada.")
-                with st.expander("Ver detalhamento dos doadores", expanded=False):
+                with st.expander("Ver detalhamento dos doadores", expanded=True):
                     st.dataframe(table.drop(columns=["nr_cpf_cnpj_doador"], errors="ignore"), hide_index=True, width="stretch", column_config={
                         "rank_doador": st.column_config.NumberColumn("Posição", format="%d"),
                         "nm_doador": st.column_config.TextColumn("Doador", width="large"),

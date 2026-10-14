@@ -188,23 +188,23 @@ def _apply_visual_model() -> None:
         .mapa-section-card.financial-subsection {{
             width: 100%;
             box-sizing: border-box;
-            padding: 1.65rem 1.8rem;
-            margin: 2rem 0 1rem;
-            border: 1px solid rgba(147,197,253,.5);
-            border-left: 6px solid #60a5fa;
-            background: linear-gradient(110deg, rgba(30,64,125,.94), rgba(11,31,77,.9));
+            padding: 1rem 1.35rem;
+            margin: 1.5rem 0 .8rem;
+            border: 1px solid rgba(147,197,253,.35);
+            border-left: 4px solid #60a5fa;
+            background: linear-gradient(110deg, rgba(22,48,94,.86), rgba(11,31,77,.8));
             box-shadow: 0 12px 30px rgba(0,0,0,.25);
         }}
         .financial-subsection .mapa-section-title {{
-            font-size: clamp(1.65rem, 2.2vw, 2.2rem);
-            font-weight: 850;
+            font-size: clamp(1.25rem, 1.6vw, 1.6rem);
+            font-weight: 800;
             line-height: 1.25;
             color: #f8fbff;
         }}
         .financial-subsection .mapa-section-subtitle {{
-            margin-top: .65rem;
-            font-size: clamp(1rem, 1.15vw, 1.15rem);
-            line-height: 1.6;
+            margin-top: .4rem;
+            font-size: .95rem;
+            line-height: 1.45;
             color: #d1e3ff;
         }}
         .mapa-kpi-grid,

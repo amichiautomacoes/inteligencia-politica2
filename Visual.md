@@ -176,7 +176,7 @@ Sem dados, permanecem as mensagens e os KPIs de ausência da seção original. A
 
 ### 2.7 EFICIÊNCIA FINANCEIRA & CUSTO DO VOTO
 
-Os quatro cabeçalhos de subseção (Balanço Macro, Estrutura da Receita, Contratado × Pago e Da origem ao destino) ocupam toda a largura disponível, com padding ampliado de 1,65 rem por 1,8 rem, fundo azul mais intenso e faixa lateral azul de 6 px. Os títulos usam fonte responsiva de 1,65 a 2,2 rem, peso 850 e subtítulos de 1 a 1,15 rem em azul claro. O maior espaçamento antes e depois dos cabeçalhos identifica cada subseção na leitura vertical.
+Os quatro cabeçalhos de subseção (Balanço Macro, Estrutura da Receita, Contratado × Pago e Da origem ao destino) ocupam toda a largura disponível, com padding de 1 rem por 1,35 rem, fundo azul discreto e faixa lateral azul de 4 px. Os títulos usam fonte responsiva de 1,25 a 1,6 rem, peso 800 e subtítulos de 0,95 rem em azul claro. A composição é mais compacta que a faixa principal para preservar a hierarquia visual.
 
 Na subseção 1, o arranjo atual segue a mesma composição da subseção 2: uma coluna de 50% à esquerda com o card da rosca; à direita, os outros 50% contêm dois cards empilhados, DRE Simplificada da Campanha e Comprometimento Orçamentário. O gauge permanece centralizado dentro de seu próprio card, logo abaixo do funil. Este arranjo substitui a linha independente anterior do gauge. Em telas estreitas, as colunas seguem o empilhamento do Streamlit.
 
@@ -379,6 +379,8 @@ Os 50% direitos da última subseção apresentam o card **Para onde vai?**, com 
 A tabela ordena `valor_pago` em ordem decrescente e mostra fonte, `grupo_descricao`, `nr_cpf_cnpj_fornecedor`, natureza da despesa quando disponível, valor pago em reais e `pct_total_pago`. CPF/CNPJ permanece texto, preservando zeros iniciais; valores ausentes não viram zero. Os percentuais mantêm o total pago da campanha como referência, sem renormalização após filtrar fonte. Filtros têm estado por candidato e atuam apenas na tabela. Ausência de fonte ou recorte recebe mensagem específica, sem impedir o gráfico esquerdo. Esta composição substitui a reserva anterior da metade direita para um gráfico futuro.
 
 ### Filtros da Estrutura da Receita
+
+O expander **Ver detalhamento dos doadores** em **Ranking do recorte** começa aberto. Os cards de doadores e ranking usam altura extensível, com larguras iguais e bordas superiores e inferiores alinhadas quando exibidos lado a lado.
 
 A tabela Ranking do recorte omite a coluna CPF/CNPJ; mantém posição, doador, valor atribuído, percentual da receita e quantidade de receitas vinculadas.
 

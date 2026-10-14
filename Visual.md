@@ -47,6 +47,8 @@ A seção de emendas dos deputados replica o componente de `deputados_streamlit`
 
 ### 1.1 Sistema visual compartilhado
 
+Regra vigente para ambas as páginas: todas as faixas principais usam barra lateral de 12 px em gradiente ciano (#67e8f9 → #22d3ee → #06b6d4), com brilho neon em três camadas. Cabeçalhos de subseção usam barra fina de 3 px em azul acinzentado (#64748b), sem brilho na barra. Essa hierarquia também vale para as subseções financeiras e substitui as cores e espessuras anteriores.
+
 | Elemento | Aparência atual | Função |
 | --- | --- | --- |
 | Fundo da página | Imagem `assets/background.png`, cobrindo a área de conteúdo, centralizada e fixa | Criar profundidade sem disputar atenção com os dados |

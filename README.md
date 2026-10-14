@@ -58,6 +58,8 @@ A atuação parlamentar dos deputados foi copiada de `D:\MktPolitica\deputados_s
 
 ## Arquitetura
 
+As duas páginas compartilham a hierarquia das faixas: seções principais com barra ciano de 12 px e brilho neon; subseções com barra neutra de 3 px, sem brilho. Os estilos estão em `shared_header.py` e no modelo visual local do Raio X, mantendo os mesmos valores.
+
 ```text
 .
 ├── app.py                         # Configuração, índice de candidatos e navegação

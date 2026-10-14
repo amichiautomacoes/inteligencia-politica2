@@ -234,9 +234,9 @@ def apply_shared_visual_model() -> None:
             content: "";
             position: absolute;
             inset: 0 auto 0 0;
-            width: 9px;
-            background: linear-gradient(180deg, rgba(248, 251, 255, 1) 0%, rgba(96, 165, 250, 0.98) 42%, rgba(37, 99, 235, 0.94) 100%);
-            box-shadow: 0 0 34px rgba(96, 165, 250, 0.52);
+            width: 12px;
+            background: linear-gradient(180deg, #67e8f9 0%, #22d3ee 45%, #06b6d4 100%);
+            box-shadow: 0 0 12px rgba(34,211,238,.95), 0 0 30px rgba(34,211,238,.75), 0 0 52px rgba(6,182,212,.45);
         }}
         .mapa-major-section-title {{
             position: relative;
@@ -258,6 +258,7 @@ def apply_shared_visual_model() -> None:
             line-height: 1.45;
         }}
         .mapa-section-card {{
+            border-left: 3px solid #64748b;
             padding: 0.86rem 1rem 0.78rem 1rem;
             margin: 1.35rem 0 0.62rem 0;
             border-radius: 18px;

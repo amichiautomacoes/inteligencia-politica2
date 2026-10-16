@@ -10,10 +10,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from hf_sync import file_by_kind, load_env, load_parquet
 from eleitoral.dna.cluster_cards import cluster_cards_html
 from eleitoral.common.dna_profile import _has_profile_label, _weighted_dominant, _territorial_rows, _demographic_percent, _icp_general_row
-from eleitoral.vereadores.dna_capital_interior import render_capital_interior_comparison
 from eleitoral.common.dna_copy import sentence_label
 from eleitoral.dna.dna_expansion import render_vote_expansion
 from eleitoral.dna.sector_expansion import render_municipal_expansion
@@ -37,19 +35,10 @@ from eleitoral.common.shared_header import (
     major_section_header,
     render_page_header,
     section_header,
-    selected_files,
+    read_selected_parquet as _read_selected_parquet,
 )
 
 
-def _read_selected_parquet(kind: str) -> pd.DataFrame | None:
-    file_name = file_by_kind(selected_files(), kind)
-    if not file_name:
-        return None
-    try:
-        return load_parquet(file_name, load_env().get("HF_TOKEN"))
-    except Exception as exc:
-        st.warning(f"Nao consegui ler `{kind}.parquet`: {exc}")
-        return None
 
 
 def _first_value(df: pd.DataFrame, column: str, fallback: str = "Nao informado") -> str:
@@ -740,8 +729,6 @@ for index, (section_title, section_subtitle) in enumerate(DNA_SECTIONS):
     if index == 0:
         icp_general_df = _read_selected_parquet("icp_geral")
         _render_icp_geral_card(icp_general_df)
-        if st.session_state.get("candidate_group", "vereadores") == "vereadores":
-            render_capital_interior_comparison(icp_general_df, _read_selected_parquet)
     else:
         render_electorate_distribution(_read_selected_parquet)
         major_section_header(

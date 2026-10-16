@@ -8,26 +8,9 @@ import pandas as pd
 import streamlit as st
 
 from eleitoral.common.raio_x_cards import _format_number, _format_percent
+from eleitoral.common.shared_header import major_section_header as _major_section_header
 from eleitoral.maps.dna_geo_reference import load_geo_reference
 from eleitoral.deputados.emendas_map import ACTION_COLORS, parliamentary_map
-
-def _major_section_header(title: str, subtitle: str) -> None:
-    subtitle_html = (
-        f'<div class="mapa-major-section-subtitle">{subtitle}</div>'
-        if subtitle
-        else ""
-    )
-    st.markdown(
-        f"""
-        <div class="mapa-major-section">
-            <div class="mapa-major-section-title">{title}</div>
-            {subtitle_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 
 def _load_geo_reference() -> tuple[dict | None, pd.DataFrame | None, pd.DataFrame | None, pd.DataFrame | None]:
     return load_geo_reference()

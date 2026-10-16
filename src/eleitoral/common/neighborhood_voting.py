@@ -1,4 +1,4 @@
-"""Votação intramunicipal compartilhada, copiada de deputados_streamlit."""
+"""Votação intramunicipal de deputados estaduais, copiada de deputados_streamlit."""
 from __future__ import annotations
 
 import pandas as pd

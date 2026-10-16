@@ -1,4 +1,4 @@
-"""Donor ranking KPIs shared by both offices."""
+"""Donor ranking KPIs for state deputy campaigns."""
 from __future__ import annotations
 
 import html

@@ -9,6 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from hf_sync import (
+    DEFAULT_CANDIDATE_CARGO,
     DEFAULT_VISUALIZATION_YEAR,
     data_files,
     file_by_kind,
@@ -63,6 +64,17 @@ def apply_shared_visual_model() -> None:
         .stApp {{
             color: #eaf2ff;
         }}
+        [data-testid="stSidebar"] {{
+            background: rgba(11, 31, 77, 0.60) !important;
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            border-right: 1px solid rgba(177, 211, 255, 0.22);
+            box-shadow: 8px 0 24px rgba(2, 9, 24, 0.18);
+        }}
+        [data-testid="stSidebarContent"],
+        [data-testid="stSidebarHeader"] {{
+            background: transparent;
+        }}
         .stApp h1 {{
             font-size: 2.72rem;
             font-weight: 800;
@@ -87,27 +99,13 @@ def apply_shared_visual_model() -> None:
             background-position: center;
             box-shadow: 0 22px 54px rgba(1, 8, 24, 0.58);
         }}
-        .st-key-raiox-hero [data-testid="stHorizontalBlock"] {{
-            min-height: 18rem;
-            align-items: stretch;
-        }}
-        .st-key-raiox-hero [data-testid="stColumn"] {{
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }}
-        .st-key-raiox-hero [data-testid="stColumn"]:last-child > [data-testid="stVerticalBlock"] {{
-            flex: 1;
-            justify-content: center;
-        }}
         .st-key-raiox-page-navigation {{
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            gap: 1rem;
+            gap: 0.75rem;
             width: 100%;
             min-height: 0;
-            padding: 0;
+            padding: 1rem 0 0;
             border: 0;
             border-radius: 0;
             background: transparent;
@@ -118,15 +116,15 @@ def apply_shared_visual_model() -> None:
         }}
         .st-key-raiox-page-navigation button {{
             width: 100%;
-            min-height: 5rem;
-            padding: 1.1rem 1.4rem;
+            min-height: 4rem;
+            padding: 0.9rem 1rem;
             border: 1px solid rgba(147,197,253,.48);
             border-radius: 14px;
             background: linear-gradient(145deg,rgba(26,55,99,.9),rgba(10,29,64,.9));
             color: #f8fbff;
-            font-size: clamp(1.05rem,1.4vw,1.3rem);
+            font-size: 1rem;
             font-weight: 850;
-            white-space: nowrap;
+            white-space: normal;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.1),0 6px 16px rgba(1,8,24,.3);
             cursor: pointer;
             transition: background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
@@ -275,6 +273,80 @@ def apply_shared_visual_model() -> None:
             margin-top: 0.17rem;
             color: #b7c7e6;
             font-size: 0.91rem;
+        }}
+        .mapa-section-card.financial-subsection {{
+            width: 100%;
+            box-sizing: border-box;
+            padding: 1rem 1.35rem;
+            margin: 1.5rem 0 .8rem;
+            border: 1px solid rgba(147,197,253,.35);
+            border-left: 3px solid #64748b;
+            background: linear-gradient(110deg, rgba(22,48,94,.86), rgba(11,31,77,.8));
+            box-shadow: 0 12px 30px rgba(0,0,0,.25);
+        }}
+        .financial-subsection .mapa-section-title {{
+            font-size: clamp(1.25rem, 1.6vw, 1.6rem);
+            font-weight: 800;
+            line-height: 1.25;
+            color: #f8fbff;
+        }}
+        .financial-subsection .mapa-section-subtitle {{
+            margin-top: .4rem;
+            font-size: .95rem;
+            line-height: 1.45;
+            color: #d1e3ff;
+        }}
+        .mapa-kpi-card,
+        .mapa-kpi-wide-card,
+        .raiox-kpi-card,
+        .raiox-demografia-card,
+        .raiox-heatmap-card,
+        .raiox-concentration-pill {{
+            border: 1px solid var(--raiox-outline-border);
+            background: transparent;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }}
+        .mapa-kpi-grid,
+        .raiox-kpi-grid {{
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+            margin-top: 0.45rem;
+            margin-bottom: 0.9rem;
+        }}
+        .raiox-kpi-grid {{
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin-top: 0.95rem;
+            margin-bottom: 1.1rem;
+        }}
+        .mapa-kpi-card,
+        .mapa-kpi-wide-card,
+        .raiox-kpi-card {{
+            border-radius: 16px;
+            padding: 0.82rem 0.9rem 0.72rem 0.9rem;
+            min-height: 7.8rem;
+        }}
+        .mapa-kpi-label {{
+            color: #b7c7e6;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }}
+        .mapa-kpi-value {{
+            color: #f8fbff;
+            font-size: 2.08rem;
+            line-height: 1.04;
+            font-weight: 800;
+            margin-top: 0.2rem;
+        }}
+        .mapa-kpi-caption {{
+            color: #b7c7e6;
+            font-size: 0.8rem;
+            margin-top: 0.34rem;
+            line-height: 1.25;
         }}
         .dna-placeholder-card {{
             min-height: 16rem;
@@ -427,15 +499,13 @@ def apply_shared_visual_model() -> None:
             font-weight: 800;
         }}
         @media (max-width: 900px) {{
+            .mapa-kpi-grid,
+            .raiox-kpi-grid {{
+                grid-template-columns: 1fr;
+            }}
             .st-key-raiox-hero {{
                 min-height: auto;
                 padding: 1.45rem 1.1rem 1.4rem 1.1rem;
-            }}
-            .st-key-raiox-page-navigation {{
-                min-height: 0;
-            }}
-            .st-key-raiox-hero [data-testid="stHorizontalBlock"] {{
-                min-height: 0;
             }}
             .raiox-hero-title,
             .raiox-hero-subtitle {{
@@ -463,13 +533,6 @@ def apply_shared_visual_model() -> None:
             .raiox-candidate-line {{
                 font-size: 1.05rem;
             }}
-            .st-key-raiox-page-navigation {{
-                min-height: auto;
-                border-radius: 18px;
-            }}
-            .st-key-raiox-page-navigation button {{
-                white-space: normal;
-            }}
             .mapa-major-section-title {{
                 font-size: 1.55rem;
             }}
@@ -495,8 +558,8 @@ def apply_shared_visual_model() -> None:
 
 
 def _current_files() -> list[str]:
-    files = st.session_state.get("deputados_files", [])
-    if files:
+    files = st.session_state.get("deputados_files")
+    if files is not None:
         return files
     try:
         files = data_files()
@@ -513,18 +576,22 @@ def selected_files() -> list[str]:
     return selected_deputado_files(files, filters)
 
 
+def read_selected_parquet(kind: str) -> pd.DataFrame | None:
+    file_name = file_by_kind(selected_files(), kind)
+    if not file_name:
+        return None
+    try:
+        return load_parquet(file_name, load_env().get("HF_TOKEN"))
+    except Exception as exc:
+        st.warning(f"Nao consegui ler `{kind}.parquet`: {exc}")
+        return None
+
+
 def selected_deputado_label() -> dict[str, str]:
     filters = st.session_state.get("deputados_filters", {})
-    cargo = str(filters.get("cargo") or "Deputado").replace("_", " ").title()
-    cargo_labels = {
-        "Estaduais": "Deputado Estadual",
-        "Dep Estaduais": "Deputado Estadual",
-        "Federais": "Deputado Federal",
-        "Vereadores": "Vereador",
-    }
     return {
         "nome": str(filters.get("nome") or "Todos").upper(),
-        "cargo": cargo_labels.get(cargo, cargo).upper(),
+        "cargo": DEFAULT_CANDIDATE_CARGO.upper(),
         "ano": str(filters.get("ano") or DEFAULT_VISUALIZATION_YEAR),
     }
 
@@ -603,15 +670,17 @@ def candidate_photo_data_url() -> str:
         return ""
 
 
-_HEADER_PAGES = (
-    ("raio_x", "RAIO X ELEITORAL", "pages/raio_x_do_voto.py"),
+_SIDEBAR_PAGES = (
+    ("raio_x", "RaioX Territorial", "pages/raio_x_do_voto.py"),
     ("dna", "DNA do Eleitor", "pages/dna_eleitor.py"),
+    ("dre_campanha", "DRE Campanha", "pages/dre_campanha.py"),
+    ("impacto_politico", "Impacto político", "pages/impacto_politico.py"),
 )
 
 
-def _render_page_switch(active_page: str) -> None:
+def render_sidebar_navigation(active_page: str) -> None:
     with st.container(key="raiox-page-navigation"):
-        for page, label, path in _HEADER_PAGES:
+        for page, label, path in _SIDEBAR_PAGES:
             key = "raiox-nav-active" if page == active_page else f"raiox-nav-{page}"
             if st.button(label, key=key, use_container_width=True) and page != active_page:
                 st.switch_page(path)
@@ -623,12 +692,16 @@ def render_page_header(active_page: str, total_votes: str | None = None) -> None
     deputado = selected_deputado_label()
     partido = selected_deputado_party()
     page_titles = {
-        "raio_x": f"RAIO X da votação {deputado['ano']}",
+        "raio_x": f"RaioX Territorial {deputado['ano']}",
         "dna": "DNA do Eleitor",
+        "dre_campanha": "DRE Campanha",
+        "impacto_politico": "Impacto político",
     }
     page_subtitles = {
         "raio_x": "Análises descritivas geográficas e do perfil do eleitor na última eleição.",
         "dna": "Quem é, onde está e como se comporta o eleitor determinante da candidatura.",
+        "dre_campanha": "Análise da arrecadação, dos compromissos e da aplicação dos recursos da campanha.",
+        "impacto_politico": "Força da política local e atuação parlamentar nos municípios da sua votação.",
     }
     title = page_titles.get(active_page, page_titles["raio_x"])
     subtitle = page_subtitles.get(active_page, page_subtitles["raio_x"])
@@ -643,27 +716,23 @@ def render_page_header(active_page: str, total_votes: str | None = None) -> None
         if total_votes is not None else ""
     )
     with st.container(key="raiox-hero"):
-        content_col, navigation_col = st.columns([0.7, 0.3], gap="large")
-        with content_col:
-            st.html(
-                dedent(f"""
-                <div class="raiox-hero-content">
-                    <div class="raiox-hero-title">{html.escape(title)}</div>
-                    <div class="raiox-hero-subtitle">{html.escape(subtitle)}</div>
-                    <div class="raiox-candidate-row">
-                        {photo_html}
-                        <div class="raiox-candidate-info">
-                            <div class="raiox-candidate-line">NOME: {html.escape(deputado["nome"])}</div>
-                            <div class="raiox-candidate-line">CARGO: {html.escape(deputado["cargo"])}</div>
-                            <div class="raiox-candidate-line">PARTIDO: {html.escape(partido)}</div>
-                            {votes_html}
-                        </div>
+        st.html(
+            dedent(f"""
+            <div class="raiox-hero-content">
+                <div class="raiox-hero-title">{html.escape(title)}</div>
+                <div class="raiox-hero-subtitle">{html.escape(subtitle)}</div>
+                <div class="raiox-candidate-row">
+                    {photo_html}
+                    <div class="raiox-candidate-info">
+                        <div class="raiox-candidate-line">NOME: {html.escape(deputado["nome"])}</div>
+                        <div class="raiox-candidate-line">CARGO: {html.escape(deputado["cargo"])}</div>
+                        <div class="raiox-candidate-line">PARTIDO: {html.escape(partido)}</div>
+                        {votes_html}
                     </div>
                 </div>
-                """)
-            )
-        with navigation_col:
-            _render_page_switch(active_page)
+            </div>
+            """)
+        )
 
 
 def major_section_header(title: str, subtitle: str) -> None:
@@ -677,15 +746,16 @@ def major_section_header(title: str, subtitle: str) -> None:
     )
 
 
-def section_header(title: str, subtitle: str = "") -> None:
+def section_header(title: str, subtitle: str = "", *, compact: bool = False) -> None:
     subtitle_html = (
         f'<div class="mapa-section-subtitle">{html.escape(subtitle)}</div>'
         if subtitle
         else ""
     )
+    class_name = "mapa-section-card financial-subsection" if compact else "mapa-section-card"
     st.html(
         dedent(f"""
-        <div class="mapa-section-card">
+        <div class="{class_name}">
             <div class="mapa-section-title">{html.escape(title)}</div>
             {subtitle_html}
         </div>

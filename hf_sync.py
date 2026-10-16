@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -14,21 +13,13 @@ from huggingface_hub import HfFileSystem
 
 SUPPORTED_SUFFIXES = {".csv", ".parquet", ".json", ".jsonl", ".xlsx", ".xls", ".jpg", ".jpeg", ".png"}
 DEFAULT_VISUALIZATION_YEAR = "2026"
-DEFAULT_VISUALIZACAO_PREFIX = "vereadores"
-DEFAULT_CANDIDATE_CARGO = "Vereadores"
+DEFAULT_VISUALIZACAO_PREFIX = "dep_estadual"
+DEFAULT_CANDIDATE_CARGO = "Deputado Estadual"
 SHARED_BUCKET_DIRS = {"ibge", "forca-local", "intermediate", "votacao"}
-CARGO_BUCKET_DIRS = {"deputados", "estaduais", "federais", "vereadores"}
 
 
-def _year_partition(value: str) -> tuple[str, str] | None:
-    """Return (year, scope) for a candidate data folder such as 2026 or bh_2026."""
-    value = value.strip()
-    if value.isdigit() and len(value) == 4:
-        return value, ""
-    match = re.fullmatch(r"(?P<scope>.+)_(?P<year>\d{4})", value)
-    if match:
-        return match.group("year"), match.group("scope")
-    return None
+def _is_year_folder(value: str) -> bool:
+    return value.isdigit() and len(value) == 4
 
 
 def load_env(path: str | Path = ".env") -> dict[str, str]:
@@ -48,11 +39,7 @@ def load_env(path: str | Path = ".env") -> dict[str, str]:
 
 
 def _visualizacao_prefix(config: dict[str, str]) -> str:
-    active_group = st.session_state.get("candidate_group")
-    if active_group in ("vereadores", "dep_estaduais"):
-        return active_group
-    prefix = config.get("HF_VISUALIZACAO_PREFIX", DEFAULT_VISUALIZACAO_PREFIX).strip("/")
-    # Empty settings from the previous root layout now use the vereadores group.
+    prefix = config.get("HF_VISUALIZACAO_PREFIX", DEFAULT_VISUALIZACAO_PREFIX).strip().strip("/")
     return prefix or DEFAULT_VISUALIZACAO_PREFIX
 
 
@@ -99,14 +86,11 @@ def remote_data_files(remote_base: str, token: str | None) -> list[str]:
         folder_name = PurePosixPath(entry.rstrip("/")).name.casefold()
         if folder_name in SHARED_BUCKET_DIRS:
             continue
-        if folder_name in CARGO_BUCKET_DIRS:
-            candidate_roots.append(entry)
-            continue
         try:
             children = fs.ls(entry, detail=False)
         except Exception:
             continue
-        if any(_year_partition(PurePosixPath(child.rstrip("/")).name) for child in children):
+        if any(_is_year_folder(PurePosixPath(child.rstrip("/")).name) for child in children):
             candidate_roots.append(entry)
 
     files: set[str] = set()
@@ -148,48 +132,25 @@ def _preferred_visualization_year(available_years: set[str]) -> str | None:
 
 
 def deputado_parts(file_name: str) -> dict[str, str] | None:
+    """Parse {prefix}/{candidate}/{year}/... for state deputy data."""
     parts = _visualizacao_relative_parts(file_name)
-    if len(parts) < 3:
+    if len(parts) < 3 or not _is_year_folder(parts[1]):
         return None
 
-    cargo: str
-    nome_slug: str
-    if parts[0].casefold() in {"estaduais", "federais"} and parts[1].isdigit():
-        cargo, ano, nome_slug = parts[0], parts[1], parts[2]
-        scope = ""
-        base_path = ano
-    elif len(parts) >= 4 and parts[0].casefold() in CARGO_BUCKET_DIRS:
-        year_scope = _year_partition(parts[2])
-        if year_scope is None:
-            return None
-        cargo, nome_slug = parts[0], parts[1]
-        ano, scope = year_scope
-        base_path = parts[2]
-    elif len(parts) >= 3 and _year_partition(parts[1]) is not None:
-        nome_slug = parts[0]
-        ano, scope = _year_partition(parts[1]) or ("", "")
-        prefix_name = PurePosixPath(_visualizacao_prefix(load_env())).name
-        cargo = prefix_name or DEFAULT_CANDIDATE_CARGO
-        base_path = parts[1]
-    else:
-        return None
-
+    nome_slug, ano = parts[:2]
     slug_parts = nome_slug.split("_")
     if slug_parts and slug_parts[0].isdigit():
-        nome_tokens = slug_parts[1:]
-    elif len(slug_parts) > 1 and slug_parts[0].casefold() == "bh":
         nome_tokens = slug_parts[1:]
     else:
         nome_tokens = slug_parts
     return {
         "ano": ano,
-        "cargo": cargo.replace("_", " ").title(),
-        "cargo_slug": cargo,
+        "cargo": DEFAULT_CANDIDATE_CARGO,
+        "cargo_slug": DEFAULT_VISUALIZACAO_PREFIX,
         "nome": " ".join(nome_tokens).title(),
         "nome_slug": nome_slug,
         "pasta": nome_slug,
-        "base": scope,
-        "base_path": base_path,
+        "base_path": ano,
     }
 
 
@@ -296,7 +257,7 @@ def deputados_index(files: list[str]) -> list[dict[str, str]]:
 
 
 def selected_deputado_files(
-    files: list[str], filters: dict[str, str], *, scope: str | None = None,
+    files: list[str], filters: dict[str, str],
 ) -> list[str]:
     if filters.get("pasta") in (None, "", "Todos"):
         return []
@@ -306,12 +267,6 @@ def selected_deputado_files(
         (file_name, parsed)
         for file_name, parsed in parsed_files
         if parsed
-        and (
-            parsed["base_path"] == parsed["ano"]
-            if scope is None
-            else parsed["base"].casefold() == scope.casefold()
-            and parsed["base_path"].casefold() == f"{scope}_{parsed['ano']}".casefold()
-        )
         and filters.get("cargo") in (None, "Todos", parsed["cargo"])
         and filters.get("nome") in (None, "Todos", parsed["nome"])
         and filters.get("pasta") in (None, "", "Todos", parsed["pasta"])
@@ -334,8 +289,6 @@ def file_by_kind(files: list[str], kind: str) -> str | None:
         "votos_mesorregiao": "territorio/stage01a_municipios.parquet",
         "votos_municipio": "territorio/stage01a_municipios.parquet",
         "votos_bairro": "territorio/stage01b_bairros.parquet",
-        "bh_bairros_estrategicos": "territorio/stage07_bairros_estrategicos.parquet",
-        "bh_potencial_bairro": "potencial_demografico/stage08c_potencial_demografico_icp_bairro.parquet",
         "votos_territoriais": "territorio/stage01a_municipios.parquet",
         "escolaridade": "demografico/stage02_escolaridade.parquet",
         "estado_civil": "demografico/stage02_estado_civil.parquet",

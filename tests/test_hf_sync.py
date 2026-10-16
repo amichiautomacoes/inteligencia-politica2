@@ -39,23 +39,20 @@ class LoadParquetTests(unittest.TestCase):
         load_parquet.clear()
         self.addCleanup(load_parquet.clear)
 
-    def test_replaced_file_recovers_from_stale_size_for_both_groups(self):
-        for group in ("vereadores", "dep_estaduais"):
-            with self.subTest(group=group):
-                path = f"{group}/candidato/2026/demografico/stage02_genero.parquet"
-                fs = RemoteFileSystem(self.payload, len(self.payload) - 17)
-                with fs.open(path, "rb") as source:
-                    with self.assertRaisesRegex(ArrowInvalid, "magic bytes not found"):
-                        pd.read_parquet(source)
-                fs.opened.clear()
-                with patch("hf_sync.hf_filesystem", return_value=fs):
-                    actual = load_parquet(path)
-                    pd.testing.assert_frame_equal(actual, self.frame)
-                    # A second consumer (capital/interior or distribution) reuses
-                    # the successful frame without downloading the same file again.
-                    pd.testing.assert_frame_equal(load_parquet(path), self.frame)
-                self.assertEqual(fs.invalidated, [path])
-                self.assertEqual(fs.opened, [(path, None), (path, 0)])
+    def test_replaced_file_recovers_from_stale_size(self):
+        path = "dep_estadual/candidato/2026/demografico/stage02_genero.parquet"
+        fs = RemoteFileSystem(self.payload, len(self.payload) - 17)
+        with fs.open(path, "rb") as source:
+            with self.assertRaisesRegex(ArrowInvalid, "magic bytes not found"):
+                pd.read_parquet(source)
+        fs.opened.clear()
+        with patch("hf_sync.hf_filesystem", return_value=fs):
+            actual = load_parquet(path)
+            pd.testing.assert_frame_equal(actual, self.frame)
+            # Another section reuses the recovered frame without downloading again.
+            pd.testing.assert_frame_equal(load_parquet(path), self.frame)
+        self.assertEqual(fs.invalidated, [path])
+        self.assertEqual(fs.opened, [(path, None), (path, 0)])
 
     def test_valid_file_keeps_normal_read(self):
         fs = RemoteFileSystem(self.payload)

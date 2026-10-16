@@ -5,26 +5,18 @@ from pathlib import Path
 
 import streamlit as st
 
-from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, deputados_index, sync_deputados
+from hf_sync import DEFAULT_VISUALIZATION_YEAR, data_files, deputados_index, hf_visualizacao_path
 
 
 SRC_DIR = Path(__file__).resolve().parent / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-
-def _cargo_label(value: str) -> str:
-    labels = {
-        "Estaduais": "Deputado Estadual",
-        "Federais": "Deputado Federal",
-        "Deputados": "Deputado",
-        "Vereadores": "Vereador",
-    }
-    return labels.get(value, value)
+from eleitoral.common.shared_header import render_sidebar_navigation
 
 
 st.set_page_config(
-    page_title="Raio X do voto",
+    page_title="RaioX Territorial",
     layout="wide",
 )
 
@@ -32,7 +24,7 @@ st.set_page_config(
 pages = [
     st.Page(
         "pages/raio_x_do_voto.py",
-        title="Raio X do voto",
+        title="RaioX Territorial",
         url_path="raio-x-eleitoral",
         default=True,
     ),
@@ -41,32 +33,37 @@ pages = [
         title="DNA do Eleitor",
         url_path="dna-eleitoral",
     ),
+    st.Page(
+        "pages/dre_campanha.py",
+        title="DRE Campanha",
+        url_path="dre-campanha",
+    ),
+    st.Page(
+        "pages/impacto_politico.py",
+        title="Impacto político",
+        url_path="impacto-politico",
+    ),
 ]
 
 
+sidebar_error = None
 with st.sidebar:
-    st.markdown("### Cargo Atual")
-    offices = {"Vereadores": "vereadores", "Deputados Estaduais": "dep_estaduais"}
-    office = st.selectbox("Cargo Atual", list(offices), key="current_office_selector", label_visibility="collapsed")
-    group = offices[office]
-    if st.session_state.get("candidate_group") != group:
-        for state_key in list(st.session_state):
-            if state_key not in {"current_office_selector", "candidate_group"}:
-                del st.session_state[state_key]
-    st.session_state["candidate_group"] = group
-    st.markdown("### Candidato")
     try:
-        if st.button("Atualizar candidatos", help="Consulta o HF novamente para incluir novos candidatos."):
-            sync_deputados(force=True)
         files = data_files()
+    except FileNotFoundError:
+        sidebar_error = (
+            f"Pasta de dados não encontrada no Hugging Face: {hf_visualizacao_path()}. "
+            "Confira HF_VISUALIZACAO_PREFIX no .env."
+        )
+        files = []
     except Exception as exc:
-        st.error(f"Falha ao ler HF: {exc}")
+        sidebar_error = f"Falha ao ler HF: {exc}"
         files = []
 
     deputados = deputados_index(files)
     if deputados:
         folders = [row["Pasta"] for row in deputados]
-        candidate_names = {"marcela_tropia": "Marcela Trópia", "lud_falcao": "Lud Falcão"}
+        candidate_names = {"lud_falcao": "Lud Falcão"}
         labels = {row["Pasta"]: candidate_names.get(row["Pasta"], row["Nome"]) for row in deputados}
         current_filters = st.session_state.get("deputados_filters", {})
         current_folder = current_filters.get("pasta")
@@ -110,9 +107,27 @@ with st.sidebar:
             "nome": "Todos",
             "pasta": "Todos",
         }
-        st.info("Nenhuma pasta de candidato encontrada no caminho configurado.")
+        st.selectbox(
+            "Candidato",
+            [],
+            placeholder="Nenhum candidato disponível",
+            disabled=True,
+            key="candidate_folder_selector",
+        )
     st.session_state["deputados_files"] = files
 
+if sidebar_error:
+    st.error(sidebar_error)
+elif not deputados:
+    st.info("Nenhuma pasta de candidato encontrada no caminho configurado.")
+
 current_page = st.navigation(pages, position="hidden")
+active_page = {
+    "dna-eleitoral": "dna",
+    "dre-campanha": "dre_campanha",
+    "impacto-politico": "impacto_politico",
+}.get(current_page.url_path, "raio_x")
+with st.sidebar:
+    render_sidebar_navigation(active_page)
 current_page.run()
 
